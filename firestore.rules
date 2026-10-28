@@ -1,0 +1,136 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default-Deny Catch-All)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'peytonle238@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // 3. Entity Validation Blueprints (Verbatim from firebase-blueprint.json)
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'linkedMemberId', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'linkedMemberId', 'createdAt', 'updatedAt'])
+        && data.uid == request.auth.uid
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.linkedMemberId is string && data.linkedMemberId.size() >= 1 && data.linkedMemberId.size() <= 64 && data.linkedMemberId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidClubWorkspace(data) {
+      return data.keys().hasAll(['ownerId', 'clubName', 'schoolName', 'primaryColor', 'secondaryColor', 'payload', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'clubName', 'schoolName', 'primaryColor', 'secondaryColor', 'payload', 'createdAt', 'updatedAt'])
+        && data.ownerId == request.auth.uid
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.clubName is string && data.clubName.size() >= 1 && data.clubName.size() <= 120
+        && data.schoolName is string && data.schoolName.size() >= 1 && data.schoolName.size() <= 120
+        && data.primaryColor is string && data.primaryColor.size() >= 4 && data.primaryColor.size() <= 20 && data.primaryColor.matches('^#[0-9a-fA-F]{3,8}$')
+        && data.secondaryColor is string && data.secondaryColor.size() >= 4 && data.secondaryColor.size() <= 20 && data.secondaryColor.matches('^#[0-9a-fA-F]{3,8}$')
+        && data.payload is string && data.payload.size() >= 2 && data.payload.size() <= 500000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQrCheckin(data) {
+      return data.keys().hasAll(['uid', 'memberId', 'memberName', 'practiceDate', 'practiceTitle', 'qrCodeToken', 'status', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'memberId', 'memberName', 'practiceDate', 'practiceTitle', 'qrCodeToken', 'status', 'createdAt'])
+        && data.uid == request.auth.uid
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.memberId is string && data.memberId.size() >= 1 && data.memberId.size() <= 64 && data.memberId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.memberName is string && data.memberName.size() >= 1 && data.memberName.size() <= 100
+        && data.practiceDate is string && data.practiceDate.size() == 10 && data.practiceDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.practiceTitle is string && data.practiceTitle.size() >= 1 && data.practiceTitle.size() <= 140
+        && data.qrCodeToken is string && data.qrCodeToken.size() >= 4 && data.qrCodeToken.size() <= 80 && data.qrCodeToken.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.status == 'verified'
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'createdAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.createdAt is timestamp;
+    }
+
+    // 4. Collection Match Blocks
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if false;
+      allow create: if isVerifiedUser() && isValidId(userId) && request.auth.uid == userId && isValidUserProfile(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(userId) && isValidUserProfile(incoming()) && (
+        isAdmin() || (
+          request.auth.uid == userId
+          && existing().uid == request.auth.uid
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'linkedMemberId', 'updatedAt'])
+        )
+      );
+      allow delete: if isVerifiedUser() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+    }
+
+    match /clubWorkspaces/{workspaceId} {
+      allow get: if isSignedIn() && isValidId(workspaceId) && (request.auth.uid == workspaceId || isAdmin());
+      allow list: if false;
+      allow create: if isVerifiedUser() && isValidId(workspaceId) && request.auth.uid == workspaceId && isValidClubWorkspace(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(workspaceId) && isValidClubWorkspace(incoming()) && (
+        isAdmin() || (
+          request.auth.uid == workspaceId
+          && existing().ownerId == request.auth.uid
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['clubName', 'schoolName', 'primaryColor', 'secondaryColor', 'payload', 'updatedAt'])
+        )
+      );
+      allow delete: if isVerifiedUser() && isValidId(workspaceId) && (request.auth.uid == workspaceId || isAdmin());
+    }
+
+    match /qrCheckins/{checkinId} {
+      allow get: if isSignedIn() && isValidId(checkinId) && (existing().uid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(checkinId) && isValidQrCheckin(incoming()) && incoming().createdAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(checkinId) && isValidQrCheckin(incoming()) && isAdmin() && existing().status != 'verified';
+      allow delete: if isVerifiedUser() && isValidId(checkinId) && (existing().uid == request.auth.uid || isAdmin());
+    }
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
+      allow list: if false;
+      allow create: if isVerifiedUser() && isValidId(adminId) && isValidAdminRecord(incoming()) && incoming().uid == adminId && incoming().createdAt == request.time && isAdmin();
+      allow update: if isVerifiedUser() && isValidId(adminId) && isValidAdminRecord(incoming()) && isAdmin() && incoming().uid == existing().uid && incoming().createdAt == existing().createdAt;
+      allow delete: if isVerifiedUser() && isValidId(adminId) && isAdmin();
+    }
+  }
+}

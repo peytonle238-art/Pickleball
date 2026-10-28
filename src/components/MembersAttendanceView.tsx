@@ -3,6 +3,8 @@ import {
   Check,
   Edit3,
   Plus,
+  QrCode,
+  ScanLine,
   Search,
   Trash2,
   UserCheck,
@@ -14,6 +16,10 @@ import {
   Member,
   SkillLevel,
 } from '../types';
+import {
+  PracticeQrTarget,
+  buildPracticeQrToken,
+} from './PracticeQrModal';
 
 interface MembersAttendanceViewProps {
   members: Member[];
@@ -22,6 +28,10 @@ interface MembersAttendanceViewProps {
   onUpdateMembers: (members: Member[]) => void;
   onUpdateAttendance: (attendance: AttendanceSession[]) => void;
   onRequestOfficerUnlock: () => void;
+  onOpenPracticeQr: (
+    target: PracticeQrTarget,
+    mode: 'display' | 'scan'
+  ) => void;
 }
 
 export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
@@ -31,12 +41,12 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   onUpdateMembers,
   onUpdateAttendance,
   onRequestOfficerUnlock,
+  onOpenPracticeQr,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | GradeLevel>('all');
   const [skillFilter, setSkillFilter] = useState<'all' | SkillLevel>('all');
 
-  // Active practice session for 1-tap attendance check-in
   const sortedSessions = [...attendance].sort((a, b) =>
     b.date.localeCompare(a.date)
   );
@@ -44,7 +54,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     sortedSessions[0]?.id || ''
   );
 
-  // New practice session modal / inline form
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
   const [newSessionDate, setNewSessionDate] = useState(
     new Date().toISOString().slice(0, 10)
@@ -53,7 +62,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     'After-School Practice & Ladder'
   );
 
-  // Add / Edit Member modal state
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
 
@@ -69,6 +77,27 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   const activeSession =
     attendance.find((s) => s.id === selectedSessionId) || sortedSessions[0];
 
+  const activePracticeQrTarget: PracticeQrTarget = activeSession
+    ? {
+        eventId: activeSession.id,
+        title: activeSession.title,
+        date: activeSession.date,
+        time: '3:50 PM – 5:30 PM',
+        location: 'BNHS Varsity Courts 1–6',
+        token: buildPracticeQrToken(activeSession.date, activeSession.id),
+      }
+    : {
+        eventId: 'att-today',
+        title: 'After-School Practice',
+        date: new Date().toISOString().slice(0, 10),
+        time: '3:50 PM – 5:30 PM',
+        location: 'BNHS Varsity Courts 1–6',
+        token: buildPracticeQrToken(
+          new Date().toISOString().slice(0, 10),
+          'att-today'
+        ),
+      };
+
   const getMemberAttendanceStats = (memberId: string) => {
     const total = attendance.length;
     if (total === 0) return { attended: 0, total: 0, pct: 100 };
@@ -79,7 +108,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     return { attended, total, pct };
   };
 
-  // One-tap attendance toggle per member
   const handleToggleAttendance = (memberId: string) => {
     if (!activeSession) return;
     const exists = activeSession.presentMemberIds.includes(memberId);
@@ -227,11 +255,28 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               Practice Attendance & Member Roster
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              One-tap practice check-in per member · Live attendance percentages
+              One-tap practice check-in, QR code pass generation & live
+              attendance percentages
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => onOpenPracticeQr(activePracticeQrTarget, 'display')}
+              className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            >
+              <QrCode className="w-4 h-4" />
+              Practice QR Code
+            </button>
+
+            <button
+              onClick={() => onOpenPracticeQr(activePracticeQrTarget, 'scan')}
+              className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            >
+              <ScanLine className="w-4 h-4" />
+              Scan QR Check-In
+            </button>
+
             <button
               onClick={() => setShowNewSessionForm(!showNewSessionForm)}
               className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
@@ -362,7 +407,9 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
       {isAddingMember && (
         <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
           <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white mb-4">
-            {editingMember ? `Edit Member: ${editingMember.name}` : 'Add New Club Member'}
+            {editingMember
+              ? `Edit Member: ${editingMember.name}`
+              : 'Add New Club Member'}
           </h3>
           <form
             onSubmit={handleSaveMember}
@@ -388,7 +435,9 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               </label>
               <select
                 value={formGrade}
-                onChange={(e) => setFormGrade(Number(e.target.value) as GradeLevel)}
+                onChange={(e) =>
+                  setFormGrade(Number(e.target.value) as GradeLevel)
+                }
                 className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
               >
                 <option value={9}>Grade 9 (Freshman)</option>
@@ -534,7 +583,9 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                <th className="py-3 pr-3">1-Tap Check-In ({activeSession?.date})</th>
+                <th className="py-3 pr-3">
+                  1-Tap Check-In ({activeSession?.date})
+                </th>
                 <th className="py-3 px-3">Member & Join Date</th>
                 <th className="py-3 px-3">Grade</th>
                 <th className="py-3 px-3">Skill / DUPR</th>

@@ -1199,9 +1199,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 4-Digit Officer PIN
               </label>
               <input
-                type="text"
+                type={isOfficer ? 'text' : 'password'}
                 maxLength={4}
-                value={officerPin}
+                value={isOfficer ? officerPin : '••••'}
                 onChange={(e) => setOfficerPin(e.target.value)}
                 disabled={!isOfficer}
                 className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-60"
@@ -1287,14 +1287,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
               <span className="text-slate-500">
-                Restore default sample dataset?
+                Wipe all club records and start fresh?
               </span>
               <button
                 type="button"
                 onClick={onResetFactoryData}
-                className="font-semibold text-slate-700 dark:text-slate-300 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                className="font-semibold text-red-600 dark:text-red-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Reset Sample Data
+                <RotateCcw className="w-3.5 h-3.5" /> Clear All Club Data
               </button>
             </div>
           </div>

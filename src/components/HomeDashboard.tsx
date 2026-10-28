@@ -1,31 +1,45 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import {
+  AlertTriangle,
+  ArrowRight,
+  ArrowUpRight,
+  Award,
   Calendar,
   Clock,
   MapPin,
-  Megaphone,
+  Package,
   Pin,
   Play,
+  QrCode,
+  ShieldCheck,
   Trophy,
-  UserCheck,
-  ArrowUpRight,
-  AlertTriangle,
+  Users,
+  Wallet,
 } from 'lucide-react';
 import { ClubDataState, NavTab } from '../types';
 import { getDaysUntil, getNextUpcomingEvent } from '../utils/clubUtils';
+import {
+  PracticeQrTarget,
+  buildPracticeQrToken,
+} from './PracticeQrModal';
 
 interface HomeDashboardProps {
   data: ClubDataState;
   isOfficer: boolean;
   onNavigate: (tab: NavTab) => void;
   onQuickAddAnnouncement: () => void;
+  onOpenPracticeQr: (
+    target: PracticeQrTarget,
+    mode: 'display' | 'scan'
+  ) => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   data,
   isOfficer,
   onNavigate,
-  onQuickAddAnnouncement,
+  onOpenPracticeQr,
 }) => {
   const [now, setNow] = useState<Date>(() => new Date());
 
@@ -35,6 +49,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const hasScheduledEvents =
+    data.events.length > 0 ||
+    (data.settings.recurringPractices.enabled &&
+      data.settings.recurringPractices.daysOfWeek.length > 0);
 
   const { event: nextEvent, targetDate } = getNextUpcomingEvent(
     data.events,
@@ -48,474 +67,513 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
   const seconds = Math.floor((diffMs / 1000) % 60);
 
-  // Latest announcement (prioritize pinned, then newest by date)
   const sortedAnnouncements = [...data.announcements].sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     return b.date.localeCompare(a.date);
   });
   const latestAnnouncement = sortedAnnouncements[0] || null;
 
-  // Top 5 of the club ladder
   const top5Members = [...data.members]
     .sort((a, b) => b.elo - a.elo)
     .slice(0, 5);
 
-  // Next upcoming outside tournament (not Done, sorted by registration deadline or start date)
   const activeOutsideTournaments = data.outsideTournaments
     .filter((t) => t.status !== 'Done')
-    .sort((a, b) => a.registrationDeadline.localeCompare(b.registrationDeadline));
+    .sort((a, b) =>
+      a.registrationDeadline.localeCompare(b.registrationDeadline)
+    );
 
-  // Show the featured Texas Pickleball Showdown + the soonest deadline tournament
-  const nextDeadlineTournament =
-    activeOutsideTournaments[0] || data.outsideTournaments[0];
-  const texasShowdown =
-    data.outsideTournaments.find((t) =>
-      t.name.toLowerCase().includes('texas pickleball showdown')
-    ) || nextDeadlineTournament;
+  const featuredOutsideTournament =
+    activeOutsideTournaments[0] || data.outsideTournaments[0] || null;
+
+  const nextPracticeQrTarget: PracticeQrTarget = {
+    eventId: nextEvent.id,
+    title: nextEvent.title,
+    date: nextEvent.date,
+    time: nextEvent.time,
+    location: nextEvent.location,
+    token: buildPracticeQrToken(nextEvent.date, nextEvent.id),
+  };
 
   return (
     <div className="space-y-6">
-      {/* Hero Row: Next Practice/Event Countdown + Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Next Practice / Event with Live Countdown */}
-        <div
-          className="lg:col-span-8 rounded-2xl p-6 text-white relative overflow-hidden flex flex-col justify-between border border-slate-800/20"
-          style={{
-            background: `linear-gradient(135deg, var(--club-primary) 0%, #0f172a 100%)`,
-          }}
+      {/* Minimalist 4-Tile Quick Navigation Row (Stats, Tournaments, Calendar, Score Keeper) */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: 'easeOut' }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3.5"
+      >
+        <motion.button
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
+          onClick={() => onNavigate('ladder')}
+          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-blue-500/50 text-left flex flex-col justify-between gap-3 transition-colors cursor-pointer shadow-2xs"
         >
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs font-medium tracking-wide text-white/80 flex items-center gap-2">
+          <div className="flex items-center justify-between">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <Award className="w-4 h-4" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-400" />
+          </div>
+          <div>
+            <div className="font-display text-lg font-bold text-slate-900 dark:text-white">
+              Ladder & Stats
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {data.members.length} ranked players · Elo
+            </div>
+          </div>
+        </motion.button>
+
+        <motion.button
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
+          onClick={() => onNavigate('tournaments')}
+          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-amber-500/50 text-left flex flex-col justify-between gap-3 transition-colors cursor-pointer shadow-2xs"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <Trophy className="w-4 h-4" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-400" />
+          </div>
+          <div>
+            <div className="font-display text-lg font-bold text-slate-900 dark:text-white">
+              Tournaments
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Club brackets & outside watch
+            </div>
+          </div>
+        </motion.button>
+
+        <motion.button
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
+          onClick={() => onNavigate('calendar')}
+          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/50 text-left flex flex-col justify-between gap-3 transition-colors cursor-pointer shadow-2xs"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-400" />
+          </div>
+          <div>
+            <div className="font-display text-lg font-bold text-slate-900 dark:text-white">
+              Club Calendar
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Practices, dates & QR passes
+            </div>
+          </div>
+        </motion.button>
+
+        <motion.button
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.985 }}
+          onClick={() => onNavigate('scorekeeper')}
+          className="p-4 rounded-2xl text-white text-left flex flex-col justify-between gap-3 transition-opacity hover:opacity-95 cursor-pointer shadow-xs"
+          style={{ backgroundColor: 'var(--club-primary)' }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-9 h-9 rounded-xl bg-white/15 text-white flex items-center justify-center">
+              <Play className="w-4 h-4 fill-current" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-white/80" />
+          </div>
+          <div>
+            <div className="font-display text-lg font-bold text-white">
+              Score a Match
+            </div>
+            <div className="text-xs text-white/80">
+              Live side-out or rally scorer
+            </div>
+          </div>
+        </motion.button>
+      </motion.div>
+
+      {/* Next Scheduled Session Banner + QR Check-in */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05, ease: 'easeOut' }}
+        className="rounded-3xl p-6 text-white relative overflow-hidden border border-slate-800/20 flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+        style={{
+          background: `linear-gradient(135deg, var(--club-primary) 0%, #0f172a 100%)`,
+        }}
+      >
+        {hasScheduledEvents ? (
+          <>
+            <div className="space-y-2.5 max-w-2xl">
+              <div className="flex items-center gap-2 text-xs font-medium text-white/80">
                 <span>Next {nextEvent.type}</span>
                 <span aria-hidden="true">·</span>
-                <span>{nextEvent.date}</span>
+                <span className="font-mono-num">{nextEvent.date}</span>
               </div>
-              <button
-                onClick={() => onNavigate('calendar')}
-                className="text-xs font-medium text-white/90 hover:text-white underline underline-offset-4 whitespace-nowrap shrink-0 cursor-pointer"
-              >
-                Full Calendar
-              </button>
-            </div>
 
-            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              {nextEvent.title}
-            </h2>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                {nextEvent.title}
+              </h2>
 
-            <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-sm text-white/85">
-              <span className="inline-flex items-center gap-1.5">
-                <Clock className="w-4 h-4 shrink-0 text-amber-300" />
-                {nextEvent.time}
-              </span>
-              <span aria-hidden="true" className="text-white/40">
-                ·
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 shrink-0 text-amber-300" />
-                {nextEvent.location}
-              </span>
-            </div>
-          </div>
-
-          {/* Live Countdown Strip */}
-          <div className="mt-6 pt-5 border-t border-white/15 flex flex-wrap items-center justify-between gap-4">
-            <div className="grid grid-cols-4 gap-3 sm:gap-5">
-              <div>
-                <div className="font-mono-num text-2xl sm:text-3xl font-bold text-white">
-                  {String(days).padStart(2, '0')}
-                </div>
-                <div className="text-[11px] text-white/70">Days</div>
-              </div>
-              <div>
-                <div className="font-mono-num text-2xl sm:text-3xl font-bold text-white">
-                  {String(hours).padStart(2, '0')}
-                </div>
-                <div className="text-[11px] text-white/70">Hours</div>
-              </div>
-              <div>
-                <div className="font-mono-num text-2xl sm:text-3xl font-bold text-white">
-                  {String(minutes).padStart(2, '0')}
-                </div>
-                <div className="text-[11px] text-white/70">Minutes</div>
-              </div>
-              <div>
-                <div
-                  className="font-mono-num text-2xl sm:text-3xl font-bold"
-                  style={{ color: 'var(--club-secondary)' }}
-                >
-                  {String(seconds).padStart(2, '0')}
-                </div>
-                <div className="text-[11px] text-white/70">Seconds</div>
-              </div>
-            </div>
-
-            <div className="text-xs text-white/80 max-w-xs">
-              {nextEvent.description}
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Action Buttons Card */}
-        <div className="lg:col-span-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
-          <div>
-            <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Courtside Quick Actions
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Jump straight to live match scoring, practice check-in, or club updates.
-            </p>
-          </div>
-
-          <div className="mt-4 space-y-2.5">
-            <button
-              onClick={() => onNavigate('scorekeeper')}
-              className="w-full min-h-[48px] px-4 py-3 rounded-xl font-semibold text-sm text-white flex items-center justify-between transition-opacity hover:opacity-95 cursor-pointer"
-              style={{ backgroundColor: 'var(--club-primary)' }}
-            >
-              <span className="flex items-center gap-2.5 whitespace-nowrap">
-                <Play className="w-4 h-4 fill-current" />
-                Start a Match
-              </span>
-              <span className="text-xs font-normal text-white/80">
-                Side-out or Rally
-              </span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('members')}
-              className="w-full min-h-[48px] px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white flex items-center justify-between transition-colors cursor-pointer"
-            >
-              <span className="flex items-center gap-2.5 whitespace-nowrap">
-                <UserCheck className="w-4 h-4 text-slate-700 dark:text-slate-300" />
-                Take Attendance
-              </span>
-              <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
-                1-Tap Check-In
-              </span>
-            </button>
-
-            <button
-              onClick={onQuickAddAnnouncement}
-              className="w-full min-h-[48px] px-4 py-3 rounded-xl font-semibold text-sm bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white flex items-center justify-between transition-colors cursor-pointer"
-            >
-              <span className="flex items-center gap-2.5 whitespace-nowrap">
-                <Megaphone className="w-4 h-4 text-slate-700 dark:text-slate-300" />
-                Add Announcement
-              </span>
-              <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
-                {isOfficer ? 'Officer Post' : 'View / Unlock'}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Middle Row: Latest Announcement & Next Upcoming Tournament */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Latest Announcement */}
-        <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between gap-4 mb-3">
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span className="font-semibold text-slate-900 dark:text-slate-200">
-                  Latest Announcement
+              <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs sm:text-sm text-white/85">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 shrink-0 text-amber-300" />
+                  {nextEvent.time}
                 </span>
-                {latestAnnouncement?.pinned && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
-                      <Pin className="w-3.5 h-3.5" /> Pinned
-                    </span>
-                  </>
-                )}
+                <span aria-hidden="true" className="text-white/40">
+                  ·
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 shrink-0 text-amber-300" />
+                  {nextEvent.location}
+                </span>
               </div>
-              <button
-                onClick={() => onNavigate('announcements')}
-                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap shrink-0 cursor-pointer"
-              >
-                All Announcements ({data.announcements.length})
-              </button>
             </div>
 
-            {latestAnnouncement ? (
-              <div className="space-y-2">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  {latestAnnouncement.title}
+            <div className="flex flex-wrap items-center gap-5">
+              {/* Minimalist Countdown */}
+              <div className="grid grid-cols-4 gap-3 bg-white/10 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/10 text-center">
+                <div>
+                  <div className="font-mono-num text-xl sm:text-2xl font-bold text-white">
+                    {String(days).padStart(2, '0')}
+                  </div>
+                  <div className="text-[10px] text-white/70">Days</div>
+                </div>
+                <div>
+                  <div className="font-mono-num text-xl sm:text-2xl font-bold text-white">
+                    {String(hours).padStart(2, '0')}
+                  </div>
+                  <div className="text-[10px] text-white/70">Hrs</div>
+                </div>
+                <div>
+                  <div className="font-mono-num text-xl sm:text-2xl font-bold text-white">
+                    {String(minutes).padStart(2, '0')}
+                  </div>
+                  <div className="text-[10px] text-white/70">Min</div>
+                </div>
+                <div>
+                  <div
+                    className="font-mono-num text-xl sm:text-2xl font-bold"
+                    style={{ color: 'var(--club-secondary)' }}
+                  >
+                    {String(seconds).padStart(2, '0')}
+                  </div>
+                  <div className="text-[10px] text-white/70">Sec</div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => onOpenPracticeQr(nextPracticeQrTarget, 'scan')}
+                className="min-h-[48px] px-4 py-2.5 rounded-2xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-bold inline-flex items-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0"
+              >
+                <QrCode className="w-4 h-4 text-blue-600" />
+                <span>Practice QR Check-In</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="text-xs font-medium text-white/80">
+                Schedule & Events
+              </div>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                No Upcoming Practices or Events Scheduled
+              </h2>
+              <p className="text-xs sm:text-sm text-white/80">
+                {isOfficer
+                  ? 'Open the Club Calendar to schedule your first practice or enable recurring practice days.'
+                  : 'Check the Club Calendar for upcoming practice and tournament dates.'}
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigate('calendar')}
+              className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-bold inline-flex items-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0 self-start sm:self-center"
+            >
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <span>Open Calendar</span>
+            </button>
+          </div>
+        )}
+      </motion.div>
+
+      {/* Main Split: Top 5 Ladder Standings + Tournament Watch & Announcements */}
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, delay: 0.1, ease: 'easeOut' }}
+        className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch"
+      >
+        {/* Top 5 Club Ladder (7 cols) */}
+        <div className="lg:col-span-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div>
+                <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  Top 5 Club Ladder
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {latestAnnouncement.body}
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Live Elo standings updated after every match
                 </p>
               </div>
+              <button
+                onClick={() => onNavigate('ladder')}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+              >
+                View All ({data.members.length})
+              </button>
+            </div>
+
+            {top5Members.length > 0 ? (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/70">
+                {top5Members.map((member, index) => (
+                  <div
+                    key={member.id}
+                    className="py-3 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 font-mono-num font-bold text-sm text-slate-400">
+                        #{index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                          {member.name}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                          Grade {member.grade} · {member.skillLevel}
+                          {member.duprRating
+                            ? ` · ${member.duprRating} DUPR`
+                            : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 shrink-0 text-right">
+                      <div className="text-xs font-mono-num text-slate-500 dark:text-slate-400">
+                        {member.wins}–{member.losses}
+                      </div>
+                      <div className="font-mono-num font-bold text-base text-slate-900 dark:text-white w-12">
+                        {member.elo}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-slate-500">No announcements posted yet.</p>
+              <div className="py-10 text-center space-y-2">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  No members added to the ladder yet.
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {isOfficer
+                    ? 'Go to Roster & Attendance to add your first club members.'
+                    : 'Members will appear here once added by club officers.'}
+                </p>
+              </div>
             )}
           </div>
 
-          {latestAnnouncement && (
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>
-                Posted by <strong className="text-slate-700 dark:text-slate-200">{latestAnnouncement.author}</strong> ({latestAnnouncement.authorRole})
-              </span>
-              <span className="tabular-nums">{latestAnnouncement.date}</span>
-            </div>
-          )}
+          <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+            <span>{data.matches.length} club matches recorded</span>
+            <button
+              onClick={() => onNavigate('ladder')}
+              className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            >
+              Full Stats & Leaderboards →
+            </button>
+          </div>
         </div>
 
-        {/* Next Upcoming Tournament & Registration Deadline */}
-        <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between gap-4 mb-3">
-              <span className="text-xs font-semibold text-slate-900 dark:text-slate-200">
-                Tournament Watch Spotlight
+        {/* Right 5 cols: Tournament Spotlight + Latest Bulletin */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          {/* Tournament Watch Card */}
+          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 flex-1 flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Upcoming Tournament Watch
               </span>
               <button
                 onClick={() => onNavigate('watch')}
-                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap shrink-0 cursor-pointer"
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
               >
-                View All Outside Events
+                All Events
               </button>
             </div>
 
-            {texasShowdown && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
+            {featuredOutsideTournament ? (
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                      {texasShowdown.name}
+                    <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+                      {featuredOutsideTournament.name}
                     </h3>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {texasShowdown.cityVenue} · {texasShowdown.dates}
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {featuredOutsideTournament.cityVenue} ·{' '}
+                      {featuredOutsideTournament.dates}
                     </div>
                   </div>
                   {(() => {
-                    const daysLeft = getDaysUntil(texasShowdown.registrationDeadline, now);
+                    const daysLeft = getDaysUntil(
+                      featuredOutsideTournament.registrationDeadline,
+                      now
+                    );
                     const isUrgent = daysLeft <= 7;
                     return (
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold tabular-nums ${
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums shrink-0 ${
                           isUrgent
                             ? 'bg-red-600 text-white'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {isUrgent && <AlertTriangle className="w-3.5 h-3.5" />}
-                        Reg. Deadline: {texasShowdown.registrationDeadline} ({daysLeft}d)
+                        {isUrgent && <AlertTriangle className="w-3 h-3" />}
+                        {daysLeft}d left
                       </span>
                     );
                   })()}
                 </div>
 
-                <div className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-medium text-slate-900 dark:text-white">
-                    {texasShowdown.entryFee}
-                  </span>
-                  <span aria-hidden="true">·</span>
-                  <span>{texasShowdown.divisions}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{texasShowdown.prizeMoney}</span>
+                <div className="text-xs text-slate-600 dark:text-slate-300">
+                  {featuredOutsideTournament.entryFee} ·{' '}
+                  {featuredOutsideTournament.divisions}
                 </div>
+              </div>
+            ) : (
+              <div className="py-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  No outside tournaments on the watch list yet.
+                </p>
+              </div>
+            )}
 
-                {/* Urgent deadline alert if another tournament closes within 7 days */}
-                {nextDeadlineTournament &&
-                  nextDeadlineTournament.id !== texasShowdown.id &&
-                  getDaysUntil(nextDeadlineTournament.registrationDeadline, now) <= 7 && (
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
-                      <span className="text-slate-700 dark:text-slate-300 font-medium truncate">
-                        Closing Soon: {nextDeadlineTournament.name}
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-red-600 text-white font-semibold tabular-nums whitespace-nowrap shrink-0">
-                        Deadline {nextDeadlineTournament.registrationDeadline} (
-                        {getDaysUntil(nextDeadlineTournament.registrationDeadline, now)}d left)
-                      </span>
-                    </div>
-                  )}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+              <span>
+                {data.clubTournaments.length} in-club brackets created
+              </span>
+              <button
+                onClick={() => onNavigate('tournaments')}
+                className="inline-flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200 hover:underline cursor-pointer"
+              >
+                In-Club Brackets <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Latest Pinned Announcement Card */}
+          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 flex-1 flex flex-col justify-between space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 inline-flex items-center gap-1.5">
+                {latestAnnouncement?.pinned && (
+                  <Pin className="w-3.5 h-3.5 text-amber-500" />
+                )}
+                Latest Club Bulletin
+              </span>
+              <button
+                onClick={() => onNavigate('announcements')}
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+              >
+                All ({data.announcements.length})
+              </button>
+            </div>
+
+            {latestAnnouncement ? (
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  {latestAnnouncement.title}
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed">
+                  {latestAnnouncement.body}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 py-2">
+                No announcements posted yet.
+              </p>
+            )}
+
+            {latestAnnouncement && (
+              <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+                <span>{latestAnnouncement.author}</span>
+                <span className="font-mono-num">{latestAnnouncement.date}</span>
               </div>
             )}
           </div>
-
-          {texasShowdown && (
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>
-                <strong className="text-slate-800 dark:text-slate-200 tabular-nums">
-                  {texasShowdown.attendees.length}
-                </strong>{' '}
-                BNHS pairs registered ({texasShowdown.attendees.map((a) => a.memberName.split(' ')[0]).join(', ')})
-              </span>
-              <button
-                onClick={() => onNavigate('watch')}
-                className="inline-flex items-center gap-1 font-medium text-slate-800 dark:text-slate-200 hover:underline cursor-pointer"
-              >
-                Manage Roster <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
         </div>
-      </div>
+      </motion.div>
 
-      {/* Bottom Row: Top 5 Club Ladder + Quick Club Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Top 5 of the Club Ladder */}
-        <div className="lg:col-span-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div>
-              <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                Top 5 Club Ladder Standings
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Dynamic Elo rating updated automatically after every saved match
-              </p>
+      {/* Officer-Only Executive Management Strip (Hidden in Member Mode) */}
+      {isOfficer && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28 }}
+          className="rounded-3xl bg-slate-900 text-white p-6 border border-slate-800 space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-400">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Officer Management Modules (Unlocked)</span>
             </div>
+            <span className="text-xs text-slate-400">
+              Hidden from Member View
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
-              onClick={() => onNavigate('ladder')}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer"
+              onClick={() => onNavigate('members')}
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer"
             >
-              Full Ladder ({data.members.length})
+              <Users className="w-4 h-4 text-blue-400" />
+              <div className="text-xs font-bold">Roster & Attendance</div>
+              <div className="text-[11px] text-slate-400">
+                {data.members.length} members
+              </div>
+            </button>
+
+            <button
+              onClick={() => onNavigate('officers')}
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <div className="text-xs font-bold">Officers & Tasks</div>
+              <div className="text-[11px] text-slate-400">
+                {data.tasks.filter((t) => t.status !== 'Done').length} open tasks
+              </div>
+            </button>
+
+            <button
+              onClick={() => onNavigate('treasury')}
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer"
+            >
+              <Wallet className="w-4 h-4 text-emerald-400" />
+              <div className="text-xs font-bold">Treasury & Dues</div>
+              <div className="text-[11px] text-slate-400 font-mono-num">
+                $
+                {data.transactions.reduce(
+                  (acc, t) =>
+                    t.type === 'income' ? acc + t.amount : acc - t.amount,
+                  0
+                )}{' '}
+                balance
+              </div>
+            </button>
+
+            <button
+              onClick={() => onNavigate('equipment')}
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer"
+            >
+              <Package className="w-4 h-4 text-purple-400" />
+              <div className="text-xs font-bold">Equipment Locker</div>
+              <div className="text-[11px] text-slate-400">
+                {data.equipment.length} club items
+              </div>
             </button>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  <th className="py-2.5 pr-3">Rank</th>
-                  <th className="py-2.5 px-3">Player</th>
-                  <th className="py-2.5 px-3">Skill / DUPR</th>
-                  <th className="py-2.5 px-3 text-right">W–L</th>
-                  <th className="py-2.5 px-3 text-right">Streak</th>
-                  <th className="py-2.5 pl-3 text-right">Elo Rating</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-sm">
-                {top5Members.map((member, index) => (
-                  <tr
-                    key={member.id}
-                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                  >
-                    <td className="py-3 pr-3 font-mono-num font-bold text-slate-900 dark:text-white">
-                      #{index + 1}
-                    </td>
-                    <td className="py-3 px-3">
-                      <div className="font-semibold text-slate-900 dark:text-white">
-                        {member.name}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        Grade {member.grade} · {member.paddleNotes}
-                      </div>
-                    </td>
-                    <td className="py-3 px-3 text-xs text-slate-600 dark:text-slate-300">
-                      <span>{member.skillLevel}</span>
-                      {member.duprRating && (
-                        <>
-                          <span aria-hidden="true"> · </span>
-                          <span className="font-mono-num font-medium">
-                            {member.duprRating} DUPR
-                          </span>
-                        </>
-                      )}
-                    </td>
-                    <td className="py-3 px-3 text-right font-mono-num text-slate-700 dark:text-slate-300">
-                      {member.wins}–{member.losses}
-                    </td>
-                    <td className="py-3 px-3 text-right font-mono-num text-xs">
-                      <span
-                        className={
-                          member.streak > 0
-                            ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
-                            : 'text-slate-500'
-                        }
-                      >
-                        {member.streak > 0 ? `W${member.streak}` : `L${Math.abs(member.streak)}`}
-                      </span>
-                    </td>
-                    <td className="py-3 pl-3 text-right font-mono-num font-bold text-base text-slate-900 dark:text-white">
-                      {member.elo}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Active In-Club Tournament & Club Pulse Summary */}
-        <div className="lg:col-span-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                Club Operations Snapshot
-              </h3>
-              <Trophy className="w-4 h-4 text-amber-500" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-100 dark:border-slate-800">
-              <div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Active Roster
-                </div>
-                <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white mt-0.5">
-                  {data.members.length}
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  {data.officers.length} Club Officers
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Treasury Balance
-                </div>
-                <div className="font-mono-num text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  $
-                  {data.transactions.reduce(
-                    (acc, t) => (t.type === 'income' ? acc + t.amount : acc - t.amount),
-                    0
-                  )}
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  {data.members.filter((m) => m.duesPaid).length}/{data.members.length} dues paid
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Active Club Brackets</span>
-                <button
-                  onClick={() => onNavigate('tournaments')}
-                  className="font-semibold text-slate-900 dark:text-white hover:underline cursor-pointer"
-                >
-                  {data.clubTournaments.filter((t) => t.status === 'Active').length} Running →
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Open Officer Tasks</span>
-                <button
-                  onClick={() => onNavigate('officers')}
-                  className="font-semibold text-slate-900 dark:text-white hover:underline cursor-pointer"
-                >
-                  {data.tasks.filter((t) => t.status !== 'Done').length} Pending →
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Equipment Checked Out</span>
-                <button
-                  onClick={() => onNavigate('equipment')}
-                  className="font-semibold text-slate-900 dark:text-white hover:underline cursor-pointer"
-                >
-                  {data.equipment.filter((e) => e.checkedOutToMemberId !== null).length} /{' '}
-                  {data.equipment.length} Items →
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-            <span>Season Start: {data.settings.seasonStartDate}</span>
-            <span className="tabular-nums">{data.matches.length} Matches Logged</span>
-          </div>
-        </div>
-      </div>
+        </motion.div>
+      )}
     </div>
   );
 };

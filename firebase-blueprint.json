@@ -1,0 +1,213 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated club user profile linking a Google account to a club member roster profile.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the signed-in member or officer.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "linkedMemberId": {
+          "type": "string",
+          "description": "ID of the linked member in the BNHS Pickleball roster.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated."
+        }
+      },
+      "required": ["uid", "displayName", "linkedMemberId", "createdAt", "updatedAt"]
+    },
+    "ClubWorkspace": {
+      "title": "ClubWorkspace",
+      "description": "Persisted BNHS Pickleball Club HQ state synchronized to Firestore for the authenticated user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the workspace owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "clubName": {
+          "type": "string",
+          "description": "Configured name of the pickleball club.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "schoolName": {
+          "type": "string",
+          "description": "High school name.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "primaryColor": {
+          "type": "string",
+          "description": "Primary school hex color.",
+          "minLength": 4,
+          "maxLength": 20,
+          "pattern": "^#[0-9a-fA-F]{3,8}$"
+        },
+        "secondaryColor": {
+          "type": "string",
+          "description": "Secondary school hex color.",
+          "minLength": 4,
+          "maxLength": 20,
+          "pattern": "^#[0-9a-fA-F]{3,8}$"
+        },
+        "payload": {
+          "type": "string",
+          "description": "Serialized club workspace snapshot for cross-device sync.",
+          "minLength": 2,
+          "maxLength": 500000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "ownerId",
+        "clubName",
+        "schoolName",
+        "primaryColor",
+        "secondaryColor",
+        "payload",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "QrCheckin": {
+      "title": "QrCheckin",
+      "description": "Attendance check-in record logged by scanning a practice event QR code.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user who scanned the QR code.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "memberId": {
+          "type": "string",
+          "description": "Roster member ID checked into practice.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "memberName": {
+          "type": "string",
+          "description": "Name of the roster member.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "practiceDate": {
+          "type": "string",
+          "description": "Practice event date in YYYY-MM-DD format.",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "practiceTitle": {
+          "type": "string",
+          "description": "Title of the practice event on the calendar.",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "qrCodeToken": {
+          "type": "string",
+          "description": "Unique verification token encoded in the practice event QR code.",
+          "minLength": 4,
+          "maxLength": 80,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "description": "Terminal check-in state.",
+          "enum": ["verified"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the QR check-in occurred."
+        }
+      },
+      "required": [
+        "uid",
+        "memberId",
+        "memberName",
+        "practiceDate",
+        "practiceTitle",
+        "qrCodeToken",
+        "status",
+        "createdAt"
+      ]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted admin role assignment document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "UID of the admin user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin record was created."
+        }
+      },
+      "required": ["uid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores user profile linking Google Auth user to a club roster member."
+    },
+    "/clubWorkspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/ClubWorkspace" },
+      "description": "Stores persisted club HQ state for each authenticated user."
+    },
+    "/qrCheckins/{checkinId}": {
+      "schema": { "$ref": "#/entities/QrCheckin" },
+      "description": "Stores practice attendance check-ins logged via QR code scan."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Stores admin UIDs for role-based overrides."
+    }
+  }
+}
