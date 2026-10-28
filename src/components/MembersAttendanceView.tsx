@@ -6,7 +6,6 @@ import {
   Play,
   Plus,
   QrCode,
-  ScanLine,
   Search,
   Trash2,
   Upload,
@@ -20,7 +19,6 @@ import {
   Member,
   SkillLevel,
 } from '../types';
-import { parseMemberPersonalQrToken } from '../utils/clubUtils';
 import {
   PracticeQrTarget,
   buildPracticeQrToken,
@@ -89,12 +87,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   );
   const [newSessionTitle, setNewSessionTitle] = useState(
     'After-School Practice & Ladder'
-  );
-
-  // Quick Member Digital ID Token Scanner input
-  const [quickIdScanInput, setQuickIdScanInput] = useState('');
-  const [quickScanFeedback, setQuickScanFeedback] = useState<string | null>(
-    null
   );
 
   // Single Member Add/Edit state
@@ -183,48 +175,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
         ...attendance,
       ]);
     }
-  };
-
-  const handleQuickMemberQrScan = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickIdScanInput.trim()) return;
-    const parsed = parseMemberPersonalQrToken(quickIdScanInput);
-    const queryLower = quickIdScanInput.trim().toLowerCase();
-
-    const matchedMember = members.find((m) => {
-      if (parsed && m.id === parsed.memberId) return true;
-      if (parsed && parsed.memberName && m.name.toLowerCase() === parsed.memberName.toLowerCase()) {
-        return true;
-      }
-      return m.name.toLowerCase() === queryLower || m.id.toLowerCase() === queryLower;
-    });
-
-    if (!matchedMember) {
-      setQuickScanFeedback('No matching member found for that ID token.');
-      return;
-    }
-
-    const session = ensureActiveSession();
-    if (!session.presentMemberIds.includes(matchedMember.id)) {
-      const nextPresent = [...session.presentMemberIds, matchedMember.id];
-      const sessionInList = attendance.some((s) => s.id === session.id);
-      if (sessionInList) {
-        onUpdateAttendance(
-          attendance.map((s) =>
-            s.id === session.id ? { ...s, presentMemberIds: nextPresent } : s
-          )
-        );
-      } else {
-        onUpdateAttendance([
-          { ...session, presentMemberIds: nextPresent },
-          ...attendance,
-        ]);
-      }
-    }
-
-    setQuickIdScanInput('');
-    setQuickScanFeedback(`Checked in ${matchedMember.name} ✓`);
-    setTimeout(() => setQuickScanFeedback(null), 3000);
   };
 
   const handleMarkAllPresent = () => {
@@ -626,35 +576,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Scan / Paste Member Digital ID QR Token */}
-            <form
-              onSubmit={handleQuickMemberQrScan}
-              className="flex items-center gap-1.5"
-            >
-              <div className="relative">
-                <ScanLine className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={quickIdScanInput}
-                  onChange={(e) => setQuickIdScanInput(e.target.value)}
-                  placeholder="Scan Member ID (BNHS-MEMBER|...)"
-                  className="min-h-[38px] pl-8 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white w-56"
-                />
-              </div>
-              <button
-                type="submit"
-                className="min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 cursor-pointer"
-              >
-                Check In ID
-              </button>
-            </form>
-
-            {quickScanFeedback && (
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                {quickScanFeedback}
-              </span>
-            )}
-
             {members.length > 0 && (
               <button
                 type="button"

@@ -1,53 +1,37 @@
 import React, { useState } from 'react';
 import {
-  AlertTriangle,
-  ExternalLink,
   Play,
   Plus,
   Printer,
   Trash2,
   Trophy,
-  Users,
-  Edit3,
 } from 'lucide-react';
 import {
   ClubTournament,
   ClubTournamentParticipant,
   Member,
-  OutsideTournament,
   PendingTournamentScoreContext,
 } from '../types';
 import {
   generateRoundRobinMatches,
   generateSingleEliminationMatches,
-  getDaysUntil,
   updateTournamentMatchList,
 } from '../utils/clubUtils';
 
 interface TournamentsViewProps {
-  activeSubTab: 'tournaments' | 'watch';
-  onSwitchSubTab: (sub: 'tournaments' | 'watch') => void;
   clubTournaments: ClubTournament[];
-  outsideTournaments: OutsideTournament[];
   members: Member[];
   isOfficer: boolean;
   onUpdateClubTournaments: (list: ClubTournament[]) => void;
-  onUpdateOutsideTournaments: (list: OutsideTournament[]) => void;
   onLaunchScoreKeeperForTournament: (ctx: PendingTournamentScoreContext) => void;
-  onRequestOfficerUnlock: () => void;
 }
 
 export const TournamentsView: React.FC<TournamentsViewProps> = ({
-  activeSubTab,
-  onSwitchSubTab,
   clubTournaments,
-  outsideTournaments,
   members,
   isOfficer,
   onUpdateClubTournaments,
-  onUpdateOutsideTournaments,
   onLaunchScoreKeeperForTournament,
-  onRequestOfficerUnlock,
 }) => {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>(
     clubTournaments[0]?.id || ''
@@ -73,33 +57,6 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [manualScore1, setManualScore1] = useState<number>(11);
   const [manualScore2, setManualScore2] = useState<number>(7);
-
-  // Outside Tournament Watch creation/editing state
-  const [showOutsideForm, setShowOutsideForm] = useState(false);
-  const [editingOutside, setEditingOutside] = useState<OutsideTournament | null>(
-    null
-  );
-  const [outName, setOutName] = useState('');
-  const [outDates, setOutDates] = useState('');
-  const [outCityVenue, setOutCityVenue] = useState('');
-  const [outDivisions, setOutDivisions] = useState('');
-  const [outEntryFee, setOutEntryFee] = useState('');
-  const [outPrizeMoney, setOutPrizeMoney] = useState('');
-  const [outDeadline, setOutDeadline] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
-  const [outLink, setOutLink] = useState('https://pickleballbrackets.com');
-  const [outStatus, setOutStatus] = useState<'Watching' | 'Registered' | 'Done'>(
-    'Watching'
-  );
-
-  // Adding a club pair to an outside tournament
-  const [addingPairTourneyId, setAddingPairTourneyId] = useState<string | null>(
-    null
-  );
-  const [pairMember1, setPairMember1] = useState(members[0]?.name || '');
-  const [pairMember2, setPairMember2] = useState(members[1]?.name || '');
-  const [pairDivision, setPairDivision] = useState('Mixed Doubles Moneyball');
 
   const activeClubTournament =
     clubTournaments.find((t) => t.id === selectedTournamentId) ||
@@ -234,192 +191,44 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
       .sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pf - a.pf);
   };
 
-  // Outside Tournament handlers
-  const openAddOutside = () => {
-    if (!isOfficer) {
-      onRequestOfficerUnlock();
-      return;
-    }
-    setEditingOutside(null);
-    setOutName('');
-    setOutDates('');
-    setOutCityVenue('');
-    setOutDivisions('Mixed Doubles, Men’s & Women’s 3.5 / 4.0');
-    setOutEntryFee('$40 entry');
-    setOutPrizeMoney('$1,000 Purse');
-    setOutDeadline('2026-11-15');
-    setOutLink('https://pickleballbrackets.com');
-    setOutStatus('Watching');
-    setShowOutsideForm(true);
-  };
-
-  const openEditOutside = (t: OutsideTournament) => {
-    if (!isOfficer) {
-      onRequestOfficerUnlock();
-      return;
-    }
-    setEditingOutside(t);
-    setOutName(t.name);
-    setOutDates(t.dates);
-    setOutCityVenue(t.cityVenue);
-    setOutDivisions(t.divisions);
-    setOutEntryFee(t.entryFee);
-    setOutPrizeMoney(t.prizeMoney);
-    setOutDeadline(t.registrationDeadline);
-    setOutLink(t.link);
-    setOutStatus(t.status);
-    setShowOutsideForm(true);
-  };
-
-  const handleSaveOutsideTournament = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isOfficer || !outName.trim()) return;
-
-    if (editingOutside) {
-      onUpdateOutsideTournaments(
-        outsideTournaments.map((t) =>
-          t.id === editingOutside.id
-            ? {
-                ...t,
-                name: outName.trim(),
-                dates: outDates.trim(),
-                cityVenue: outCityVenue.trim(),
-                divisions: outDivisions.trim(),
-                entryFee: outEntryFee.trim(),
-                prizeMoney: outPrizeMoney.trim(),
-                registrationDeadline: outDeadline,
-                link: outLink.trim(),
-                status: outStatus,
-              }
-            : t
-        )
-      );
-    } else {
-      const created: OutsideTournament = {
-        id: `out-${Date.now()}`,
-        name: outName.trim(),
-        dates: outDates.trim() || 'TBD',
-        startDateISO: outDeadline,
-        cityVenue: outCityVenue.trim() || 'DFW Metroplex',
-        divisions: outDivisions.trim() || 'Open Divisions',
-        entryFee: outEntryFee.trim() || '$40 entry',
-        prizeMoney: outPrizeMoney.trim() || 'Medals',
-        registrationDeadline: outDeadline,
-        link: outLink.trim() || 'https://pickleballbrackets.com',
-        status: outStatus,
-        attendees: [],
-      };
-      onUpdateOutsideTournaments([created, ...outsideTournaments]);
-    }
-    setShowOutsideForm(false);
-    setEditingOutside(null);
-  };
-
-  const handleAddAttendeePair = (tourneyId: string) => {
-    if (!isOfficer) return;
-    onUpdateOutsideTournaments(
-      outsideTournaments.map((t) =>
-        t.id === tourneyId
-          ? {
-              ...t,
-              attendees: [
-                ...t.attendees,
-                {
-                  id: `att-pair-${Date.now()}`,
-                  memberName: pairMember1,
-                  partnerName: pairMember2,
-                  division: pairDivision.trim() || 'Doubles',
-                },
-              ],
-            }
-          : t
-      )
-    );
-    setAddingPairTourneyId(null);
-  };
-
-  const handleRemoveAttendeePair = (tourneyId: string, pairId: string) => {
-    if (!isOfficer) return;
-    onUpdateOutsideTournaments(
-      outsideTournaments.map((t) =>
-        t.id === tourneyId
-          ? {
-              ...t,
-              attendees: t.attendees.filter((a) => a.id !== pairId),
-            }
-          : t
-      )
-    );
-  };
-
   return (
     <div className="space-y-6">
-      {/* Sub-navigation switcher: In-Club Tournaments vs Outside Tournament Watch */}
+      {/* Header for In-Club Tournaments */}
       <div className="flex flex-wrap items-center justify-between gap-4 no-print">
-        <div className="flex items-center p-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl">
-          <button
-            onClick={() => onSwitchSubTab('tournaments')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'tournaments'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
-            }`}
-          >
+        <div>
+          <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
             In-Club Brackets & Round Robins ({clubTournaments.length})
-          </button>
-          <button
-            onClick={() => onSwitchSubTab('watch')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-              activeSubTab === 'watch'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            Outside Tournament Watch ({outsideTournaments.length})
-          </button>
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Official club tournament brackets, pools, and court assignments
+          </p>
         </div>
 
-        {activeSubTab === 'tournaments' ? (
-          <div className="flex items-center gap-2.5">
-            {activeClubTournament && (
-              <button
-                onClick={() => window.print()}
-                className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                Print Bracket
-              </button>
-            )}
-            {isOfficer && (
-              <button
-                onClick={() => setShowCreateClubForm(!showCreateClubForm)}
-                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
-                style={{ backgroundColor: 'var(--club-primary)' }}
-              >
-                <Plus className="w-4 h-4" />
-                New Club Tournament
-              </button>
-            )}
-          </div>
-        ) : (
-          isOfficer && (
+        <div className="flex items-center gap-2.5">
+          {activeClubTournament && (
             <button
-              onClick={openAddOutside}
+              onClick={() => window.print()}
+              className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              Print Bracket
+            </button>
+          )}
+          {isOfficer && (
+            <button
+              onClick={() => setShowCreateClubForm(!showCreateClubForm)}
               className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
               style={{ backgroundColor: 'var(--club-primary)' }}
             >
               <Plus className="w-4 h-4" />
-              Add Outside Tournament
+              New Club Tournament
             </button>
-          )
-        )}
+          )}
+        </div>
       </div>
 
-      {/* ================================================================= */}
-      {/* TAB 1: IN-CLUB TOURNAMENTS (Round Robin & Single Elimination)     */}
-      {/* ================================================================= */}
-      {activeSubTab === 'tournaments' && (
-        <div className="space-y-6">
+      {/* IN-CLUB TOURNAMENTS (Round Robin & Single Elimination) */}
+      <div className="space-y-6">
           {/* Create Club Tournament Drawer */}
           {isOfficer && showCreateClubForm && (
             <form
@@ -817,395 +626,6 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             </div>
           )}
         </div>
-      )}
-
-      {/* ================================================================= */}
-      {/* TAB 2: OUTSIDE TOURNAMENT WATCH (Starts with Roanoke Showdown)    */}
-      {/* ================================================================= */}
-      {activeSubTab === 'watch' && (
-        <div className="space-y-6">
-          {/* Add/Edit Outside Tournament Form */}
-          {isOfficer && showOutsideForm && (
-            <form
-              onSubmit={handleSaveOutsideTournament}
-              className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
-            >
-              <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                {editingOutside
-                  ? `Edit Outside Tournament: ${editingOutside.name}`
-                  : 'Add Outside Tournament to Club Watchlist'}
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Tournament Name
-                  </label>
-                  <input
-                    type="text"
-                    value={outName}
-                    onChange={(e) => setOutName(e.target.value)}
-                    placeholder="e.g. Texas Pickleball Showdown"
-                    required
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Dates
-                  </label>
-                  <input
-                    type="text"
-                    value={outDates}
-                    onChange={(e) => setOutDates(e.target.value)}
-                    placeholder="e.g. December 12–13, 2026"
-                    required
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    City & Venue
-                  </label>
-                  <input
-                    type="text"
-                    value={outCityVenue}
-                    onChange={(e) => setOutCityVenue(e.target.value)}
-                    placeholder="e.g. Roanoke, TX · Oasis Pickleball Club"
-                    required
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Divisions
-                  </label>
-                  <input
-                    type="text"
-                    value={outDivisions}
-                    onChange={(e) => setOutDivisions(e.target.value)}
-                    placeholder="e.g. Mixed Doubles Moneyball"
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Entry Fee
-                  </label>
-                  <input
-                    type="text"
-                    value={outEntryFee}
-                    onChange={(e) => setOutEntryFee(e.target.value)}
-                    placeholder="e.g. $40 entry"
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Prize Money / Awards
-                  </label>
-                  <input
-                    type="text"
-                    value={outPrizeMoney}
-                    onChange={(e) => setOutPrizeMoney(e.target.value)}
-                    placeholder="e.g. $2,500 Purse"
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Registration Deadline (Turns Red ≤ 7 Days)
-                  </label>
-                  <input
-                    type="date"
-                    value={outDeadline}
-                    onChange={(e) => setOutDeadline(e.target.value)}
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Registration Link
-                  </label>
-                  <input
-                    type="url"
-                    value={outLink}
-                    onChange={(e) => setOutLink(e.target.value)}
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Club Status
-                  </label>
-                  <select
-                    value={outStatus}
-                    onChange={(e) =>
-                      setOutStatus(
-                        e.target.value as 'Watching' | 'Registered' | 'Done'
-                      )
-                    }
-                    className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                  >
-                    <option value="Watching">Watching</option>
-                    <option value="Registered">Registered</option>
-                    <option value="Done">Done</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowOutsideForm(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-lg text-xs font-bold text-white cursor-pointer"
-                  style={{ backgroundColor: 'var(--club-primary)' }}
-                >
-                  Save Tournament
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Outside Tournament Cards */}
-          <div className="grid grid-cols-1 gap-6">
-            {outsideTournaments.map((t) => {
-              const daysLeft = getDaysUntil(t.registrationDeadline);
-              const isDeadlineRed = daysLeft <= 7 && t.status !== 'Done';
-
-              return (
-                <div
-                  key={t.id}
-                  className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                        <span className="font-semibold text-slate-900 dark:text-white">
-                          Status: {t.status}
-                        </span>
-                        <span aria-hidden="true">·</span>
-                        <span>{t.dates}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{t.cityVenue}</span>
-                      </div>
-                      <h3 className="font-display text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                        {t.name}
-                      </h3>
-                    </div>
-
-                    {/* Deadline Badge that turns RED within 7 days */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tabular-nums ${
-                          isDeadlineRed
-                            ? 'bg-red-600 text-white'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
-                        }`}
-                      >
-                        {isDeadlineRed && (
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                        )}
-                        Deadline: {t.registrationDeadline} (
-                        {daysLeft >= 0 ? `${daysLeft}d left` : 'Closed'})
-                      </span>
-
-                      <a
-                        href={t.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="min-h-[34px] px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 inline-flex items-center gap-1"
-                      >
-                        Event Page <ExternalLink className="w-3 h-3" />
-                      </a>
-
-                      {isOfficer && (
-                        <>
-                          <button
-                            onClick={() => openEditOutside(t)}
-                            className="p-2 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
-                            title="Edit tournament"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              onUpdateOutsideTournaments(
-                                outsideTournaments.filter((x) => x.id !== t.id)
-                              )
-                            }
-                            className="p-2 rounded-lg text-slate-400 hover:text-red-600 cursor-pointer"
-                            title="Delete tournament"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Metadata Line: Entry Fee, Divisions, Prize Money */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-3 border-y border-slate-100 dark:border-slate-800 text-xs">
-                    <div>
-                      <span className="text-slate-500 block">
-                        Divisions & Format
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {t.divisions}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block">Entry Fee</span>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {t.entryFee}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block">
-                        Prize Money / Purse
-                      </span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        {t.prizeMoney}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Who from the club is going and with which partner */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                        <Users className="w-4 h-4 text-blue-600" />
-                        Club Members Attending & Partners ({t.attendees.length}{' '}
-                        Pairs)
-                      </span>
-                      {isOfficer && (
-                        <button
-                          onClick={() =>
-                            setAddingPairTourneyId(
-                              addingPairTourneyId === t.id ? null : t.id
-                            )
-                          }
-                          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                        >
-                          + Add Club Pair
-                        </button>
-                      )}
-                    </div>
-
-                    {isOfficer && addingPairTourneyId === t.id && (
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-                        <div>
-                          <label className="block text-[11px] text-slate-500 mb-1">
-                            Player 1
-                          </label>
-                          <select
-                            value={pairMember1}
-                            onChange={(e) => setPairMember1(e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
-                          >
-                            {members.map((m) => (
-                              <option key={m.id} value={m.name}>
-                                {m.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] text-slate-500 mb-1">
-                            Partner
-                          </label>
-                          <select
-                            value={pairMember2}
-                            onChange={(e) => setPairMember2(e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
-                          >
-                            <option value="Singles (No Partner)">
-                              Singles (No Partner)
-                            </option>
-                            {members.map((m) => (
-                              <option key={m.id} value={m.name}>
-                                {m.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] text-slate-500 mb-1">
-                            Division
-                          </label>
-                          <input
-                            type="text"
-                            value={pairDivision}
-                            onChange={(e) => setPairDivision(e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleAddAttendeePair(t.id)}
-                          className="px-3 py-1.5 rounded text-xs font-bold text-white cursor-pointer"
-                          style={{ backgroundColor: 'var(--club-primary)' }}
-                        >
-                          Add Entry
-                        </button>
-                      </div>
-                    )}
-
-                    {t.attendees.length === 0 ? (
-                      <p className="text-xs text-slate-500">
-                        No club pairs signed up yet.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                        {t.attendees.map((pair) => (
-                          <div
-                            key={pair.id}
-                            className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 text-xs"
-                          >
-                            <div>
-                              <div className="font-bold text-slate-900 dark:text-white">
-                                {pair.memberName} & {pair.partnerName}
-                              </div>
-                              <div className="text-slate-500">
-                                {pair.division}
-                              </div>
-                            </div>
-                            {isOfficer && (
-                              <button
-                                onClick={() =>
-                                  handleRemoveAttendeePair(t.id, pair.id)
-                                }
-                                className="text-slate-400 hover:text-red-500 cursor-pointer"
-                                title="Remove pair"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock,
   Copy,
-  LogIn,
   MapPin,
   Printer,
   QrCode,
@@ -14,8 +13,8 @@ import {
   UserCheck,
   X,
 } from 'lucide-react';
-import { AttendanceSession, CalendarEvent, Member } from '../types';
-import { QrCheckinRecord, User } from '../firebase';
+import { AttendanceSession, Member } from '../types';
+import { QrCheckinRecord } from '../firebase';
 
 export interface PracticeQrTarget {
   eventId: string;
@@ -49,12 +48,10 @@ interface PracticeQrModalProps {
   availablePracticeTargets: PracticeQrTarget[];
   members: Member[];
   attendance: AttendanceSession[];
-  currentUser: User | null;
   linkedMemberId: string;
   recentQrCheckins: QrCheckinRecord[];
   onClose: () => void;
   onSelectTarget: (target: PracticeQrTarget) => void;
-  onSignInGoogle: () => Promise<void>;
   onCompleteQrCheckin: (params: {
     target: PracticeQrTarget;
     memberId: string;
@@ -67,12 +64,10 @@ export const PracticeQrModal: React.FC<PracticeQrModalProps> = ({
   availablePracticeTargets,
   members,
   attendance,
-  currentUser,
   linkedMemberId,
   recentQrCheckins,
   onClose,
   onSelectTarget,
-  onSignInGoogle,
   onCompleteQrCheckin,
 }) => {
   const [mode, setMode] = useState<'display' | 'scan'>(initialMode);
@@ -386,33 +381,6 @@ export const PracticeQrModal: React.FC<PracticeQrModalProps> = ({
                   <Clock className="w-3.5 h-3.5" /> {target.time}
                 </span>
               </div>
-            </div>
-
-            {/* Google Auth Identity Status */}
-            <div className="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-              <div className="text-xs">
-                <div className="font-semibold text-slate-900 dark:text-white">
-                  {currentUser
-                    ? `Signed in as ${currentUser.displayName || currentUser.email}`
-                    : 'Sign in with Google for Cloud-Verified Check-In'}
-                </div>
-                <div className="text-slate-500 dark:text-slate-400">
-                  {currentUser
-                    ? 'Your QR check-in is saved to Firestore & synced across devices.'
-                    : 'Or check in directly below to update the club attendance sheet.'}
-                </div>
-              </div>
-
-              {!currentUser && (
-                <button
-                  type="button"
-                  onClick={onSignInGoogle}
-                  className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  Google Sign-In
-                </button>
-              )}
             </div>
 
             {checkedInSuccess ? (

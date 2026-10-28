@@ -1,44 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { QRCodeSVG } from 'qrcode.react';
 import {
   Activity,
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   Award,
   Calendar,
-  Check,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
   Clock,
-  Copy,
-  CreditCard,
   Eye,
   Flame,
   Home,
   Lock,
-  LogIn,
   MapPin,
   Moon,
   QrCode,
-  Search,
   ShieldCheck,
   Sparkles,
   Sun,
   Trophy,
-  UserCheck,
-  Users,
-  X,
   Zap,
 } from 'lucide-react';
 import { ClubDataState, NavTab } from '../types';
 import {
   MemberAchievement,
-  buildMemberPersonalQrToken,
   computeMemberAchievements,
-  getDaysUntil,
   getNextUpcomingEvent,
 } from '../utils/clubUtils';
 import { QrCheckinRecord, User } from '../firebase';
@@ -49,6 +37,7 @@ import {
 import { BOBCATS_LOGO_URL } from './WelcomeScreen';
 import { LadderStatsView } from './LadderStatsView';
 import { TournamentsView } from './TournamentsView';
+import { WatchlistView } from './WatchlistView';
 import { CalendarEventsView } from './CalendarEventsView';
 
 interface MemberPortalViewProps {
@@ -58,7 +47,6 @@ interface MemberPortalViewProps {
   currentUser: User | null;
   linkedMemberId: string;
   recentQrCheckins: QrCheckinRecord[];
-  cloudSynced: boolean;
   defaultQrTarget: PracticeQrTarget;
   onSelectLinkedMember: (memberId: string) => void;
   onNavigate: (tab: NavTab) => void;
@@ -69,8 +57,6 @@ interface MemberPortalViewProps {
     mode: 'display' | 'scan'
   ) => void;
   onShowWelcomeScreen: () => void;
-  onGoogleSignIn: () => void;
-  onGoogleSignOut: () => void;
 }
 
 const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -86,14 +72,14 @@ const MEMBER_NAV_TABS: {
     id: 'home',
     label: 'Overview',
     shortLabel: 'Overview',
-    description: 'Next practice, digital ID pass, achievements & top rankings',
+    description: 'Welcome & next practice check-in',
     icon: <Home className="w-4 h-4" />,
   },
   {
     id: 'activity',
     label: 'My Activity & Badges',
     shortLabel: 'My Activity',
-    description: 'Digital ID card, achievement milestones, matches & attendance',
+    description: 'Achievement milestones, matches, attendance & tasks',
     icon: <Activity className="w-4 h-4" />,
   },
   {
@@ -112,9 +98,9 @@ const MEMBER_NAV_TABS: {
   },
   {
     id: 'watch',
-    label: 'Outside Watch',
-    shortLabel: 'Watch List',
-    description: 'Regional tournaments & registered club pairs',
+    label: 'Watchlist & Live VFX',
+    shortLabel: 'Watchlist',
+    description: 'Wii Sports court broadcast VFX & tournament watchlist',
     icon: <Eye className="w-4 h-4" />,
   },
   {
@@ -146,7 +132,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   currentUser,
   linkedMemberId,
   recentQrCheckins,
-  cloudSynced,
   defaultQrTarget,
   onSelectLinkedMember,
   onNavigate,
@@ -154,16 +139,11 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   onRequestOfficerLogin,
   onOpenPracticeQr,
   onShowWelcomeScreen,
-  onGoogleSignIn,
-  onGoogleSignOut,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [playerQuery, setPlayerQuery] = useState('');
   const [activityFilter, setActivityFilter] = useState<
     'all' | 'achievements' | 'matches' | 'attendance' | 'tasks'
   >('all');
-  const [showIdPassModal, setShowIdPassModal] = useState(false);
-  const [copiedIdToken, setCopiedIdToken] = useState(false);
   const [now, setNow] = useState<Date>(() => new Date());
 
   useEffect(() => {
@@ -188,32 +168,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
     return data.members[0] || null;
   }, [data.members, linkedMemberId, currentUser]);
 
-  const personalQrToken = useMemo(() => {
-    if (!activeMember) return 'BNHS-MEMBER|GUEST|BNHS Athlete';
-    return buildMemberPersonalQrToken(activeMember);
-  }, [activeMember]);
-
-  const handleCopyMemberToken = async () => {
-    try {
-      await navigator.clipboard.writeText(personalQrToken);
-      setCopiedIdToken(true);
-      setTimeout(() => setCopiedIdToken(false), 2000);
-    } catch {
-      // Ignore clipboard failure
-    }
-  };
-
   const getMemberName = (id: string) =>
     data.members.find((m) => m.id === id)?.name || 'Club Player';
-
-  const getInitials = (name: string) =>
-    name
-      .split(' ')
-      .map((n) => n[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
 
   const hasScheduledEvents =
     data.events.length > 0 ||
@@ -239,17 +195,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
     location: nextEvent.location,
     token: buildPracticeQrToken(nextEvent.date, nextEvent.id),
   };
-
-  const rankedMembers = useMemo(
-    () => [...data.members].sort((a, b) => b.elo - a.elo),
-    [data.members]
-  );
-
-  const activeMemberRank = useMemo(() => {
-    if (!activeMember) return null;
-    const idx = rankedMembers.findIndex((m) => m.id === activeMember.id);
-    return idx >= 0 ? idx + 1 : null;
-  }, [rankedMembers, activeMember]);
 
   // 1. Filtered Matches for the logged-in member
   const myMatches = useMemo(() => {
@@ -371,20 +316,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
     [myAchievements]
   );
 
-  const filteredLadderPreview = rankedMembers
-    .filter((m) =>
-      playerQuery.trim() === ''
-        ? true
-        : m.name.toLowerCase().includes(playerQuery.trim().toLowerCase())
-    )
-    .slice(0, 8);
-
-  const activeOutside = data.outsideTournaments
-    .filter((t) => t.status !== 'Done')
-    .sort((a, b) =>
-      a.registrationDeadline.localeCompare(b.registrationDeadline)
-    );
-
   // No-op handlers for read-only member subviews
   const noop = () => {};
 
@@ -427,19 +358,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
               </div>
             </button>
 
-            {/* Right Controls: Digital ID Pass, Quick QR Scan, Theme Toggle, Menu, Officer Login */}
+            {/* Right Controls: Quick QR Scan, Theme Toggle, Menu, Officer Login */}
             <div className="flex items-center gap-2">
-              {/* Digital Member ID Card Trigger */}
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={() => setShowIdPassModal(true)}
-                className="hidden md:inline-flex min-h-[38px] px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/90 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-100 items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
-              >
-                <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>Digital ID Pass</span>
-              </motion.button>
-
               {/* Quick QR Check-In Button */}
               <motion.button
                 whileTap={{ scale: 0.97 }}
@@ -564,28 +484,17 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           })}
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMenuOpen(false);
-                              setShowIdPassModal(true);
-                            }}
-                            className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" />
-                            <span>Digital ID</span>
-                          </button>
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                           <button
                             type="button"
                             onClick={() => {
                               setMenuOpen(false);
                               onOpenPracticeQr(defaultQrTarget, 'scan');
                             }}
-                            className="px-3 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="w-full px-3 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
                           >
                             <QrCode className="w-3.5 h-3.5" />
-                            <span>Practice QR</span>
+                            <span>Practice QR Check-In</span>
                           </button>
                         </div>
 
@@ -601,30 +510,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             <Sparkles className="w-3.5 h-3.5" />
                             <span>Welcome Screen</span>
                           </button>
-                          {!currentUser ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMenuOpen(false);
-                                onGoogleSignIn();
-                              }}
-                              className="font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white inline-flex items-center gap-1 cursor-pointer"
-                            >
-                              <LogIn className="w-3.5 h-3.5" />
-                              <span>Google Sign In</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMenuOpen(false);
-                                onGoogleSignOut();
-                              }}
-                              className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-                            >
-                              {cloudSynced ? 'Synced · Sign Out' : 'Sign Out'}
-                            </button>
-                          )}
                         </div>
                       </motion.div>
                     </>
@@ -741,14 +626,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       </select>
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setShowIdPassModal(true)}
-                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <CreditCard className="w-3.5 h-3.5" />
-                    <span>ID Pass</span>
-                  </button>
                 </div>
               </div>
             )}
@@ -829,9 +706,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       </div>
 
                       <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-none">
-                        {activeMember
-                          ? `Welcome back, ${activeMember.name.split(' ')[0]}!`
-                          : `Welcome to ${data.settings.clubName}`}
+                        Welcome to {data.settings.clubName}
                       </h1>
 
                       {hasScheduledEvents ? (
@@ -857,9 +732,9 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         </div>
                       ) : (
                         <p className="text-sm text-blue-100/90 leading-relaxed max-w-lg">
-                          Open your digital Bobcats Member ID card, unlock
-                          streak and attendance achievements, and check live
-                          standings with one tap.
+                          Track your match streaks, unlock attendance
+                          achievements, and check live club standings with one
+                          tap.
                         </p>
                       )}
                     </div>
@@ -902,17 +777,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           whileHover={{ y: -1 }}
                           whileTap={{ scale: 0.98 }}
                           type="button"
-                          onClick={() => setShowIdPassModal(true)}
-                          className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold inline-flex items-center justify-center gap-2 shadow-md cursor-pointer transition-colors whitespace-nowrap"
-                        >
-                          <CreditCard className="w-4 h-4" />
-                          <span>Digital Member ID</span>
-                        </motion.button>
-
-                        <motion.button
-                          whileHover={{ y: -1 }}
-                          whileTap={{ scale: 0.98 }}
-                          type="button"
                           onClick={() =>
                             onOpenPracticeQr(
                               hasScheduledEvents
@@ -921,7 +785,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                               'scan'
                             )
                           }
-                          className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-white/15 hover:bg-white/25 text-white border border-white/20 text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors whitespace-nowrap"
+                          className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold inline-flex items-center justify-center gap-2 shadow-md cursor-pointer transition-colors whitespace-nowrap"
                         >
                           <QrCode className="w-4 h-4" />
                           <span>Practice Check-In</span>
@@ -930,734 +794,21 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     </div>
                   </div>
                 </div>
-
-                {/* 2. Digital Player Pass & Achievement Snapshot Strip */}
-                <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-2xs space-y-5">
-                  {activeMember ? (
-                    <>
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                        {/* Player Identity & Easy Switcher */}
-                        <div className="flex items-center gap-4">
-                          <button
-                            type="button"
-                            onClick={() => setShowIdPassModal(true)}
-                            title="Open Digital Member ID Card"
-                            className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-display text-xl font-bold flex items-center justify-center shrink-0 shadow-xs cursor-pointer group"
-                          >
-                            <span>{getInitials(activeMember.name)}</span>
-                            <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
-                              <QrCode className="w-3 h-3" />
-                            </span>
-                          </button>
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                                Official Athlete Pass
-                              </span>
-                              <span aria-hidden="true" className="text-slate-300">
-                                ·
-                              </span>
-                              <span className="text-xs font-mono-num text-slate-500">
-                                ID #{activeMember.id.toUpperCase()}
-                              </span>
-                              {data.members.length > 1 && (
-                                <select
-                                  aria-label="Switch active member profile"
-                                  value={activeMember.id}
-                                  onChange={(e) =>
-                                    onSelectLinkedMember(e.target.value)
-                                  }
-                                  className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
-                                >
-                                  {data.members.map((m) => (
-                                    <option key={m.id} value={m.id}>
-                                      Switch: {m.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
-                            <div className="font-display text-2xl font-bold text-slate-900 dark:text-white leading-none">
-                              {activeMember.name}
-                            </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              Grade {activeMember.grade} ·{' '}
-                              {activeMember.skillLevel}
-                              {activeMember.duprRating
-                                ? ` · ${activeMember.duprRating} DUPR`
-                                : ''}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 4 Clear Personal Metrics + Show QR Pass */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1 lg:max-w-2xl">
-                          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                            <div className="text-[11px] font-medium text-slate-500">
-                              Club Rank
-                            </div>
-                            <div className="font-mono-num text-lg font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
-                              {activeMemberRank ? `#${activeMemberRank}` : '—'}{' '}
-                              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                                ({activeMember.elo})
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                            <div className="text-[11px] font-medium text-slate-500">
-                              Win–Loss
-                            </div>
-                            <div className="font-mono-num text-lg font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
-                              {activeMember.wins}–{activeMember.losses}{' '}
-                              <span className="text-xs font-normal text-slate-500">
-                                ({winRatePct}%)
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                            <div className="text-[11px] font-medium text-slate-500">
-                              Achievements
-                            </div>
-                            <div className="font-mono-num text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums">
-                              {unlockedAchievementsCount}/
-                              {myAchievements.length}{' '}
-                              <span className="text-xs font-normal text-slate-500">
-                                Badges
-                              </span>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setShowIdPassModal(true)}
-                            className="p-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-left flex flex-col justify-between cursor-pointer transition-colors group shadow-2xs"
-                          >
-                            <div className="text-[11px] font-semibold text-blue-100 flex items-center justify-between">
-                              <span>Personal QR</span>
-                              <QrCode className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
-                            </div>
-                            <div className="font-display text-sm font-bold mt-1">
-                              Open ID Card
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Mini Achievement Progress Strip on Overview */}
-                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                            <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                            <span>
-                              Achievement Milestones (
-                              {unlockedAchievementsCount} of{' '}
-                              {myAchievements.length} Unlocked)
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActivityFilter('achievements');
-                              onNavigate('activity');
-                            }}
-                            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <span>View All Badges</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                          {myAchievements.slice(0, 4).map((ach) => (
-                            <div
-                              key={ach.id}
-                              className={`p-3 rounded-2xl border transition-colors ${
-                                ach.unlocked
-                                  ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/50'
-                                  : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-800'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <span
-                                  className={`text-xs font-bold truncate ${
-                                    ach.unlocked
-                                      ? 'text-emerald-700 dark:text-emerald-300'
-                                      : 'text-slate-800 dark:text-slate-200'
-                                  }`}
-                                >
-                                  {ach.title}
-                                </span>
-                                <span className="text-[10px] font-mono-num font-bold text-slate-500 shrink-0">
-                                  {ach.pct}%
-                                </span>
-                              </div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                                {ach.progressLabel}
-                              </div>
-                              <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    ach.unlocked
-                                      ? 'bg-emerald-500'
-                                      : 'bg-blue-600'
-                                  }`}
-                                  style={{ width: `${ach.pct}%` }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                          <Users className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="font-display text-lg font-bold text-slate-900 dark:text-white">
-                            Ready for the New Pickleball Season
-                          </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Once officers add club members to the roster, your
-                            Digital ID Pass, achievement badges, and live Elo
-                            ranking will unlock automatically.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setShowIdPassModal(true)}
-                          className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <CreditCard className="w-3.5 h-3.5" />
-                          <span>Preview ID Card</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onNavigate('activity')}
-                          className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Activity className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                          <span>My Activity</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. Easy 4-Tile Visual Action Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.99 }}
-                    type="button"
-                    onClick={() => onNavigate('activity')}
-                    className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-blue-500/60 shadow-2xs text-left flex flex-col justify-between gap-4 cursor-pointer transition-all group"
-                  >
-                    <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <Activity className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-display text-xl font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                        <span>My Activity & Badges</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        {unlockedAchievementsCount}/{myAchievements.length}{' '}
-                        badges · {myMatches.length} matches ·{' '}
-                        {attendanceStats.attended} check-ins
-                      </p>
-                    </div>
-                  </motion.button>
-
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.99 }}
-                    type="button"
-                    onClick={() => onNavigate('ladder')}
-                    className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/60 shadow-2xs text-left flex flex-col justify-between gap-4 cursor-pointer transition-all group"
-                  >
-                    <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <Award className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-display text-xl font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                        <span>Club Standings</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        {data.members.length} ranked players ·{' '}
-                        {data.matches.length} official matches
-                      </p>
-                    </div>
-                  </motion.button>
-
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.99 }}
-                    type="button"
-                    onClick={() => onNavigate('tournaments')}
-                    className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-amber-500/60 shadow-2xs text-left flex flex-col justify-between gap-4 cursor-pointer transition-all group"
-                  >
-                    <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <Trophy className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-display text-xl font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                        <span>Tournaments</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all" />
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        {data.clubTournaments.length} club brackets ·{' '}
-                        {data.outsideTournaments.length} watch list
-                      </p>
-                    </div>
-                  </motion.button>
-
-                  <motion.button
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.99 }}
-                    type="button"
-                    onClick={() => onNavigate('calendar')}
-                    className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/60 shadow-2xs text-left flex flex-col justify-between gap-4 cursor-pointer transition-all group"
-                  >
-                    <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <Calendar className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="font-display text-xl font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                        <span>Practice Calendar</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        {data.events.length} scheduled dates & QR check-in
-                      </p>
-                    </div>
-                  </motion.button>
-                </div>
-
-                {/* 4. Two-Column Split: Club Standings (with Podium) + Bulletins & Outside Watch */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                  {/* Left 7 Cols: Standings with Top-3 Podium & Search */}
-                  <div className="lg:col-span-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between space-y-5">
-                    <div className="space-y-5">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
-                            Club Ladder Standings
-                          </h2>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Live rankings updated after every official match
-                          </p>
-                        </div>
-
-                        <div className="relative w-full sm:w-56">
-                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="text"
-                            value={playerQuery}
-                            onChange={(e) => setPlayerQuery(e.target.value)}
-                            placeholder="Search player name..."
-                            className="w-full pl-8 pr-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Visual Top 3 Podium when no search filter is active and >= 3 members exist */}
-                      {playerQuery.trim() === '' &&
-                        rankedMembers.length >= 3 && (
-                          <div className="grid grid-cols-3 gap-3 pt-1">
-                            {rankedMembers.slice(0, 3).map((leader, idx) => {
-                              const medals = [
-                                {
-                                  rank: '#1',
-                                  ring: 'border-amber-300/80 dark:border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20',
-                                  accent: 'text-amber-600 dark:text-amber-400',
-                                },
-                                {
-                                  rank: '#2',
-                                  ring: 'border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40',
-                                  accent: 'text-slate-600 dark:text-slate-300',
-                                },
-                                {
-                                  rank: '#3',
-                                  ring: 'border-orange-200/80 dark:border-orange-500/30 bg-orange-50/40 dark:bg-orange-950/20',
-                                  accent:
-                                    'text-orange-600 dark:text-orange-400',
-                                },
-                              ][idx];
-                              return (
-                                <div
-                                  key={leader.id}
-                                  className={`p-3.5 rounded-2xl border ${medals.ring} flex flex-col justify-between gap-2`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span
-                                      className={`font-mono-num text-xs font-extrabold ${medals.accent}`}
-                                    >
-                                      {medals.rank}
-                                    </span>
-                                    <span className="font-mono-num text-xs font-bold text-slate-900 dark:text-white tabular-nums">
-                                      {leader.elo}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                                      {leader.name}
-                                    </div>
-                                    <div className="text-[11px] text-slate-500 font-mono-num tabular-nums">
-                                      {leader.wins}W – {leader.losses}L
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                      {/* Player List */}
-                      {filteredLadderPreview.length > 0 ? (
-                        <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                          {filteredLadderPreview.map((member) => {
-                            const rank =
-                              rankedMembers.findIndex(
-                                (rm) => rm.id === member.id
-                              ) + 1;
-                            const isMe = activeMember?.id === member.id;
-                            return (
-                              <div
-                                key={member.id}
-                                className={`py-3 px-2.5 -mx-2.5 rounded-xl flex items-center justify-between gap-3 transition-colors ${
-                                  isMe
-                                    ? 'bg-blue-50/70 dark:bg-blue-950/30'
-                                    : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <span
-                                    className={`w-6 font-mono-num font-bold text-xs tabular-nums ${
-                                      rank <= 3
-                                        ? 'text-blue-600 dark:text-blue-400'
-                                        : 'text-slate-400'
-                                    }`}
-                                  >
-                                    #{rank}
-                                  </span>
-                                  <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-display text-xs font-bold flex items-center justify-center shrink-0">
-                                    {getInitials(member.name)}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-semibold text-slate-900 dark:text-white truncate flex items-center gap-2">
-                                      <span>{member.name}</span>
-                                      {isMe && (
-                                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                                          (You)
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                      Grade {member.grade} · {member.skillLevel}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-4 shrink-0 text-right font-mono-num tabular-nums">
-                                  {member.streak >= 3 && (
-                                    <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-amber-500">
-                                      <Flame className="w-3.5 h-3.5" />W
-                                      {member.streak}
-                                    </span>
-                                  )}
-                                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                                    {member.wins}–{member.losses}
-                                  </span>
-                                  <span className="text-sm font-bold text-slate-900 dark:text-white w-12">
-                                    {member.elo}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="py-12 text-center space-y-2 bg-slate-50/60 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                          <Award className="w-7 h-7 text-slate-400 mx-auto" />
-                          <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                            {data.members.length === 0
-                              ? 'Club Ladder is Ready for Players'
-                              : 'No matching players found'}
-                          </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
-                            {data.members.length === 0
-                              ? 'Standings and Elo ratings will appear automatically once club officers add members.'
-                              : 'Try searching a different player name.'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-slate-500">
-                        View leaderboards & match history
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate('ladder')}
-                        className="font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>Open Full Standings</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Right 5 Cols: In-Club Brackets & Upcoming Tournaments */}
-                  <div className="lg:col-span-5 flex flex-col gap-6">
-                    {/* Active Club Brackets Preview */}
-                    <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex-1 flex flex-col justify-between space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                              <Trophy className="w-4 h-4" />
-                            </div>
-                            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                              In-Club Brackets
-                            </h3>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => onNavigate('tournaments')}
-                            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                          >
-                            All Brackets
-                          </button>
-                        </div>
-
-                        {data.clubTournaments.length > 0 ? (
-                          <div className="space-y-2.5 pt-1">
-                            {data.clubTournaments.slice(0, 2).map((ct) => (
-                              <div
-                                key={ct.id}
-                                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3"
-                              >
-                                <div>
-                                  <div className="text-xs font-bold text-slate-900 dark:text-white">
-                                    {ct.name}
-                                  </div>
-                                  <div className="text-[11px] text-slate-500 mt-0.5">
-                                    {ct.format} · {ct.date}
-                                  </div>
-                                </div>
-                                <span className="text-[11px] font-mono-num font-bold text-amber-600 dark:text-amber-400 shrink-0">
-                                  {ct.status}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="py-6 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800">
-                            <p className="text-xs text-slate-500">
-                              No in-club brackets created yet.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Tournament Watch Preview */}
-                    <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex-1 flex flex-col justify-between space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                              <Trophy className="w-4 h-4" />
-                            </div>
-                            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                              Upcoming Tournaments
-                            </h3>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => onNavigate('watch')}
-                            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                          >
-                            Watch List
-                          </button>
-                        </div>
-
-                        {activeOutside.length > 0 ? (
-                          <div className="space-y-2.5 pt-1">
-                            {activeOutside.slice(0, 2).map((t) => {
-                              const daysLeft = getDaysUntil(
-                                t.registrationDeadline,
-                                now
-                              );
-                              return (
-                                <div
-                                  key={t.id}
-                                  className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3"
-                                >
-                                  <div>
-                                    <div className="text-xs font-bold text-slate-900 dark:text-white">
-                                      {t.name}
-                                    </div>
-                                    <div className="text-[11px] text-slate-500 mt-0.5">
-                                      {t.cityVenue} · {t.dates}
-                                    </div>
-                                  </div>
-                                  <span
-                                    className={`text-[11px] font-mono-num font-bold shrink-0 ${
-                                      daysLeft <= 7
-                                        ? 'text-red-600 dark:text-red-400'
-                                        : 'text-blue-600 dark:text-blue-400'
-                                    }`}
-                                  >
-                                    {daysLeft}d left
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="py-6 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800">
-                            <p className="text-xs text-slate-500">
-                              No upcoming outside tournaments listed yet.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-                        <span>{data.clubTournaments.length} club brackets</span>
-                        <button
-                          type="button"
-                          onClick={() => onNavigate('tournaments')}
-                          className="font-bold text-slate-800 dark:text-slate-200 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>View Club Brackets</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
             {/* ============================================================= */}
-            {/* MY ACTIVITY TAB: DIGITAL ID CARD, ACHIEVEMENTS, MATCHES, LOGS */}
+            {/* MY ACTIVITY TAB: ACHIEVEMENTS, MATCHES, ATTENDANCE & TASKS    */}
             {/* ============================================================= */}
             {activeTab === 'activity' && (
               <div className="space-y-6">
-                {/* Embedded Bobcats Digital Member ID Card + Personal Metrics */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                  {/* Left 5 Cols: Official Bobcats Digital Member ID Pass */}
-                  <div className="lg:col-span-5 rounded-3xl bg-gradient-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#0f172a] text-white p-6 shadow-lg flex flex-col justify-between gap-5 relative overflow-hidden">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-white px-2 py-1 rounded-xl shadow-xs shrink-0">
-                          <img
-                            src={BOBCATS_LOGO_URL}
-                            alt="Byron Nelson Bobcats"
-                            className="h-6 w-auto object-contain"
-                          />
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
-                            Official Member ID Pass
-                          </div>
-                          <div className="text-xs text-blue-100">
-                            {data.settings.clubName}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowIdPassModal(true)}
-                        className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-[11px] font-bold text-white cursor-pointer transition-colors"
-                      >
-                        Expand
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="font-display text-2xl sm:text-3xl font-bold tracking-tight truncate">
-                          {activeMember ? activeMember.name : 'BNHS Athlete'}
-                        </div>
-                        <div className="text-xs text-blue-100">
-                          {activeMember
-                            ? `Grade ${activeMember.grade} · ${activeMember.skillLevel}${
-                                activeMember.duprRating
-                                  ? ` · ${activeMember.duprRating} DUPR`
-                                  : ''
-                              }`
-                            : 'Select your roster profile'}
-                        </div>
-                        <div className="pt-1 flex items-center gap-3 text-xs font-mono-num">
-                          <span>
-                            Rank:{' '}
-                            <strong className="text-amber-300">
-                              {activeMemberRank ? `#${activeMemberRank}` : '—'}
-                            </strong>
-                          </span>
-                          <span>·</span>
-                          <span>
-                            Elo:{' '}
-                            <strong className="text-white">
-                              {activeMember?.elo || 1200}
-                            </strong>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Scannable Personal QR Code */}
-                      <button
-                        type="button"
-                        onClick={() => setShowIdPassModal(true)}
-                        title="Click to enlarge personal QR code"
-                        className="p-2.5 bg-white rounded-2xl shadow-md shrink-0 cursor-pointer hover:scale-[1.03] transition-transform"
-                      >
-                        <QRCodeSVG
-                          value={personalQrToken}
-                          size={88}
-                          level="M"
-                          includeMargin={false}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="pt-3 border-t border-white/15 flex items-center justify-between gap-2 text-[11px] text-blue-100">
-                      <span className="font-mono-num truncate">
-                        {personalQrToken}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleCopyMemberToken}
-                        className="inline-flex items-center gap-1 font-bold text-amber-300 hover:underline shrink-0 cursor-pointer"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>{copiedIdToken ? 'Copied' : 'Copy ID'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Right 7 Cols: Profile Controls & 4-Stat Summary */}
-                  <div className="lg:col-span-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between gap-5">
+                {/* Personal Metrics & Season Performance Card */}
+                <div>
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between gap-5">
                     <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
                       <div>
                         <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                          {currentUser
-                            ? `Signed in as ${
-                                currentUser.displayName || currentUser.email
-                              }`
-                            : 'Personal Athlete Dashboard'}
+                          Personal Athlete Dashboard
                         </div>
                         <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
                           Season Performance & Milestones
@@ -2103,8 +1254,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     myVerifiedQrCheckins.length === 0 ? (
                       <div className="py-8 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
                         No practice attendance sessions recorded yet. Use the
-                        Practice Check-In button or show your Digital Member ID
-                        QR at practice!
+                        Practice Check-In button at practice!
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2229,17 +1379,24 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
               />
             )}
 
-            {(activeTab === 'tournaments' || activeTab === 'watch') && (
+            {activeTab === 'tournaments' && (
               <TournamentsView
-                activeSubTab={activeTab}
-                onSwitchSubTab={(sub) => onNavigate(sub)}
                 members={data.members}
+                clubTournaments={data.clubTournaments}
+                isOfficer={false}
+                onUpdateClubTournaments={noop}
+                onLaunchScoreKeeperForTournament={noop}
+              />
+            )}
+
+            {activeTab === 'watch' && (
+              <WatchlistView
+                members={data.members}
+                matches={data.matches}
                 clubTournaments={data.clubTournaments}
                 outsideTournaments={data.outsideTournaments}
                 isOfficer={false}
-                onUpdateClubTournaments={noop}
                 onUpdateOutsideTournaments={noop}
-                onLaunchScoreKeeperForTournament={noop}
                 onRequestOfficerUnlock={onRequestOfficerLogin}
               />
             )}
@@ -2262,196 +1419,10 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       </main>
 
       {/* ================================================================= */}
-      {/* DIGITAL MEMBER ID CARD & PERSONAL QR CODE MODAL                   */}
-      {/* ================================================================= */}
-      <AnimatePresence>
-        {showIdPassModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
-            onClick={() => setShowIdPassModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              transition={{ duration: 0.24, ease: SMOOTH_EASE }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-3xl overflow-hidden bg-gradient-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#0f172a] text-white shadow-2xl border border-white/15 my-auto"
-            >
-              {/* Pass Top Bar */}
-              <div className="p-6 pb-4 flex items-center justify-between border-b border-white/15">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white px-2.5 py-1 rounded-xl shadow-xs">
-                    <img
-                      src={BOBCATS_LOGO_URL}
-                      alt="Byron Nelson Bobcats"
-                      className="h-6 w-auto object-contain"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
-                      Official Athlete Pass
-                    </div>
-                    <div className="font-display text-lg font-bold leading-none mt-0.5">
-                      {data.settings.clubName}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowIdPassModal(false)}
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer"
-                  aria-label="Close Digital ID Pass"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Pass Body */}
-              <div className="p-6 space-y-5 text-center">
-                {data.members.length > 1 && (
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-xs text-blue-100">Athlete:</span>
-                    <select
-                      value={activeMember?.id || ''}
-                      onChange={(e) => onSelectLinkedMember(e.target.value)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white/15 border border-white/20 text-white cursor-pointer"
-                    >
-                      {data.members.map((m) => (
-                        <option
-                          key={m.id}
-                          value={m.id}
-                          className="text-slate-900"
-                        >
-                          {m.name} (Grade {m.grade})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <h3 className="font-display text-3xl font-bold tracking-tight">
-                    {activeMember ? activeMember.name : 'BNHS Club Member'}
-                  </h3>
-                  <div className="text-xs text-blue-100">
-                    {activeMember
-                      ? `Grade ${activeMember.grade} · ${activeMember.skillLevel}${
-                          activeMember.duprRating
-                            ? ` · ${activeMember.duprRating} DUPR`
-                            : ''
-                        }`
-                      : `${data.settings.schoolName} · Active Member`}
-                  </div>
-                </div>
-
-                {/* High-Contrast Scannable Personal QR Code */}
-                <div className="mx-auto w-fit p-4 bg-white rounded-3xl shadow-xl border-4 border-amber-400">
-                  <QRCodeSVG
-                    value={personalQrToken}
-                    size={196}
-                    level="M"
-                    includeMargin={false}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-[11px] text-blue-200">
-                    Personal Check-In Token (Present to Officer at Courts)
-                  </div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/40 border border-white/15 font-mono-num text-xs">
-                    <span>{personalQrToken}</span>
-                    <button
-                      type="button"
-                      onClick={handleCopyMemberToken}
-                      className="text-amber-300 hover:underline font-sans font-bold inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedIdToken ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3-Column Live Stats Strip */}
-                <div className="grid grid-cols-3 gap-2.5 pt-1">
-                  <div className="p-3 rounded-2xl bg-white/10 border border-white/10">
-                    <div className="text-[10px] uppercase tracking-wider text-blue-200">
-                      Ladder Rank
-                    </div>
-                    <div className="font-mono-num text-lg font-bold text-amber-300 mt-0.5">
-                      {activeMemberRank ? `#${activeMemberRank}` : '—'}{' '}
-                      <span className="text-xs text-white">
-                        ({activeMember?.elo || 1200})
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-white/10 border border-white/10">
-                    <div className="text-[10px] uppercase tracking-wider text-blue-200">
-                      Attendance
-                    </div>
-                    <div className="font-mono-num text-lg font-bold text-emerald-300 mt-0.5">
-                      {attendanceStats.pct}%
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-white/10 border border-white/10">
-                    <div className="text-[10px] uppercase tracking-wider text-blue-200">
-                      Badges
-                    </div>
-                    <div className="font-mono-num text-lg font-bold text-white mt-0.5">
-                      {unlockedAchievementsCount}/{myAchievements.length}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Actions */}
-                <div className="grid grid-cols-2 gap-2.5 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowIdPassModal(false);
-                      onOpenPracticeQr(
-                        hasScheduledEvents
-                          ? nextPracticeQrTarget
-                          : defaultQrTarget,
-                        'scan'
-                      );
-                    }}
-                    className="min-h-[42px] px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <QrCode className="w-4 h-4" />
-                    <span>Practice QR Check-In</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowIdPassModal(false)}
-                    className="min-h-[42px] px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold cursor-pointer"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ================================================================= */}
       {/* MOBILE THUMB-FRIENDLY BOTTOM NAVIGATION BAR                       */}
       {/* ================================================================= */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-[#0b1120]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 px-2 py-1.5 grid grid-cols-5 gap-1 no-print">
-        {MEMBER_NAV_TABS.slice(0, 5).map((tab) => {
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-[#0b1120]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 px-2 py-1.5 grid grid-cols-6 gap-1 no-print">
+        {MEMBER_NAV_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button

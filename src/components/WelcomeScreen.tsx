@@ -10,7 +10,6 @@ import {
   Eye,
   Home,
   Lock,
-  LogIn,
   Moon,
   QrCode,
   ShieldCheck,
@@ -19,19 +18,16 @@ import {
 } from 'lucide-react';
 import { ClubDataState, NavTab } from '../types';
 import { getNextUpcomingEvent } from '../utils/clubUtils';
-import { User } from '../firebase';
 
 export const BOBCATS_LOGO_URL = '/assets/aistudio/images_25669a2b.png';
 
 interface WelcomeScreenProps {
   data: ClubDataState;
   darkMode: boolean;
-  currentUser: User | null;
   onToggleDarkMode: () => void;
   onEnterAsMember: (targetTab: NavTab) => void;
   onEnterAsOfficer: (pin: string, targetTab: NavTab) => boolean;
   onOpenQrScanner: () => void;
-  onGoogleSignIn: () => Promise<void>;
 }
 
 const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -45,7 +41,7 @@ const MEMBER_DESTINATIONS: {
   {
     id: 'home',
     label: 'Member Overview',
-    description: 'Next practice countdown, digital ID pass & standings lookup',
+    description: 'Next practice countdown, achievements & standings lookup',
     icon: <Home className="w-4 h-4" />,
   },
   {
@@ -83,12 +79,10 @@ const MEMBER_DESTINATIONS: {
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   data,
   darkMode,
-  currentUser,
   onToggleDarkMode,
   onEnterAsMember,
   onEnterAsOfficer,
   onOpenQrScanner,
-  onGoogleSignIn,
 }) => {
   const [selectedDestination, setSelectedDestination] =
     useState<NavTab>('home');
@@ -481,24 +475,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       </main>
 
       {/* Minimalist Footer */}
-      <footer className="relative z-20 max-w-5xl w-full mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-400 dark:text-slate-500">
+      <footer className="relative z-20 max-w-5xl w-full mx-auto px-6 py-4 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400 dark:text-slate-500">
         <span className="flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5" />
           {hasScheduledEvents
             ? `Next: ${nextEvent.title} (${nextEvent.date})`
             : `${data.settings.schoolName} · ${data.settings.clubName}`}
         </span>
-        {!currentUser ? (
-          <button
-            type="button"
-            onClick={onGoogleSignIn}
-            className="hover:text-slate-700 dark:hover:text-slate-300 inline-flex items-center gap-1 cursor-pointer transition-colors"
-          >
-            <LogIn className="w-3.5 h-3.5" /> Sign in with Google
-          </button>
-        ) : (
-          <span>Synced: {currentUser.displayName || currentUser.email}</span>
-        )}
       </footer>
     </div>
   );

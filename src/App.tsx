@@ -4,13 +4,10 @@ import {
   Award,
   Calendar,
   ChevronDown,
-  CloudCheck,
   Download,
   Eye,
   Home,
   Lock,
-  LogIn,
-  LogOut,
   Moon,
   Package,
   Play,
@@ -51,8 +48,6 @@ import {
   logQrCheckinToFirestore,
   onAuthStateChanged,
   saveClubWorkspaceToFirestore,
-  signInWithGooglePopup,
-  signOutUser,
   subscribeUserQrCheckins,
   updateUserLinkedMember,
 } from './firebase';
@@ -61,6 +56,7 @@ import { LiveScoreKeeper } from './components/LiveScoreKeeper';
 import { MembersAttendanceView } from './components/MembersAttendanceView';
 import { LadderStatsView } from './components/LadderStatsView';
 import { TournamentsView } from './components/TournamentsView';
+import { WatchlistView } from './components/WatchlistView';
 import { OfficersTasksView } from './components/OfficersTasksView';
 import { CalendarEventsView } from './components/CalendarEventsView';
 import {
@@ -407,26 +403,6 @@ export default function App() {
     }
   }, [darkMode]);
 
-  const handleGoogleSignIn = async () => {
-    try {
-      const user = await signInWithGooglePopup();
-      showToast(`Signed in as ${user.displayName || user.email}`);
-    } catch (err) {
-      showToast(
-        err instanceof Error ? err.message : 'Google Sign-In was cancelled.'
-      );
-    }
-  };
-
-  const handleGoogleSignOut = async () => {
-    try {
-      await signOutUser();
-      showToast('Signed out of Google account.');
-    } catch {
-      // Ignore sign out error
-    }
-  };
-
   // Complete a QR Code Practice Attendance Check-In
   const handleCompleteQrCheckin = async ({
     target,
@@ -725,7 +701,7 @@ export default function App() {
     },
     {
       id: 'watch',
-      label: 'Tournament Watch',
+      label: 'Watchlist & Live VFX',
       access: 'member',
       icon: <Eye className="w-4 h-4" />,
     },
@@ -786,7 +762,6 @@ export default function App() {
         <WelcomeScreen
           data={data}
           darkMode={darkMode}
-          currentUser={currentUser}
           onToggleDarkMode={() => setDarkMode(!darkMode)}
           onEnterAsMember={(targetTab) => {
             setActiveTab(
@@ -808,7 +783,6 @@ export default function App() {
             setShowWelcomeScreen(false);
             openPracticeQrModal(defaultQrTarget, 'scan');
           }}
-          onGoogleSignIn={handleGoogleSignIn}
         />
 
         {qrModalState && qrModalState.open && (
@@ -818,7 +792,6 @@ export default function App() {
             availablePracticeTargets={availablePracticeTargets}
             members={data.members}
             attendance={data.attendance}
-            currentUser={currentUser}
             linkedMemberId={linkedMemberId}
             recentQrCheckins={recentQrCheckins}
             onClose={() => setQrModalState(null)}
@@ -827,7 +800,6 @@ export default function App() {
                 prev ? { ...prev, target: nextTarget } : null
               )
             }
-            onSignInGoogle={handleGoogleSignIn}
             onCompleteQrCheckin={handleCompleteQrCheckin}
           />
         )}
@@ -848,7 +820,6 @@ export default function App() {
           currentUser={currentUser}
           linkedMemberId={linkedMemberId}
           recentQrCheckins={recentQrCheckins}
-          cloudSynced={cloudSynced}
           defaultQrTarget={defaultQrTarget}
           onSelectLinkedMember={handleSelectLinkedMember}
           onNavigate={handleNavigate}
@@ -861,8 +832,6 @@ export default function App() {
           }}
           onOpenPracticeQr={openPracticeQrModal}
           onShowWelcomeScreen={() => setShowWelcomeScreen(true)}
-          onGoogleSignIn={handleGoogleSignIn}
-          onGoogleSignOut={handleGoogleSignOut}
         />
       ) : (
         /* =============================================================== */
@@ -1069,32 +1038,6 @@ export default function App() {
                               <Sparkles className="w-3.5 h-3.5" />
                               <span>Welcome Screen</span>
                             </button>
-
-                            {!currentUser ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMenuOpen(false);
-                                  handleGoogleSignIn();
-                                }}
-                                className="font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white inline-flex items-center gap-1 cursor-pointer"
-                              >
-                                <LogIn className="w-3.5 h-3.5" />
-                                <span>Google Sync</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMenuOpen(false);
-                                  handleGoogleSignOut();
-                                }}
-                                className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                              >
-                                <CloudCheck className="w-3.5 h-3.5" />
-                                <span>{cloudSynced ? 'Synced' : 'Sign Out'}</span>
-                              </button>
-                            )}
                           </div>
                         </div>
                       </motion.div>
@@ -1273,24 +1216,31 @@ export default function App() {
                     />
                   )}
 
-                  {(activeTab === 'tournaments' || activeTab === 'watch') && (
+                  {activeTab === 'tournaments' && (
                     <TournamentsView
-                      activeSubTab={activeTab}
-                      onSwitchSubTab={(sub) => handleNavigate(sub)}
                       clubTournaments={data.clubTournaments}
-                      outsideTournaments={data.outsideTournaments}
                       members={data.members}
                       isOfficer={true}
                       onUpdateClubTournaments={(clubTournaments) =>
                         setData((prev) => ({ ...prev, clubTournaments }))
                       }
-                      onUpdateOutsideTournaments={(outsideTournaments) =>
-                        setData((prev) => ({ ...prev, outsideTournaments }))
-                      }
                       onLaunchScoreKeeperForTournament={(ctx) => {
                         setPendingTournamentMatch(ctx);
                         setActiveTab('scorekeeper');
                       }}
+                    />
+                  )}
+
+                  {activeTab === 'watch' && (
+                    <WatchlistView
+                      members={data.members}
+                      matches={data.matches}
+                      clubTournaments={data.clubTournaments}
+                      outsideTournaments={data.outsideTournaments}
+                      isOfficer={true}
+                      onUpdateOutsideTournaments={(outsideTournaments) =>
+                        setData((prev) => ({ ...prev, outsideTournaments }))
+                      }
                       onRequestOfficerUnlock={() => setShowPinModal(true)}
                     />
                   )}
@@ -1430,7 +1380,6 @@ export default function App() {
           availablePracticeTargets={availablePracticeTargets}
           members={data.members}
           attendance={data.attendance}
-          currentUser={currentUser}
           linkedMemberId={linkedMemberId}
           recentQrCheckins={recentQrCheckins}
           onClose={() => setQrModalState(null)}
@@ -1439,7 +1388,6 @@ export default function App() {
               prev ? { ...prev, target: nextTarget } : null
             )
           }
-          onSignInGoogle={handleGoogleSignIn}
           onCompleteQrCheckin={handleCompleteQrCheckin}
         />
       )}
