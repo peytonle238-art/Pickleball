@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   CheckCircle2,
+  Lock,
   RotateCcw,
   Trophy,
   Undo2,
@@ -17,10 +18,12 @@ import { calculateEloDelta } from '../utils/clubUtils';
 
 interface LiveScoreKeeperProps {
   members: Member[];
+  isOfficer: boolean;
   pendingTournamentMatch: PendingTournamentScoreContext | null;
   onClearPendingTournamentMatch: () => void;
   onSaveCompletedMatch: (match: MatchRecord) => void;
   onNavigateToLadder: () => void;
+  onRequestOfficerUnlock: () => void;
 }
 
 interface ScoreSnapshot {
@@ -36,10 +39,12 @@ interface ScoreSnapshot {
 
 export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
   members,
+  isOfficer,
   pendingTournamentMatch,
   onClearPendingTournamentMatch,
   onSaveCompletedMatch,
   onNavigateToLadder,
+  onRequestOfficerUnlock,
 }) => {
   const [format, setFormat] = useState<'singles' | 'doubles'>('doubles');
   const [scoringType, setScoringType] = useState<'sideout' | 'rally'>('sideout');
@@ -255,7 +260,9 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         eloDelta,
         games: updatedGames,
       });
-      onSaveCompletedMatch(newMatch);
+      if (isOfficer) {
+        onSaveCompletedMatch(newMatch);
+      }
     } else {
       // Advance to next game in Best of 3
       setState({
@@ -273,6 +280,10 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
   // Handler 1: Serving team scores a point (Side-out mode)
   const handleServerPoint = () => {
+    if (!isOfficer) {
+      onRequestOfficerUnlock();
+      return;
+    }
     if (savedMatchSummary) return;
     setHistory((prev) => [...prev, state]);
 
@@ -317,6 +328,10 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
   // Handler 2: Side Out / Second Server (Side-out mode)
   const handleSideOutOrSecondServer = () => {
+    if (!isOfficer) {
+      onRequestOfficerUnlock();
+      return;
+    }
     if (savedMatchSummary) return;
     setHistory((prev) => [...prev, state]);
 
@@ -340,6 +355,10 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
   // Handler 3: Rally scoring point for Team 1 or Team 2
   const handleRallyPoint = (winningTeam: 1 | 2) => {
+    if (!isOfficer) {
+      onRequestOfficerUnlock();
+      return;
+    }
     if (savedMatchSummary) return;
     setHistory((prev) => [...prev, state]);
 
@@ -378,6 +397,10 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
   // Handler 4: Undo
   const handleUndo = () => {
+    if (!isOfficer) {
+      onRequestOfficerUnlock();
+      return;
+    }
     if (history.length === 0 || savedMatchSummary) return;
     const prev = history[history.length - 1];
     setState(prev);
@@ -403,6 +426,26 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         </div>
       )}
 
+      {/* Member View-Only Banner */}
+      {!isOfficer && (
+        <div className="rounded-2xl bg-slate-900 dark:bg-slate-900/90 text-white px-5 py-3.5 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-xs">
+            <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong>View-Only Scoreboard:</strong> Only Club Officers can score
+              official matches or save results to the Ladder.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onRequestOfficerUnlock}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-400 text-slate-950 text-xs font-bold hover:bg-amber-300 cursor-pointer shrink-0"
+          >
+            Unlock Officer Mode
+          </button>
+        </div>
+      )}
+
       {/* Match Settings & Player Selection Bar */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -420,11 +463,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
             {/* Singles / Doubles */}
             <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
               <button
+                disabled={!isOfficer}
                 onClick={() => {
+                  if (!isOfficer) return;
                   setFormat('singles');
                   resetScoreboard('singles');
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer ${
                   format === 'singles'
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400'
@@ -433,11 +478,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                 Singles
               </button>
               <button
+                disabled={!isOfficer}
                 onClick={() => {
+                  if (!isOfficer) return;
                   setFormat('doubles');
                   resetScoreboard('doubles');
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer ${
                   format === 'doubles'
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400'
@@ -450,11 +497,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
             {/* Side-Out / Rally */}
             <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
               <button
+                disabled={!isOfficer}
                 onClick={() => {
+                  if (!isOfficer) return;
                   setScoringType('sideout');
                   resetScoreboard(format);
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer ${
                   scoringType === 'sideout'
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400'
@@ -463,11 +512,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                 Side-Out
               </button>
               <button
+                disabled={!isOfficer}
                 onClick={() => {
+                  if (!isOfficer) return;
                   setScoringType('rally');
                   resetScoreboard(format);
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer ${
                   scoringType === 'rally'
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400'
@@ -482,8 +533,12 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
               {([11, 15, 21] as const).map((pts) => (
                 <button
                   key={pts}
-                  onClick={() => setTargetScore(pts)}
-                  className={`px-2.5 py-1.5 text-xs font-mono-num font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                  disabled={!isOfficer}
+                  onClick={() => {
+                    if (!isOfficer) return;
+                    setTargetScore(pts);
+                  }}
+                  className={`px-2.5 py-1.5 text-xs font-mono-num font-semibold rounded-md transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer ${
                     targetScore === pts
                       ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                       : 'text-slate-600 dark:text-slate-400'
@@ -497,11 +552,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
             {/* Best of 1 / Best of 3 */}
             <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
               <button
+                disabled={!isOfficer}
                 onClick={() => {
+                  if (!isOfficer) return;
                   setBestOf(1);
                   resetScoreboard(format);
                 }}
-                className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer ${
                   bestOf === 1
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400'
@@ -510,11 +567,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                 Best of 1
               </button>
               <button
+                disabled={!isOfficer}
                 onClick={() => {
+                  if (!isOfficer) return;
                   setBestOf(3);
                   resetScoreboard(format);
                 }}
-                className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer ${
                   bestOf === 3
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400'
@@ -540,10 +599,11 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select
+                disabled={!isOfficer}
                 value={t1P1}
                 onChange={(e) => setT1P1(e.target.value)}
                 aria-label="Team 1 Player 1"
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -553,10 +613,11 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
               </select>
               {format === 'doubles' && (
                 <select
+                  disabled={!isOfficer}
                   value={t1P2}
                   onChange={(e) => setT1P2(e.target.value)}
                   aria-label="Team 1 Player 2"
-                  className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -580,10 +641,11 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <select
+                disabled={!isOfficer}
                 value={t2P1}
                 onChange={(e) => setT2P1(e.target.value)}
                 aria-label="Team 2 Player 1"
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -593,10 +655,11 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
               </select>
               {format === 'doubles' && (
                 <select
+                  disabled={!isOfficer}
                   value={t2P2}
                   onChange={(e) => setT2P2(e.target.value)}
                   aria-label="Team 2 Player 2"
-                  className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -756,84 +819,100 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
           </div>
 
           {/* Big Tap-Friendly Action Buttons (Thumb-Zone Optimized) */}
-          <div className="space-y-3">
-            {scoringType === 'sideout' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  onClick={handleServerPoint}
-                  disabled={!!savedMatchSummary}
-                  className="min-h-[60px] px-5 py-4 rounded-xl font-bold text-base text-white flex flex-col items-center justify-center shadow-sm transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-                  style={{ backgroundColor: 'var(--club-primary)' }}
-                >
-                  <span>+1 Point (Team {state.servingTeam})</span>
-                  <span className="text-[11px] font-normal text-white/80 mt-0.5">
-                    Server scores & swaps sides
-                  </span>
-                </button>
+          {isOfficer ? (
+            <div className="space-y-3">
+              {scoringType === 'sideout' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onClick={handleServerPoint}
+                    disabled={!!savedMatchSummary}
+                    className="min-h-[60px] px-5 py-4 rounded-xl font-bold text-base text-white flex flex-col items-center justify-center shadow-sm transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                    style={{ backgroundColor: 'var(--club-primary)' }}
+                  >
+                    <span>+1 Point (Team {state.servingTeam})</span>
+                    <span className="text-[11px] font-normal text-white/80 mt-0.5">
+                      Server scores & swaps sides
+                    </span>
+                  </button>
 
-                <button
-                  onClick={handleSideOutOrSecondServer}
-                  disabled={!!savedMatchSummary}
-                  className="min-h-[60px] px-5 py-4 rounded-xl font-bold text-base bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white flex flex-col items-center justify-center transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-                >
-                  <span className="flex items-center gap-2">
-                    <ArrowRightLeft className="w-4 h-4" />
-                    {format === 'doubles' && state.serverNumber === 1
-                      ? '2nd Server (Partner)'
-                      : 'Side Out'}
-                  </span>
-                  <span className="text-[11px] font-normal text-slate-300 mt-0.5">
-                    {format === 'doubles' && state.serverNumber === 1
-                      ? 'Pass serve to Server #2'
-                      : `Rotate serve to Team ${state.servingTeam === 1 ? 2 : 1}`}
-                  </span>
-                </button>
-              </div>
-            ) : (
+                  <button
+                    onClick={handleSideOutOrSecondServer}
+                    disabled={!!savedMatchSummary}
+                    className="min-h-[60px] px-5 py-4 rounded-xl font-bold text-base bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white flex flex-col items-center justify-center transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <ArrowRightLeft className="w-4 h-4" />
+                      {format === 'doubles' && state.serverNumber === 1
+                        ? '2nd Server (Partner)'
+                        : 'Side Out'}
+                    </span>
+                    <span className="text-[11px] font-normal text-slate-300 mt-0.5">
+                      {format === 'doubles' && state.serverNumber === 1
+                        ? 'Pass serve to Server #2'
+                        : `Rotate serve to Team ${state.servingTeam === 1 ? 2 : 1}`}
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleRallyPoint(1)}
+                    disabled={!!savedMatchSummary}
+                    className="min-h-[60px] px-4 py-4 rounded-xl font-bold text-base text-white flex flex-col items-center justify-center cursor-pointer disabled:opacity-50"
+                    style={{ backgroundColor: 'var(--club-primary)' }}
+                  >
+                    <span>+1 Point Team 1</span>
+                    <span className="text-[11px] font-normal text-white/80">
+                      Rally Winner
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => handleRallyPoint(2)}
+                    disabled={!!savedMatchSummary}
+                    className="min-h-[60px] px-4 py-4 rounded-xl font-bold text-base bg-slate-900 dark:bg-slate-800 text-white flex flex-col items-center justify-center cursor-pointer disabled:opacity-50"
+                  >
+                    <span>+1 Point Team 2</span>
+                    <span className="text-[11px] font-normal text-slate-300">
+                      Rally Winner
+                    </span>
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => handleRallyPoint(1)}
-                  disabled={!!savedMatchSummary}
-                  className="min-h-[60px] px-4 py-4 rounded-xl font-bold text-base text-white flex flex-col items-center justify-center cursor-pointer disabled:opacity-50"
-                  style={{ backgroundColor: 'var(--club-primary)' }}
+                  onClick={handleUndo}
+                  disabled={history.length === 0 || !!savedMatchSummary}
+                  className="min-h-[48px] px-4 py-2.5 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer"
                 >
-                  <span>+1 Point Team 1</span>
-                  <span className="text-[11px] font-normal text-white/80">
-                    Rally Winner
-                  </span>
+                  <Undo2 className="w-4 h-4" />
+                  Undo Last Rally ({history.length})
                 </button>
+
                 <button
-                  onClick={() => handleRallyPoint(2)}
-                  disabled={!!savedMatchSummary}
-                  className="min-h-[60px] px-4 py-4 rounded-xl font-bold text-base bg-slate-900 dark:bg-slate-800 text-white flex flex-col items-center justify-center cursor-pointer disabled:opacity-50"
+                  onClick={() => resetScoreboard(format)}
+                  className="min-h-[48px] px-4 py-2.5 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span>+1 Point Team 2</span>
-                  <span className="text-[11px] font-normal text-slate-300">
-                    Rally Winner
-                  </span>
+                  <RotateCcw className="w-4 h-4" />
+                  Reset Match
                 </button>
               </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+              <div className="text-xs text-slate-600 dark:text-slate-400">
+                Match scoring buttons are locked in Member Mode.
+              </div>
               <button
-                onClick={handleUndo}
-                disabled={history.length === 0 || !!savedMatchSummary}
-                className="min-h-[48px] px-4 py-2.5 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer"
+                type="button"
+                onClick={onRequestOfficerUnlock}
+                className="px-3.5 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
               >
-                <Undo2 className="w-4 h-4" />
-                Undo Last Rally ({history.length})
-              </button>
-
-              <button
-                onClick={() => resetScoreboard(format)}
-                className="min-h-[48px] px-4 py-2.5 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reset Match
+                <Lock className="w-3.5 h-3.5" />
+                <span>Officer Unlock</span>
               </button>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right Column: Live Court Diagram Showing Server & Receiver Positions */}

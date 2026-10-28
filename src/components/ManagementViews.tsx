@@ -86,6 +86,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isOfficer) return;
     if (!title.trim() || !body.trim()) return;
     const matchedOfficer = officers.find((o) => o.name === authorName);
     const role = matchedOfficer ? matchedOfficer.role : 'Officer';
@@ -144,17 +145,19 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
             Officers post updates and pin priority announcements to the top
           </p>
         </div>
-        <button
-          onClick={openNew}
-          className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
-          style={{ backgroundColor: 'var(--club-primary)' }}
-        >
-          <Plus className="w-4 h-4" />
-          Post Announcement
-        </button>
+        {isOfficer && (
+          <button
+            onClick={openNew}
+            className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
+            style={{ backgroundColor: 'var(--club-primary)' }}
+          >
+            <Plus className="w-4 h-4" />
+            Post Announcement
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {isOfficer && showForm && (
         <form
           onSubmit={handleSave}
           className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"

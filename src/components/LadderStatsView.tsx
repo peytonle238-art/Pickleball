@@ -80,6 +80,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
 
   const handleManualMatchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isOfficer) return;
     const team1Ids = mFormat === 'doubles' ? [mT1P1, mT1P2] : [mT1P1];
     const team2Ids = mFormat === 'doubles' ? [mT2P1, mT2P2] : [mT2P1];
     const winnerTeam: 1 | 2 = mScore1 >= mScore2 ? 1 : 2;
@@ -219,15 +220,15 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => onNavigate('scorekeeper')}
-              className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white cursor-pointer"
-              style={{ backgroundColor: 'var(--club-primary)' }}
-            >
-              Score Live Match
-            </button>
-            {isOfficer && (
+          {isOfficer && (
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => onNavigate('scorekeeper')}
+                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white cursor-pointer"
+                style={{ backgroundColor: 'var(--club-primary)' }}
+              >
+                Score Live Match
+              </button>
               <button
                 onClick={() => setShowManualMatchForm(!showManualMatchForm)}
                 className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white inline-flex items-center gap-1.5 cursor-pointer"
@@ -235,8 +236,8 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 <Plus className="w-4 h-4" />
                 Log Quick Result
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Officer Manual Match Form */}

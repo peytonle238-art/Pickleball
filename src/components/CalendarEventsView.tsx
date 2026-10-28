@@ -87,10 +87,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
   };
 
   const toggleRecurringDay = (dayIdx: number) => {
-    if (!isOfficer) {
-      onRequestOfficerUnlock();
-      return;
-    }
+    if (!isOfficer) return;
     const exists = settings.recurringPractices.daysOfWeek.includes(dayIdx);
     const nextDays = exists
       ? settings.recurringPractices.daysOfWeek.filter((d) => d !== dayIdx)
@@ -181,7 +178,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
 
   const handleSaveEvent = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!evTitle.trim()) return;
+    if (!isOfficer || !evTitle.trim()) return;
 
     if (editingEvent && !editingEvent.id.startsWith('recurring-')) {
       onUpdateEvents(
@@ -274,24 +271,31 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
               Scan Practice QR
             </button>
 
-            <button
-              onClick={() =>
-                onOpenPracticeQr(defaultPracticeTargetForSelectedDay, 'display')
-              }
-              className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <QrCode className="w-4 h-4" />
-              Generate QR ({selectedDateStr})
-            </button>
+            {isOfficer && (
+              <>
+                <button
+                  onClick={() =>
+                    onOpenPracticeQr(
+                      defaultPracticeTargetForSelectedDay,
+                      'display'
+                    )
+                  }
+                  className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <QrCode className="w-4 h-4" />
+                  Generate QR ({selectedDateStr})
+                </button>
 
-            <button
-              onClick={() => openAddEvent(selectedDateStr)}
-              className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
-              style={{ backgroundColor: 'var(--club-primary)' }}
-            >
-              <Plus className="w-4 h-4" />
-              Add Calendar Event
-            </button>
+                <button
+                  onClick={() => openAddEvent(selectedDateStr)}
+                  className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
+                  style={{ backgroundColor: 'var(--club-primary)' }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Calendar Event
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -309,8 +313,12 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
                 return (
                   <button
                     key={dayLabel}
+                    type="button"
+                    disabled={!isOfficer}
                     onClick={() => toggleRecurringDay(idx)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
+                      isOfficer ? 'cursor-pointer' : 'cursor-default'
+                    } ${
                       active
                         ? 'bg-blue-600 text-white'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
@@ -342,7 +350,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
       </div>
 
       {/* Add/Edit Event Form */}
-      {showEventForm && (
+      {isOfficer && showEventForm && (
         <form
           onSubmit={handleSaveEvent}
           className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
@@ -558,12 +566,14 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
                   {selectedDateStr}
                 </h3>
               </div>
-              <button
-                onClick={() => openAddEvent(selectedDateStr)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 cursor-pointer"
-              >
-                + Event on Day
-              </button>
+              {isOfficer && (
+                <button
+                  onClick={() => openAddEvent(selectedDateStr)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 cursor-pointer"
+                >
+                  + Event on Day
+                </button>
+              )}
             </div>
 
             {selectedDayEvents.length === 0 ? (
@@ -571,18 +581,20 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
                 <p className="text-xs text-slate-500">
                   No scheduled practices or events on {selectedDateStr}.
                 </p>
-                <button
-                  onClick={() =>
-                    onOpenPracticeQr(
-                      defaultPracticeTargetForSelectedDay,
-                      'display'
-                    )
-                  }
-                  className="w-full min-h-[40px] px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 inline-flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <QrCode className="w-4 h-4" />
-                  Generate Ad-Hoc Practice QR for {selectedDateStr}
-                </button>
+                {isOfficer && (
+                  <button
+                    onClick={() =>
+                      onOpenPracticeQr(
+                        defaultPracticeTargetForSelectedDay,
+                        'display'
+                      )
+                    }
+                    className="w-full min-h-[40px] px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    Generate Ad-Hoc Practice QR for {selectedDateStr}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -640,18 +652,27 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
 
                     {/* Practice Event QR Code Generator & Check-In Triggers */}
                     {ev.type === 'Practice' && (
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onOpenPracticeQr(toPracticeQrTarget(ev), 'display')
-                          }
-                          className="min-h-[38px] px-2.5 py-1.5 rounded-lg text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
-                          style={{ backgroundColor: 'var(--club-primary)' }}
-                        >
-                          <QrCode className="w-3.5 h-3.5" />
-                          Show QR Code
-                        </button>
+                      <div
+                        className={`pt-2 border-t border-slate-100 dark:border-slate-800 grid ${
+                          isOfficer ? 'grid-cols-2' : 'grid-cols-1'
+                        } gap-2`}
+                      >
+                        {isOfficer && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onOpenPracticeQr(
+                                toPracticeQrTarget(ev),
+                                'display'
+                              )
+                            }
+                            className="min-h-[38px] px-2.5 py-1.5 rounded-lg text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                            style={{ backgroundColor: 'var(--club-primary)' }}
+                          >
+                            <QrCode className="w-3.5 h-3.5" />
+                            Show QR Code
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() =>

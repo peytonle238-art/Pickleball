@@ -113,7 +113,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
   const handleCreateClubTournament = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTourneyName.trim()) return;
+    if (!isOfficer || !newTourneyName.trim()) return;
 
     const chosenMembers = members.filter((m) => selectedPlayerIds.includes(m.id));
     const participants: ClubTournamentParticipant[] = [];
@@ -168,7 +168,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   };
 
   const handleSaveManualTournamentScore = (matchId: string) => {
-    if (!activeClubTournament) return;
+    if (!isOfficer || !activeClubTournament) return;
     const updatedMatches = updateTournamentMatchList(
       activeClubTournament.matches,
       matchId,
@@ -191,6 +191,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   };
 
   const handleDeleteClubTournament = (id: string) => {
+    if (!isOfficer) return;
     const remaining = clubTournaments.filter((t) => t.id !== id);
     onUpdateClubTournaments(remaining);
     if (selectedTournamentId === id) {
@@ -272,7 +273,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
   const handleSaveOutsideTournament = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!outName.trim()) return;
+    if (!isOfficer || !outName.trim()) return;
 
     if (editingOutside) {
       onUpdateOutsideTournaments(
@@ -315,6 +316,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   };
 
   const handleAddAttendeePair = (tourneyId: string) => {
+    if (!isOfficer) return;
     onUpdateOutsideTournaments(
       outsideTournaments.map((t) =>
         t.id === tourneyId
@@ -337,6 +339,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   };
 
   const handleRemoveAttendeePair = (tourneyId: string, pairId: string) => {
+    if (!isOfficer) return;
     onUpdateOutsideTournaments(
       outsideTournaments.map((t) =>
         t.id === tourneyId
@@ -378,37 +381,37 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
         {activeSubTab === 'tournaments' ? (
           <div className="flex items-center gap-2.5">
+            {activeClubTournament && (
+              <button
+                onClick={() => window.print()}
+                className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                Print Bracket
+              </button>
+            )}
+            {isOfficer && (
+              <button
+                onClick={() => setShowCreateClubForm(!showCreateClubForm)}
+                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
+                style={{ backgroundColor: 'var(--club-primary)' }}
+              >
+                <Plus className="w-4 h-4" />
+                New Club Tournament
+              </button>
+            )}
+          </div>
+        ) : (
+          isOfficer && (
             <button
-              onClick={() => window.print()}
-              className="min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              Print Bracket
-            </button>
-            <button
-              onClick={() => {
-                if (!isOfficer) {
-                  onRequestOfficerUnlock();
-                  return;
-                }
-                setShowCreateClubForm(!showCreateClubForm);
-              }}
+              onClick={openAddOutside}
               className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
               style={{ backgroundColor: 'var(--club-primary)' }}
             >
               <Plus className="w-4 h-4" />
-              New Club Tournament
+              Add Outside Tournament
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={openAddOutside}
-            className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
-            style={{ backgroundColor: 'var(--club-primary)' }}
-          >
-            <Plus className="w-4 h-4" />
-            Add Outside Tournament
-          </button>
+          )
         )}
       </div>
 
@@ -418,7 +421,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
       {activeSubTab === 'tournaments' && (
         <div className="space-y-6">
           {/* Create Club Tournament Drawer */}
-          {showCreateClubForm && (
+          {isOfficer && showCreateClubForm && (
             <form
               onSubmit={handleCreateClubTournament}
               className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 no-print"
@@ -587,7 +590,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                     </h3>
                   </div>
 
-                  {isOfficer && clubTournaments.length > 1 && (
+                  {isOfficer && (
                     <button
                       onClick={() =>
                         handleDeleteClubTournament(activeClubTournament.id)
@@ -655,7 +658,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">
-                                  {isEditing ? (
+                                  {isOfficer && isEditing ? (
                                     <div className="flex items-center gap-1.5 no-print">
                                       <input
                                         type="number"
@@ -699,42 +702,50 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                                         </span>
                                       )}
 
-                                      <button
-                                        onClick={() => {
-                                          setEditingMatchId(m.id);
-                                          setManualScore1(m.score1 ?? 11);
-                                          setManualScore2(m.score2 ?? 7);
-                                        }}
-                                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 no-print cursor-pointer"
-                                      >
-                                        Enter Score
-                                      </button>
-
-                                      {m.team1PlayerIds.length > 0 &&
-                                        m.team2PlayerIds.length > 0 && (
+                                      {isOfficer && (
+                                        <>
                                           <button
-                                            onClick={() =>
-                                              onLaunchScoreKeeperForTournament({
-                                                tournamentId:
-                                                  activeClubTournament.id,
-                                                matchId: m.id,
-                                                playStyle:
-                                                  activeClubTournament.playStyle,
-                                                team1PlayerIds: m.team1PlayerIds,
-                                                team2PlayerIds: m.team2PlayerIds,
-                                                label: `${activeClubTournament.name}: ${m.team1Name} vs ${m.team2Name}`,
-                                              })
-                                            }
-                                            className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white inline-flex items-center gap-1 no-print cursor-pointer"
-                                            style={{
-                                              backgroundColor:
-                                                'var(--club-primary)',
+                                            onClick={() => {
+                                              setEditingMatchId(m.id);
+                                              setManualScore1(m.score1 ?? 11);
+                                              setManualScore2(m.score2 ?? 7);
                                             }}
+                                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 no-print cursor-pointer"
                                           >
-                                            <Play className="w-3 h-3 fill-current" />
-                                            Score Live
+                                            Enter Score
                                           </button>
-                                        )}
+
+                                          {m.team1PlayerIds.length > 0 &&
+                                            m.team2PlayerIds.length > 0 && (
+                                              <button
+                                                onClick={() =>
+                                                  onLaunchScoreKeeperForTournament(
+                                                    {
+                                                      tournamentId:
+                                                        activeClubTournament.id,
+                                                      matchId: m.id,
+                                                      playStyle:
+                                                        activeClubTournament.playStyle,
+                                                      team1PlayerIds:
+                                                        m.team1PlayerIds,
+                                                      team2PlayerIds:
+                                                        m.team2PlayerIds,
+                                                      label: `${activeClubTournament.name}: ${m.team1Name} vs ${m.team2Name}`,
+                                                    }
+                                                  )
+                                                }
+                                                className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white inline-flex items-center gap-1 no-print cursor-pointer"
+                                                style={{
+                                                  backgroundColor:
+                                                    'var(--club-primary)',
+                                                }}
+                                              >
+                                                <Play className="w-3 h-3 fill-current" />
+                                                Score Live
+                                              </button>
+                                            )}
+                                        </>
+                                      )}
                                     </>
                                   )}
                                 </div>
@@ -814,7 +825,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
       {activeSubTab === 'watch' && (
         <div className="space-y-6">
           {/* Add/Edit Outside Tournament Form */}
-          {showOutsideForm && (
+          {isOfficer && showOutsideForm && (
             <form
               onSubmit={handleSaveOutsideTournament}
               className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
@@ -1081,19 +1092,21 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                         Club Members Attending & Partners ({t.attendees.length}{' '}
                         Pairs)
                       </span>
-                      <button
-                        onClick={() =>
-                          setAddingPairTourneyId(
-                            addingPairTourneyId === t.id ? null : t.id
-                          )
-                        }
-                        className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                      >
-                        + Add Club Pair
-                      </button>
+                      {isOfficer && (
+                        <button
+                          onClick={() =>
+                            setAddingPairTourneyId(
+                              addingPairTourneyId === t.id ? null : t.id
+                            )
+                          }
+                          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        >
+                          + Add Club Pair
+                        </button>
+                      )}
                     </div>
 
-                    {addingPairTourneyId === t.id && (
+                    {isOfficer && addingPairTourneyId === t.id && (
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
                         <div>
                           <label className="block text-[11px] text-slate-500 mb-1">
@@ -1154,8 +1167,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
                     {t.attendees.length === 0 ? (
                       <p className="text-xs text-slate-500">
-                        No club pairs signed up yet. Click "+ Add Club Pair" to
-                        list who is going.
+                        No club pairs signed up yet.
                       </p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">

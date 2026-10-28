@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
+  Activity,
   ArrowRight,
   Award,
   Calendar,
@@ -12,7 +13,6 @@ import {
   LogIn,
   Megaphone,
   Moon,
-  Play,
   QrCode,
   ShieldCheck,
   Sun,
@@ -35,6 +35,8 @@ interface WelcomeScreenProps {
   onGoogleSignIn: () => Promise<void>;
 }
 
+const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
 const MEMBER_DESTINATIONS: {
   id: NavTab;
   label: string;
@@ -43,13 +45,19 @@ const MEMBER_DESTINATIONS: {
 }[] = [
   {
     id: 'home',
-    label: 'Home Overview',
-    description: 'Next practice countdown, top ladder & club updates',
+    label: 'Member Overview',
+    description: 'Next practice countdown, standings lookup & bulletins',
     icon: <Home className="w-4 h-4" />,
   },
   {
+    id: 'activity',
+    label: 'My Activity',
+    description: 'Your personal match history, attendance log & club tasks',
+    icon: <Activity className="w-4 h-4" />,
+  },
+  {
     id: 'ladder',
-    label: 'Ladder & Player Stats',
+    label: 'Standings & Stats',
     description: 'Live Elo rankings, win streaks & match history',
     icon: <Award className="w-4 h-4" />,
   },
@@ -61,26 +69,20 @@ const MEMBER_DESTINATIONS: {
   },
   {
     id: 'watch',
-    label: 'Tournament Watch',
-    description: 'Outside tournaments, deadlines & club pairs',
+    label: 'Outside Watch',
+    description: 'Regional tournaments, deadlines & club pairs',
     icon: <Eye className="w-4 h-4" />,
   },
   {
     id: 'calendar',
-    label: 'Calendar & Events',
+    label: 'Practice Calendar',
     description: 'Monthly practice schedule & QR attendance check-in',
     icon: <Calendar className="w-4 h-4" />,
   },
   {
-    id: 'scorekeeper',
-    label: 'Live Score Keeper',
-    description: 'Courtside side-out & rally scoreboard',
-    icon: <Play className="w-4 h-4" />,
-  },
-  {
     id: 'announcements',
-    label: 'Announcements',
-    description: 'Pinned club bulletins & schedule notices',
+    label: 'Club Bulletins',
+    description: 'Pinned club announcements & schedule notices',
     icon: <Megaphone className="w-4 h-4" />,
   },
 ];

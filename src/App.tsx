@@ -76,19 +76,24 @@ import {
   buildPracticeQrToken,
 } from './components/PracticeQrModal';
 import { BOBCATS_LOGO_URL, WelcomeScreen } from './components/WelcomeScreen';
+import { MemberPortalView } from './components/MemberPortalView';
 
 const STORAGE_KEY = 'bnhs_pickleball_hq_fresh_v2';
 const LEGACY_STORAGE_KEY = 'bnhs_pickleball_hq_v1';
 const THEME_KEY = 'bnhs_pickleball_theme_v1';
 
-// Tabs accessible to Members (View + Live Match Score Keeping)
+const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
+const LINKED_MEMBER_KEY = 'bnhs_pickleball_linked_member_v1';
+
+// Tabs accessible to Members (Clean, Limited View-Only Portal)
 const MEMBER_ALLOWED_TABS: NavTab[] = [
   'home',
+  'activity',
   'ladder',
   'tournaments',
   'watch',
   'calendar',
-  'scorekeeper',
   'announcements',
 ];
 
@@ -128,7 +133,13 @@ export default function App() {
   // Firebase Auth & Firestore state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(false);
-  const [linkedMemberId, setLinkedMemberId] = useState<string>('mem-1');
+  const [linkedMemberId, setLinkedMemberId] = useState<string>(() => {
+    try {
+      return localStorage.getItem(LINKED_MEMBER_KEY) || 'mem-1';
+    } catch {
+      return 'mem-1';
+    }
+  });
   const [recentQrCheckins, setRecentQrCheckins] = useState<QrCheckinRecord[]>(
     []
   );
@@ -473,6 +484,30 @@ export default function App() {
     showToast(`QR Check-In verified for ${memberName} (${target.date})!`);
   };
 
+  const handleSelectLinkedMember = async (memberId: string) => {
+    setLinkedMemberId(memberId);
+    try {
+      localStorage.setItem(LINKED_MEMBER_KEY, memberId);
+    } catch {
+      // Ignore storage quota errors
+    }
+    const member = data.members.find((m) => m.id === memberId);
+    if (currentUser) {
+      try {
+        await updateUserLinkedMember(
+          currentUser.uid,
+          currentUser.displayName || member?.name || 'Club Member',
+          memberId
+        );
+      } catch (err) {
+        console.error('Failed to update linked member in Firestore:', err);
+      }
+    }
+    if (member) {
+      showToast(`Activity profile set to ${member.name}`);
+    }
+  };
+
   // Handle Officer PIN Verification (NO HINTS)
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -484,6 +519,8 @@ export default function App() {
       if (pendingOfficerTab) {
         setActiveTab(pendingOfficerTab);
         setPendingOfficerTab(null);
+      } else if (activeTab === 'activity') {
+        setActiveTab('home');
       }
       showToast('Officer Mode unlocked (Full Edit Access)');
     } else {
@@ -507,6 +544,10 @@ export default function App() {
   };
 
   const handleSaveCompletedMatch = (newMatch: MatchRecord) => {
+    if (!isOfficer) {
+      setShowPinModal(true);
+      return;
+    }
     const updatedMembers = applyMatchToMembers(
       data.members,
       newMatch.team1Ids,
@@ -550,6 +591,7 @@ export default function App() {
   };
 
   const handleDeleteMatch = (matchId: string) => {
+    if (!isOfficer) return;
     setData((prev) => ({
       ...prev,
       matches: prev.matches.filter((m) => m.id !== matchId),
@@ -800,525 +842,598 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-300">
-      {/* ================================================================= */}
-      {/* MINIMALIST TOP BAR WITH BOBCATS LOGO & UNIFIED DROPDOWN MENU      */}
-      {/* ================================================================= */}
-      <header className="sticky top-0 z-30 h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 no-print">
-        <div className="max-w-6xl w-full h-full mx-auto flex items-center justify-between gap-4">
-          {/* Zone 1: Official Bobcats Logo + Club Name */}
-          <button
-            type="button"
-            onClick={() => handleNavigate('home')}
-            className="flex items-center gap-2.5 text-left cursor-pointer shrink-0"
-          >
-            <div className="bg-white px-2 py-1 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-center">
-              <img
-                src={BOBCATS_LOGO_URL}
-                alt="Byron Nelson Bobcats"
-                className="h-6 sm:h-7 w-auto object-contain"
-              />
-            </div>
-            <span className="font-display text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white hidden xs:inline">
-              {data.settings.clubName}
-            </span>
-          </button>
-
-          {/* Zone 2: Unified "Everything" Dropdown Menu */}
-          <div className="relative">
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              type="button"
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="min-h-[42px] px-4 py-2 rounded-2xl bg-slate-100/90 hover:bg-slate-200/70 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700 text-xs sm:text-sm font-bold text-slate-900 dark:text-white inline-flex items-center gap-2.5 cursor-pointer transition-colors"
-            >
-              <span className="text-blue-600 dark:text-blue-400">
-                {activeNavItem.icon}
-              </span>
-              <span>{activeNavItem.label}</span>
-              <ChevronDown
-                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                  menuOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </motion.button>
-
-            <AnimatePresence>
-              {menuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setMenuOpen(false)}
+    <>
+      {!isOfficer ? (
+        /* =============================================================== */
+        /* VIEW 1: DEDICATED CLEAN, LIMITED MEMBER PORTAL                  */
+        /* =============================================================== */
+        <MemberPortalView
+          data={data}
+          activeTab={activeTab}
+          darkMode={darkMode}
+          currentUser={currentUser}
+          linkedMemberId={linkedMemberId}
+          recentQrCheckins={recentQrCheckins}
+          cloudSynced={cloudSynced}
+          defaultQrTarget={defaultQrTarget}
+          onSelectLinkedMember={handleSelectLinkedMember}
+          onNavigate={handleNavigate}
+          onToggleDarkMode={() => setDarkMode(!darkMode)}
+          onRequestOfficerLogin={() => {
+            setPendingOfficerTab(null);
+            setPinInput('');
+            setPinError('');
+            setShowPinModal(true);
+          }}
+          onOpenPracticeQr={openPracticeQrModal}
+          onShowWelcomeScreen={() => setShowWelcomeScreen(true)}
+          onGoogleSignIn={handleGoogleSignIn}
+          onGoogleSignOut={handleGoogleSignOut}
+        />
+      ) : (
+        /* =============================================================== */
+        /* VIEW 2: FULL-FEATURED OFFICER EXECUTIVE COMMAND CONSOLE         */
+        /* =============================================================== */
+        <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-300">
+          {/* Officer Command Header */}
+          <header className="sticky top-0 z-30 h-16 bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-6 no-print">
+            <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-4">
+              {/* Zone 1: Bobcats Emblem + Officer Console Brand */}
+              <button
+                type="button"
+                onClick={() => handleNavigate('home')}
+                className="flex items-center gap-3 text-left cursor-pointer shrink-0"
+              >
+                <div className="bg-white px-2 py-1 rounded-xl border border-white/20 flex items-center justify-center">
+                  <img
+                    src={BOBCATS_LOGO_URL}
+                    alt="Byron Nelson Bobcats"
+                    className="h-6 sm:h-7 w-auto object-contain"
                   />
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.97 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="absolute left-1/2 -translate-x-1/2 mt-2.5 w-80 sm:w-96 z-40 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-3 space-y-3"
-                  >
-                    {/* Dropdown Banner with Uploaded Bobcats Image */}
-                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="bg-white px-2.5 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs shrink-0">
-                          <img
-                            src={BOBCATS_LOGO_URL}
-                            alt="Byron Nelson Bobcats"
-                            className="h-7 w-auto object-contain"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            {data.settings.clubName}
-                          </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                            {isOfficer
-                              ? 'Officer Mode · Full Access'
-                              : 'Member Mode · Stats, Tournaments & Calendar'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                </div>
+                <span className="font-display text-lg sm:text-xl font-bold tracking-tight text-white whitespace-nowrap shrink-0">
+                  {data.settings.clubName} · Officer Console
+                </span>
+              </button>
 
-                    {/* Member Accessible Sections */}
-                    <div className="space-y-1">
-                      <div className="px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase text-slate-400">
-                        Club Hub & Member Access
-                      </div>
-                      <div className="grid grid-cols-1 gap-0.5">
-                        {memberNavItems.map((item) => {
-                          const isSelected = activeTab === item.id;
-                          return (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => handleNavigate(item.id)}
-                              className={`w-full px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
-                                isSelected
-                                  ? 'bg-blue-600 text-white'
-                                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                              }`}
-                            >
-                              <span className="flex items-center gap-2.5">
-                                <span
-                                  className={
+              {/* Zone 2: Unified "Everything" Dropdown Menu with Bobcats Logo */}
+              <div className="relative">
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="min-h-[40px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-bold text-white inline-flex items-center gap-2.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                >
+                  <span className="text-amber-400">{activeNavItem.icon}</span>
+                  <span>{activeNavItem.label}</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                      menuOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </motion.button>
+
+                <AnimatePresence>
+                  {menuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setMenuOpen(false)}
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                        transition={{ duration: 0.2, ease: SMOOTH_EASE }}
+                        className="absolute left-1/2 -translate-x-1/2 mt-2.5 w-80 sm:w-96 z-40 rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-2xl p-3 space-y-3"
+                      >
+                        <div className="p-3 rounded-2xl bg-slate-900 text-white flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="bg-white px-2.5 py-1.5 rounded-xl shrink-0">
+                              <img
+                                src={BOBCATS_LOGO_URL}
+                                alt="Byron Nelson Bobcats"
+                                className="h-6 w-auto object-contain"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-white truncate">
+                                {data.settings.clubName}
+                              </div>
+                              <div className="text-[11px] text-amber-400 truncate">
+                                Officer Console · All 12 Modules Unlocked
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase text-slate-400">
+                            Match & Competition Ops
+                          </div>
+                          <div className="grid grid-cols-2 gap-1">
+                            {memberNavItems.map((item) => {
+                              const isSelected = activeTab === item.id;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleNavigate(item.id)}
+                                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
                                     isSelected
-                                      ? 'text-white'
-                                      : 'text-blue-600 dark:text-blue-400'
-                                  }
+                                      ? 'bg-blue-600 text-white'
+                                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                  }`}
                                 >
                                   {item.icon}
-                                </span>
-                                {item.label}
-                              </span>
-                              {isSelected && (
-                                <span className="text-[10px] font-bold opacity-90">
-                                  Active
-                                </span>
+                                  <span className="truncate">{item.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <div className="px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase text-amber-500">
+                            Officer Administration
+                          </div>
+                          <div className="grid grid-cols-2 gap-1">
+                            {officerNavItems.map((item) => {
+                              const isSelected = activeTab === item.id;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleNavigate(item.id)}
+                                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                  }`}
+                                >
+                                  {item.icon}
+                                  <span className="truncate">{item.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuOpen(false);
+                                openPracticeQrModal(defaultQrTarget, 'display');
+                              }}
+                              className="px-3 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span>Practice QR</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setDarkMode(!darkMode)}
+                              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              {darkMode ? (
+                                <>
+                                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>Light Theme</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Moon className="w-3.5 h-3.5" />
+                                  <span>Dark Theme</span>
+                                </>
                               )}
                             </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                          </div>
 
-                    {/* Officer-Only Sections (Visible only when Officer Mode is unlocked) */}
-                    {isOfficer ? (
-                      <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <div className="px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase text-amber-500 flex items-center justify-between">
-                          <span>Officer Admin Controls</span>
-                          <span>Unlocked</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-1">
-                          {officerNavItems.map((item) => {
-                            const isSelected = activeTab === item.id;
-                            return (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => handleNavigate(item.id)}
-                                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                }`}
-                              >
-                                {item.icon}
-                                <span className="truncate">{item.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            setPendingOfficerTab(null);
-                            setPinInput('');
-                            setPinError('');
-                            setShowPinModal(true);
-                          }}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-between cursor-pointer transition-colors"
-                        >
-                          <span className="flex items-center gap-2">
-                            <Lock className="w-3.5 h-3.5 text-amber-500" />
-                            <span>Unlock Officer Admin Modules</span>
-                          </span>
-                          <span className="text-[11px] text-slate-400">
-                            PIN
-                          </span>
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Quick Tools & Utilities inside the Unified Dropdown */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            openPracticeQrModal(defaultQrTarget, 'scan');
-                          }}
-                          className="px-3 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <QrCode className="w-3.5 h-3.5" />
-                          <span>QR Check-In</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDarkMode(!darkMode);
-                          }}
-                          className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          {darkMode ? (
-                            <>
-                              <Sun className="w-3.5 h-3.5 text-amber-400" />
-                              <span>Light Theme</span>
-                            </>
-                          ) : (
-                            <>
-                              <Moon className="w-3.5 h-3.5" />
-                              <span>Dark Theme</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      {isOfficer && (
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMenuOpen(false);
-                              handleExportJSON();
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Export JSON</span>
-                          </button>
-
-                          <label className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>Import JSON</span>
-                            <input
-                              type="file"
-                              accept=".json,application/json"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  setMenuOpen(false);
-                                  handleImportJSON(file);
-                                }
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuOpen(false);
+                                handleExportJSON();
                               }}
-                              className="hidden"
-                            />
-                          </label>
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Export JSON</span>
+                            </button>
+
+                            <label className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Import JSON</span>
+                              <input
+                                type="file"
+                                accept=".json,application/json"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    setMenuOpen(false);
+                                    handleImportJSON(file);
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 px-1 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuOpen(false);
+                                setShowWelcomeScreen(true);
+                              }}
+                              className="font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Welcome Screen</span>
+                            </button>
+
+                            {!currentUser ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMenuOpen(false);
+                                  handleGoogleSignIn();
+                                }}
+                                className="font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <LogIn className="w-3.5 h-3.5" />
+                                <span>Google Sync</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMenuOpen(false);
+                                  handleGoogleSignOut();
+                                }}
+                                className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <CloudCheck className="w-3.5 h-3.5" />
+                                <span>{cloudSynced ? 'Synced' : 'Sign Out'}</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      )}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
 
-                      <div className="flex items-center justify-between pt-1 px-1 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            setShowWelcomeScreen(true);
-                          }}
-                          className="font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Welcome Screen</span>
-                        </button>
-
-                        {!currentUser ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMenuOpen(false);
-                              handleGoogleSignIn();
-                            }}
-                            className="font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <LogIn className="w-3.5 h-3.5" />
-                            <span>Google Sync</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMenuOpen(false);
-                              handleGoogleSignOut();
-                            }}
-                            className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <CloudCheck className="w-3.5 h-3.5" />
-                            <span>{cloudSynced ? 'Synced' : 'Sign Out'}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Zone 3: Minimalist Mode Action */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleToggleMode}
-              className={`min-h-[38px] px-3.5 py-1.5 text-xs font-bold rounded-xl transition-colors whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer ${
-                isOfficer
-                  ? 'bg-amber-400 text-slate-950 hover:bg-amber-300'
-                  : 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900'
-              }`}
-            >
-              {isOfficer ? (
-                <>
+              {/* Zone 3: Officer Mode Switch */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleToggleMode}
+                  className="min-h-[38px] px-3.5 py-1.5 text-xs font-bold rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer"
+                >
                   <Unlock className="w-3.5 h-3.5" />
-                  <span>Officer Mode</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Officer Login</span>
-                </>
-              )}
-            </button>
+                  <span>Exit Officer Mode</span>
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Officer Executive Workspace: Left Command Sidebar + Main Viewport */}
+          <div className="flex-1 max-w-[1440px] w-full mx-auto flex">
+            {/* Desktop Command Sidebar */}
+            <aside className="hidden lg:flex w-64 shrink-0 flex-col justify-between border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 no-print">
+              <div className="space-y-6">
+                <div className="space-y-1">
+                  <div className="px-3 py-1 text-[11px] font-bold tracking-wider uppercase text-slate-400">
+                    Competition & Live Ops
+                  </div>
+                  {memberNavItems.map((item) => {
+                    const isSelected = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleNavigate(item.id)}
+                        className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <span
+                            className={
+                              isSelected
+                                ? 'text-amber-400 dark:text-blue-600'
+                                : 'text-slate-400'
+                            }
+                          >
+                            {item.icon}
+                          </span>
+                          <span>{item.label}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-1 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <div className="px-3 py-1 text-[11px] font-bold tracking-wider uppercase text-amber-500">
+                    Club Administration
+                  </div>
+                  {officerNavItems.map((item) => {
+                    const isSelected = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleNavigate(item.id)}
+                        className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <span
+                            className={
+                              isSelected
+                                ? 'text-amber-400 dark:text-blue-600'
+                                : 'text-amber-500'
+                            }
+                          >
+                            {item.icon}
+                          </span>
+                          <span>{item.label}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openPracticeQrModal(defaultQrTarget, 'display')
+                  }
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-900 text-white dark:bg-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:opacity-95"
+                >
+                  <QrCode className="w-4 h-4 text-amber-400" />
+                  <span>Display Practice QR</span>
+                </button>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleExportJSON}
+                    className="py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export</span>
+                  </button>
+                  <label className="py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Import</span>
+                    <input
+                      type="file"
+                      accept=".json,application/json"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportJSON(file);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+            </aside>
+
+            {/* Officer Main Content Viewport */}
+            <main className="flex-1 min-w-0 px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.28, ease: SMOOTH_EASE }}
+                >
+                  {activeTab === 'home' && (
+                    <HomeDashboard
+                      data={data}
+                      isOfficer={true}
+                      onNavigate={handleNavigate}
+                      onQuickAddAnnouncement={() =>
+                        setActiveTab('announcements')
+                      }
+                      onOpenPracticeQr={openPracticeQrModal}
+                    />
+                  )}
+
+                  {activeTab === 'scorekeeper' && (
+                    <LiveScoreKeeper
+                      members={data.members}
+                      isOfficer={true}
+                      pendingTournamentMatch={pendingTournamentMatch}
+                      onClearPendingTournamentMatch={() =>
+                        setPendingTournamentMatch(null)
+                      }
+                      onSaveCompletedMatch={handleSaveCompletedMatch}
+                      onNavigateToLadder={() => handleNavigate('ladder')}
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                    />
+                  )}
+
+                  {activeTab === 'ladder' && (
+                    <LadderStatsView
+                      members={data.members}
+                      matches={data.matches}
+                      isOfficer={true}
+                      onSaveManualMatch={handleSaveCompletedMatch}
+                      onDeleteMatch={handleDeleteMatch}
+                      onNavigate={handleNavigate}
+                    />
+                  )}
+
+                  {(activeTab === 'tournaments' || activeTab === 'watch') && (
+                    <TournamentsView
+                      activeSubTab={activeTab}
+                      onSwitchSubTab={(sub) => handleNavigate(sub)}
+                      clubTournaments={data.clubTournaments}
+                      outsideTournaments={data.outsideTournaments}
+                      members={data.members}
+                      isOfficer={true}
+                      onUpdateClubTournaments={(clubTournaments) =>
+                        setData((prev) => ({ ...prev, clubTournaments }))
+                      }
+                      onUpdateOutsideTournaments={(outsideTournaments) =>
+                        setData((prev) => ({ ...prev, outsideTournaments }))
+                      }
+                      onLaunchScoreKeeperForTournament={(ctx) => {
+                        setPendingTournamentMatch(ctx);
+                        setActiveTab('scorekeeper');
+                      }}
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                    />
+                  )}
+
+                  {activeTab === 'calendar' && (
+                    <CalendarEventsView
+                      events={data.events}
+                      settings={data.settings}
+                      isOfficer={true}
+                      onUpdateEvents={(events) =>
+                        setData((prev) => ({ ...prev, events }))
+                      }
+                      onUpdateSettings={(settings) =>
+                        setData((prev) => ({ ...prev, settings }))
+                      }
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                      onOpenPracticeQr={openPracticeQrModal}
+                    />
+                  )}
+
+                  {activeTab === 'announcements' && (
+                    <AnnouncementsView
+                      announcements={data.announcements}
+                      officers={data.officers}
+                      isOfficer={true}
+                      onUpdateAnnouncements={(announcements) =>
+                        setData((prev) => ({ ...prev, announcements }))
+                      }
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                    />
+                  )}
+
+                  {activeTab === 'members' && (
+                    <MembersAttendanceView
+                      members={data.members}
+                      attendance={data.attendance}
+                      isOfficer={true}
+                      onUpdateMembers={(members) =>
+                        setData((prev) => ({ ...prev, members }))
+                      }
+                      onUpdateAttendance={(attendance) =>
+                        setData((prev) => ({ ...prev, attendance }))
+                      }
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                      onOpenPracticeQr={openPracticeQrModal}
+                    />
+                  )}
+
+                  {activeTab === 'officers' && (
+                    <OfficersTasksView
+                      officers={data.officers}
+                      tasks={data.tasks}
+                      isOfficer={true}
+                      onUpdateOfficers={(officers) =>
+                        setData((prev) => ({ ...prev, officers }))
+                      }
+                      onUpdateTasks={(tasks) =>
+                        setData((prev) => ({ ...prev, tasks }))
+                      }
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                    />
+                  )}
+
+                  {activeTab === 'treasury' && (
+                    <TreasuryView
+                      members={data.members}
+                      transactions={data.transactions}
+                      defaultDuesAmount={data.settings.duesAmount}
+                      isOfficer={true}
+                      onUpdateMembers={(members) =>
+                        setData((prev) => ({ ...prev, members }))
+                      }
+                      onUpdateTransactions={(transactions) =>
+                        setData((prev) => ({ ...prev, transactions }))
+                      }
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                    />
+                  )}
+
+                  {activeTab === 'equipment' && (
+                    <EquipmentView
+                      equipment={data.equipment}
+                      members={data.members}
+                      isOfficer={true}
+                      onUpdateEquipment={(equipment) =>
+                        setData((prev) => ({ ...prev, equipment }))
+                      }
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                    />
+                  )}
+
+                  {activeTab === 'settings' && (
+                    <SettingsView
+                      settings={data.settings}
+                      archives={data.archives}
+                      isOfficer={true}
+                      onUpdateSettings={(settings) =>
+                        setData((prev) => ({ ...prev, settings }))
+                      }
+                      onResetAndArchiveSeason={handleResetAndArchiveSeason}
+                      onExportJSON={handleExportJSON}
+                      onImportJSON={handleImportJSON}
+                      onResetFactoryData={() => {
+                        setData(INITIAL_CLUB_DATA);
+                        showToast('Cleared all club data to start fresh!');
+                      }}
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </main>
           </div>
         </div>
-      </header>
+      )}
 
-      {/* ================================================================= */}
-      {/* MINIMALIST CENTERED WORKSPACE CANVAS WITH ANIMATED TRANSITIONS    */}
-      {/* ================================================================= */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-        {/* Toast Feedback Banner */}
-        <AnimatePresence>
-          {toastMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 text-xs font-semibold flex items-center justify-between shadow-md"
-            >
-              <span>{toastMessage}</span>
-              <button
-                onClick={() => setToastMessage(null)}
-                className="text-xs opacity-75 hover:opacity-100 cursor-pointer"
-              >
-                Dismiss
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Animated View Container */}
-        <AnimatePresence mode="wait">
+      {/* Global Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
           <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            transition={{ duration: 0.22, ease: SMOOTH_EASE }}
+            className="fixed bottom-5 right-5 z-50 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 text-xs font-semibold flex items-center gap-3 shadow-xl border border-slate-800/40"
           >
-            {activeTab === 'home' && (
-              <HomeDashboard
-                data={data}
-                isOfficer={isOfficer}
-                onNavigate={handleNavigate}
-                onQuickAddAnnouncement={() => {
-                  if (!isOfficer) {
-                    setPendingOfficerTab('announcements');
-                    setShowPinModal(true);
-                  } else {
-                    setActiveTab('announcements');
-                  }
-                }}
-                onOpenPracticeQr={openPracticeQrModal}
-              />
-            )}
-
-            {activeTab === 'scorekeeper' && (
-              <LiveScoreKeeper
-                members={data.members}
-                pendingTournamentMatch={pendingTournamentMatch}
-                onClearPendingTournamentMatch={() =>
-                  setPendingTournamentMatch(null)
-                }
-                onSaveCompletedMatch={handleSaveCompletedMatch}
-                onNavigateToLadder={() => handleNavigate('ladder')}
-              />
-            )}
-
-            {activeTab === 'ladder' && (
-              <LadderStatsView
-                members={data.members}
-                matches={data.matches}
-                isOfficer={isOfficer}
-                onSaveManualMatch={handleSaveCompletedMatch}
-                onDeleteMatch={handleDeleteMatch}
-                onNavigate={handleNavigate}
-              />
-            )}
-
-            {(activeTab === 'tournaments' || activeTab === 'watch') && (
-              <TournamentsView
-                activeSubTab={activeTab}
-                onSwitchSubTab={(sub) => handleNavigate(sub)}
-                clubTournaments={data.clubTournaments}
-                outsideTournaments={data.outsideTournaments}
-                members={data.members}
-                isOfficer={isOfficer}
-                onUpdateClubTournaments={(clubTournaments) =>
-                  setData((prev) => ({ ...prev, clubTournaments }))
-                }
-                onUpdateOutsideTournaments={(outsideTournaments) =>
-                  setData((prev) => ({ ...prev, outsideTournaments }))
-                }
-                onLaunchScoreKeeperForTournament={(ctx) => {
-                  setPendingTournamentMatch(ctx);
-                  setActiveTab('scorekeeper');
-                }}
-                onRequestOfficerUnlock={() => setShowPinModal(true)}
-              />
-            )}
-
-            {activeTab === 'calendar' && (
-              <CalendarEventsView
-                events={data.events}
-                settings={data.settings}
-                isOfficer={isOfficer}
-                onUpdateEvents={(events) =>
-                  setData((prev) => ({ ...prev, events }))
-                }
-                onUpdateSettings={(settings) =>
-                  setData((prev) => ({ ...prev, settings }))
-                }
-                onRequestOfficerUnlock={() => setShowPinModal(true)}
-                onOpenPracticeQr={openPracticeQrModal}
-              />
-            )}
-
-            {activeTab === 'announcements' && (
-              <AnnouncementsView
-                announcements={data.announcements}
-                officers={data.officers}
-                isOfficer={isOfficer}
-                onUpdateAnnouncements={(announcements) =>
-                  setData((prev) => ({ ...prev, announcements }))
-                }
-                onRequestOfficerUnlock={() => setShowPinModal(true)}
-              />
-            )}
-
-            {/* Officer-Only Modules */}
-            {isOfficer && activeTab === 'members' && (
-              <MembersAttendanceView
-                members={data.members}
-                attendance={data.attendance}
-                isOfficer={isOfficer}
-                onUpdateMembers={(members) =>
-                  setData((prev) => ({ ...prev, members }))
-                }
-                onUpdateAttendance={(attendance) =>
-                  setData((prev) => ({ ...prev, attendance }))
-                }
-                onRequestOfficerUnlock={() => setShowPinModal(true)}
-                onOpenPracticeQr={openPracticeQrModal}
-              />
-            )}
-
-            {isOfficer && activeTab === 'officers' && (
-              <OfficersTasksView
-                officers={data.officers}
-                tasks={data.tasks}
-                isOfficer={isOfficer}
-                onUpdateOfficers={(officers) =>
-                  setData((prev) => ({ ...prev, officers }))
-                }
-                onUpdateTasks={(tasks) =>
-                  setData((prev) => ({ ...prev, tasks }))
-                }
-                onRequestOfficerUnlock={() => setShowPinModal(true)}
-              />
-            )}
-
-            {isOfficer && activeTab === 'treasury' && (
-              <TreasuryView
-                members={data.members}
-                transactions={data.transactions}
-                defaultDuesAmount={data.settings.duesAmount}
-                isOfficer={isOfficer}
-                onUpdateMembers={(members) =>
-                  setData((prev) => ({ ...prev, members }))
-                }
-                onUpdateTransactions={(transactions) =>
-                  setData((prev) => ({ ...prev, transactions }))
-                }
-                onRequestOfficerUnlock={() => setShowPinModal(true)}
-              />
-            )}
-
-            {isOfficer && activeTab === 'equipment' && (
-              <EquipmentView
-                equipment={data.equipment}
-                members={data.members}
-                isOfficer={isOfficer}
-                onUpdateEquipment={(equipment) =>
-                  setData((prev) => ({ ...prev, equipment }))
-                }
-                onRequestOfficerUnlock={() => setShowPinModal(true)}
-              />
-            )}
-
-            {isOfficer && activeTab === 'settings' && (
-              <SettingsView
-                settings={data.settings}
-                archives={data.archives}
-                isOfficer={isOfficer}
-                onUpdateSettings={(settings) =>
-                  setData((prev) => ({ ...prev, settings }))
-                }
-                onResetAndArchiveSeason={handleResetAndArchiveSeason}
-                onExportJSON={handleExportJSON}
-                onImportJSON={handleImportJSON}
-                onResetFactoryData={() => {
-                  setData(INITIAL_CLUB_DATA);
-                  showToast('Cleared all club data to start fresh!');
-                }}
-                onRequestOfficerUnlock={() => setShowPinModal(true)}
-              />
-            )}
+            <span>{toastMessage}</span>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="text-xs opacity-75 hover:opacity-100 cursor-pointer"
+            >
+              Dismiss
+            </button>
           </motion.div>
-        </AnimatePresence>
-      </main>
+        )}
+      </AnimatePresence>
 
       {/* ================================================================= */}
       {/* PRACTICE EVENT QR CODE GENERATOR & SCANNER MODAL                  */}
@@ -1356,10 +1471,10 @@ export default function App() {
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.24, ease: SMOOTH_EASE }}
               className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl"
             >
               <div className="flex items-center justify-between">
@@ -1427,6 +1542,6 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }

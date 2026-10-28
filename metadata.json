@@ -1,6 +1,6 @@
 {
-  "name": "BNHS Pickleball Club HQ",
-  "description": "High school pickleball club management dashboard featuring live side-out and rally score keeping, Elo ladder, tournament brackets, attendance, treasury, and equipment tracking.",
+  "name": "BNHS Pickleball Club",
+  "description": "Official Byron Nelson High School Pickleball Club portal for player standings, tournament brackets, practice calendar, and officer management.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

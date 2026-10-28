@@ -251,7 +251,7 @@ export async function saveClubWorkspaceToFirestore(
   const clubName = sanitizeString(
     state.settings.clubName,
     120,
-    'BNHS Pickleball Club HQ'
+    'BNHS Pickleball Club'
   );
   const schoolName = sanitizeString(
     state.settings.schoolName,

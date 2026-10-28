@@ -234,6 +234,7 @@ export interface ClubDataState {
 
 export type NavTab =
   | 'home'
+  | 'activity'
   | 'scorekeeper'
   | 'ladder'
   | 'members'

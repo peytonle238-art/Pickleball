@@ -2,7 +2,7 @@ import { ClubDataState } from '../types';
 
 export const INITIAL_CLUB_DATA: ClubDataState = {
   settings: {
-    clubName: 'BNHS Pickleball Club HQ',
+    clubName: 'BNHS Pickleball Club',
     schoolName: 'Byron Nelson High School',
     primaryColor: '#1d4ed8',
     secondaryColor: '#eab308',
@@ -106,9 +106,16 @@ export function sanitizeAndStripTemplateData(
     Array.isArray(state.events) &&
     state.events.some((e) => TEMPLATE_RECORD_IDS.has(e.id));
 
+  const rawClubName = state.settings?.clubName || 'BNHS Pickleball Club';
+  const normalizedClubName =
+    rawClubName === 'BNHS Pickleball Club HQ'
+      ? 'BNHS Pickleball Club'
+      : rawClubName;
+
   const nextSettings = {
     ...INITIAL_CLUB_DATA.settings,
     ...(state.settings || {}),
+    clubName: normalizedClubName,
     officerPin:
       !state.settings?.officerPin || state.settings.officerPin === '1234'
         ? '9002'
