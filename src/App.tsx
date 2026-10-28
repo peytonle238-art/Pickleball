@@ -56,7 +56,6 @@ import { LiveScoreKeeper } from './components/LiveScoreKeeper';
 import { MembersAttendanceView } from './components/MembersAttendanceView';
 import { LadderStatsView } from './components/LadderStatsView';
 import { TournamentsView } from './components/TournamentsView';
-import { WatchlistView } from './components/WatchlistView';
 import { OfficersTasksView } from './components/OfficersTasksView';
 import { CalendarEventsView } from './components/CalendarEventsView';
 import {
@@ -701,7 +700,7 @@ export default function App() {
     },
     {
       id: 'watch',
-      label: 'Watchlist & Live VFX',
+      label: 'Tournament Watch',
       access: 'member',
       icon: <Eye className="w-4 h-4" />,
     },
@@ -1216,31 +1215,24 @@ export default function App() {
                     />
                   )}
 
-                  {activeTab === 'tournaments' && (
+                  {(activeTab === 'tournaments' || activeTab === 'watch') && (
                     <TournamentsView
+                      activeSubTab={activeTab}
+                      onSwitchSubTab={(sub) => handleNavigate(sub)}
                       clubTournaments={data.clubTournaments}
+                      outsideTournaments={data.outsideTournaments}
                       members={data.members}
                       isOfficer={true}
                       onUpdateClubTournaments={(clubTournaments) =>
                         setData((prev) => ({ ...prev, clubTournaments }))
                       }
+                      onUpdateOutsideTournaments={(outsideTournaments) =>
+                        setData((prev) => ({ ...prev, outsideTournaments }))
+                      }
                       onLaunchScoreKeeperForTournament={(ctx) => {
                         setPendingTournamentMatch(ctx);
                         setActiveTab('scorekeeper');
                       }}
-                    />
-                  )}
-
-                  {activeTab === 'watch' && (
-                    <WatchlistView
-                      members={data.members}
-                      matches={data.matches}
-                      clubTournaments={data.clubTournaments}
-                      outsideTournaments={data.outsideTournaments}
-                      isOfficer={true}
-                      onUpdateOutsideTournaments={(outsideTournaments) =>
-                        setData((prev) => ({ ...prev, outsideTournaments }))
-                      }
                       onRequestOfficerUnlock={() => setShowPinModal(true)}
                     />
                   )}

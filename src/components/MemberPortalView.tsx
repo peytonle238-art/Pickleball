@@ -37,7 +37,6 @@ import {
 import { BOBCATS_LOGO_URL } from './WelcomeScreen';
 import { LadderStatsView } from './LadderStatsView';
 import { TournamentsView } from './TournamentsView';
-import { WatchlistView } from './WatchlistView';
 import { CalendarEventsView } from './CalendarEventsView';
 
 interface MemberPortalViewProps {
@@ -98,9 +97,9 @@ const MEMBER_NAV_TABS: {
   },
   {
     id: 'watch',
-    label: 'Watchlist & Live VFX',
-    shortLabel: 'Watchlist',
-    description: 'Wii Sports court broadcast VFX & tournament watchlist',
+    label: 'Outside Watch',
+    shortLabel: 'Watch List',
+    description: 'Regional tournaments & registered club pairs',
     icon: <Eye className="w-4 h-4" />,
   },
   {
@@ -1379,24 +1378,17 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
               />
             )}
 
-            {activeTab === 'tournaments' && (
+            {(activeTab === 'tournaments' || activeTab === 'watch') && (
               <TournamentsView
+                activeSubTab={activeTab}
+                onSwitchSubTab={(sub) => onNavigate(sub)}
                 members={data.members}
-                clubTournaments={data.clubTournaments}
-                isOfficer={false}
-                onUpdateClubTournaments={noop}
-                onLaunchScoreKeeperForTournament={noop}
-              />
-            )}
-
-            {activeTab === 'watch' && (
-              <WatchlistView
-                members={data.members}
-                matches={data.matches}
                 clubTournaments={data.clubTournaments}
                 outsideTournaments={data.outsideTournaments}
                 isOfficer={false}
+                onUpdateClubTournaments={noop}
                 onUpdateOutsideTournaments={noop}
+                onLaunchScoreKeeperForTournament={noop}
                 onRequestOfficerUnlock={onRequestOfficerLogin}
               />
             )}
@@ -1421,8 +1413,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       {/* ================================================================= */}
       {/* MOBILE THUMB-FRIENDLY BOTTOM NAVIGATION BAR                       */}
       {/* ================================================================= */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-[#0b1120]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 px-2 py-1.5 grid grid-cols-6 gap-1 no-print">
-        {MEMBER_NAV_TABS.map((tab) => {
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-[#0b1120]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 px-2 py-1.5 grid grid-cols-5 gap-1 no-print">
+        {MEMBER_NAV_TABS.slice(0, 5).map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
