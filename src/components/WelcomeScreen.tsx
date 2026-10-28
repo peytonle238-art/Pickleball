@@ -11,7 +11,6 @@ import {
   Home,
   Lock,
   LogIn,
-  Megaphone,
   Moon,
   QrCode,
   ShieldCheck,
@@ -46,7 +45,7 @@ const MEMBER_DESTINATIONS: {
   {
     id: 'home',
     label: 'Member Overview',
-    description: 'Next practice countdown, standings lookup & bulletins',
+    description: 'Next practice countdown, digital ID pass & standings lookup',
     icon: <Home className="w-4 h-4" />,
   },
   {
@@ -78,12 +77,6 @@ const MEMBER_DESTINATIONS: {
     label: 'Practice Calendar',
     description: 'Monthly practice schedule & QR attendance check-in',
     icon: <Calendar className="w-4 h-4" />,
-  },
-  {
-    id: 'announcements',
-    label: 'Club Bulletins',
-    description: 'Pinned club announcements & schedule notices',
-    icon: <Megaphone className="w-4 h-4" />,
   },
 ];
 

@@ -1,11 +1,190 @@
 import {
+  AttendanceSession,
   CalendarEvent,
   ClubSettings,
   ClubTournamentMatch,
   ClubTournamentParticipant,
   GameScore,
+  MatchRecord,
   Member,
 } from '../types';
+
+export interface MemberAchievement {
+  id: string;
+  title: string;
+  description: string;
+  category: 'Attendance' | 'Matches' | 'Streak' | 'Rating';
+  current: number;
+  target: number;
+  pct: number;
+  unlocked: boolean;
+  progressLabel: string;
+  accent: 'blue' | 'emerald' | 'amber' | 'indigo';
+}
+
+export function buildMemberPersonalQrToken(member: {
+  id: string;
+  name: string;
+}): string {
+  return `BNHS-MEMBER|${member.id}|${member.name}`;
+}
+
+export function parseMemberPersonalQrToken(
+  raw: string
+): { memberId: string; memberName: string } | null {
+  const trimmed = raw.trim();
+  if (!trimmed.toUpperCase().startsWith('BNHS-MEMBER|')) return null;
+  const parts = trimmed.split('|');
+  if (parts.length < 2 || !parts[1]) return null;
+  return {
+    memberId: parts[1].trim(),
+    memberName: (parts[2] || '').trim(),
+  };
+}
+
+export function computeMemberAchievements(
+  member: Member | null,
+  matches: MatchRecord[],
+  attendance: AttendanceSession[]
+): MemberAchievement[] {
+  if (!member) return [];
+
+  const memberMatches = matches.filter(
+    (m) => m.team1Ids.includes(member.id) || m.team2Ids.includes(member.id)
+  );
+  const totalMatches = Math.max(
+    member.wins + member.losses,
+    memberMatches.length
+  );
+  const totalWins = member.wins;
+  const currentWinStreak = Math.max(0, member.streak);
+
+  const attendedCount = attendance.filter((s) =>
+    s.presentMemberIds.includes(member.id)
+  ).length;
+
+  // Check if member has won any game by 7+ points (or 11-0)
+  let maxWinMargin = 0;
+  for (const m of memberMatches) {
+    const inT1 = m.team1Ids.includes(member.id);
+    for (const g of m.games) {
+      const myScore = inT1 ? g.team1Score : g.team2Score;
+      const oppScore = inT1 ? g.team2Score : g.team1Score;
+      if (myScore > oppScore) {
+        maxWinMargin = Math.max(maxWinMargin, myScore - oppScore);
+      }
+    }
+  }
+
+  const eloProgress = Math.max(0, member.elo - 1150);
+  const eloTarget = 100; // 1150 -> 1250
+
+  return [
+    {
+      id: 'first-checkin',
+      title: 'First Court Check-In',
+      description: 'Check in to your first official BNHS practice session',
+      category: 'Attendance',
+      current: Math.min(1, attendedCount),
+      target: 1,
+      pct: attendedCount >= 1 ? 100 : 0,
+      unlocked: attendedCount >= 1,
+      progressLabel: `${Math.min(1, attendedCount)} / 1 session`,
+      accent: 'emerald',
+    },
+    {
+      id: 'iron-bobcat',
+      title: 'Iron Bobcat Attendance',
+      description: 'Attend 5 or more official club practice sessions',
+      category: 'Attendance',
+      current: Math.min(5, attendedCount),
+      target: 5,
+      pct: Math.min(100, Math.round((attendedCount / 5) * 100)),
+      unlocked: attendedCount >= 5,
+      progressLabel: `${attendedCount} / 5 sessions`,
+      accent: 'emerald',
+    },
+    {
+      id: 'first-win',
+      title: 'First Club Victory',
+      description: 'Win your first official ladder or tournament match',
+      category: 'Matches',
+      current: Math.min(1, totalWins),
+      target: 1,
+      pct: totalWins >= 1 ? 100 : 0,
+      unlocked: totalWins >= 1,
+      progressLabel: `${Math.min(1, totalWins)} / 1 win`,
+      accent: 'blue',
+    },
+    {
+      id: 'hot-streak-3',
+      title: '3-Match Hot Streak',
+      description: 'Build an active winning streak of 3 consecutive matches',
+      category: 'Streak',
+      current: Math.min(3, currentWinStreak),
+      target: 3,
+      pct: Math.min(100, Math.round((currentWinStreak / 3) * 100)),
+      unlocked: currentWinStreak >= 3,
+      progressLabel: `${currentWinStreak} / 3 streak`,
+      accent: 'amber',
+    },
+    {
+      id: 'unstoppable-5',
+      title: '5-Match Unstoppable',
+      description: 'Dominate the ladder with 5 consecutive match victories',
+      category: 'Streak',
+      current: Math.min(5, currentWinStreak),
+      target: 5,
+      pct: Math.min(100, Math.round((currentWinStreak / 5) * 100)),
+      unlocked: currentWinStreak >= 5,
+      progressLabel: `${currentWinStreak} / 5 streak`,
+      accent: 'amber',
+    },
+    {
+      id: 'club-veteran',
+      title: 'Club Court Veteran',
+      description: 'Compete in 10 official recorded club matches',
+      category: 'Matches',
+      current: Math.min(10, totalMatches),
+      target: 10,
+      pct: Math.min(100, Math.round((totalMatches / 10) * 100)),
+      unlocked: totalMatches >= 10,
+      progressLabel: `${totalMatches} / 10 matches`,
+      accent: 'indigo',
+    },
+    {
+      id: 'varsity-contender',
+      title: 'Varsity Contender',
+      description: 'Reach a 1,250+ Club Elo rating on the official ladder',
+      category: 'Rating',
+      current: member.elo,
+      target: 1250,
+      pct:
+        member.elo >= 1250
+          ? 100
+          : Math.min(100, Math.round((eloProgress / eloTarget) * 100)),
+      unlocked: member.elo >= 1250,
+      progressLabel: `${member.elo} / 1250 Elo`,
+      accent: 'blue',
+    },
+    {
+      id: 'golden-pickle',
+      title: 'Dominant Game Win',
+      description: 'Win an official game by 7+ points (e.g., 11–4 or 11–0)',
+      category: 'Matches',
+      current: Math.min(7, maxWinMargin),
+      target: 7,
+      pct: Math.min(100, Math.round((maxWinMargin / 7) * 100)),
+      unlocked: maxWinMargin >= 7,
+      progressLabel:
+        maxWinMargin >= 7
+          ? `+${maxWinMargin} pt margin achieved`
+          : `Best margin: +${maxWinMargin} / +7 pts`,
+      accent: 'amber',
+    },
+  ];
+}
+
 
 /**
  * Calculates the Elo rating delta using standard K=32 formula

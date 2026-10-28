@@ -128,9 +128,24 @@ export const PracticeQrModal: React.FC<PracticeQrModalProps> = ({
   const handleMatchTokenInput = (val: string) => {
     setManualTokenInput(val);
     setErrorMsg(null);
-    const cleaned = val.trim().toUpperCase();
+    const trimmed = val.trim();
+    if (trimmed.toUpperCase().startsWith('BNHS-MEMBER|')) {
+      const parts = trimmed.split('|');
+      const scannedMemId = (parts[1] || '').trim();
+      const scannedName = (parts[2] || '').trim().toLowerCase();
+      const foundMem = members.find(
+        (m) =>
+          m.id === scannedMemId ||
+          (scannedName && m.name.toLowerCase() === scannedName)
+      );
+      if (foundMem) {
+        setSelectedMemberId(foundMem.id);
+      }
+      return;
+    }
+    const cleaned = trimmed.toUpperCase();
     const matched = availablePracticeTargets.find(
-      (t) => t.token.toUpperCase() === cleaned || t.date === val.trim()
+      (t) => t.token.toUpperCase() === cleaned || t.date === trimmed
     );
     if (matched) {
       onSelectTarget(matched);

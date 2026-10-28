@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Check,
   Edit3,
+  FileSpreadsheet,
+  Play,
   Plus,
   QrCode,
   ScanLine,
   Search,
   Trash2,
+  Upload,
   UserCheck,
   UserPlus,
+  X,
 } from 'lucide-react';
 import {
   AttendanceSession,
@@ -16,6 +20,7 @@ import {
   Member,
   SkillLevel,
 } from '../types';
+import { parseMemberPersonalQrToken } from '../utils/clubUtils';
 import {
   PracticeQrTarget,
   buildPracticeQrToken,
@@ -32,6 +37,29 @@ interface MembersAttendanceViewProps {
     target: PracticeQrTarget,
     mode: 'display' | 'scan'
   ) => void;
+  onNavigateToMultiCourt?: () => void;
+}
+
+interface ParsedCsvMemberRow {
+  name: string;
+  grade: GradeLevel;
+  skillLevel: SkillLevel;
+  duprRating?: string;
+  paddleNotes: string;
+  isDuplicate: boolean;
+}
+
+function normalizeGrade(raw: string): GradeLevel {
+  const num = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+  if (num === 9 || num === 10 || num === 11 || num === 12) return num;
+  return 10;
+}
+
+function normalizeSkill(raw: string): SkillLevel {
+  const lower = (raw || '').trim().toLowerCase();
+  if (lower.startsWith('adv')) return 'Advanced';
+  if (lower.startsWith('beg')) return 'Beginner';
+  return 'Intermediate';
 }
 
 export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
@@ -42,6 +70,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   onUpdateAttendance,
   onRequestOfficerUnlock,
   onOpenPracticeQr,
+  onNavigateToMultiCourt,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | GradeLevel>('all');
@@ -62,6 +91,13 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     'After-School Practice & Ladder'
   );
 
+  // Quick Member Digital ID Token Scanner input
+  const [quickIdScanInput, setQuickIdScanInput] = useState('');
+  const [quickScanFeedback, setQuickScanFeedback] = useState<string | null>(
+    null
+  );
+
+  // Single Member Add/Edit state
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
 
@@ -73,6 +109,11 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   const [formJoinDate, setFormJoinDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+
+  // Bulk CSV Roster Import state
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [csvText, setCsvText] = useState('');
+  const csvFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeSession =
     attendance.find((s) => s.id === selectedSessionId) || sortedSessions[0];
@@ -108,31 +149,100 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     return { attended, total, pct };
   };
 
-  const handleToggleAttendance = (memberId: string) => {
-    if (!activeSession) return;
-    const exists = activeSession.presentMemberIds.includes(memberId);
-    const updatedPresent = exists
-      ? activeSession.presentMemberIds.filter((id) => id !== memberId)
-      : [...activeSession.presentMemberIds, memberId];
+  const ensureActiveSession = (): AttendanceSession => {
+    if (activeSession) return activeSession;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const created: AttendanceSession = {
+      id: `att-${Date.now()}`,
+      date: todayStr,
+      title: 'After-School Club Practice',
+      presentMemberIds: [],
+    };
+    onUpdateAttendance([created, ...attendance]);
+    setSelectedSessionId(created.id);
+    return created;
+  };
 
-    onUpdateAttendance(
-      attendance.map((s) =>
-        s.id === activeSession.id
-          ? { ...s, presentMemberIds: updatedPresent }
-          : s
-      )
-    );
+  const handleToggleAttendance = (memberId: string) => {
+    const session = ensureActiveSession();
+    const exists = session.presentMemberIds.includes(memberId);
+    const updatedPresent = exists
+      ? session.presentMemberIds.filter((id) => id !== memberId)
+      : [...session.presentMemberIds, memberId];
+
+    const sessionInList = attendance.some((s) => s.id === session.id);
+    if (sessionInList) {
+      onUpdateAttendance(
+        attendance.map((s) =>
+          s.id === session.id ? { ...s, presentMemberIds: updatedPresent } : s
+        )
+      );
+    } else {
+      onUpdateAttendance([
+        { ...session, presentMemberIds: updatedPresent },
+        ...attendance,
+      ]);
+    }
+  };
+
+  const handleQuickMemberQrScan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickIdScanInput.trim()) return;
+    const parsed = parseMemberPersonalQrToken(quickIdScanInput);
+    const queryLower = quickIdScanInput.trim().toLowerCase();
+
+    const matchedMember = members.find((m) => {
+      if (parsed && m.id === parsed.memberId) return true;
+      if (parsed && parsed.memberName && m.name.toLowerCase() === parsed.memberName.toLowerCase()) {
+        return true;
+      }
+      return m.name.toLowerCase() === queryLower || m.id.toLowerCase() === queryLower;
+    });
+
+    if (!matchedMember) {
+      setQuickScanFeedback('No matching member found for that ID token.');
+      return;
+    }
+
+    const session = ensureActiveSession();
+    if (!session.presentMemberIds.includes(matchedMember.id)) {
+      const nextPresent = [...session.presentMemberIds, matchedMember.id];
+      const sessionInList = attendance.some((s) => s.id === session.id);
+      if (sessionInList) {
+        onUpdateAttendance(
+          attendance.map((s) =>
+            s.id === session.id ? { ...s, presentMemberIds: nextPresent } : s
+          )
+        );
+      } else {
+        onUpdateAttendance([
+          { ...session, presentMemberIds: nextPresent },
+          ...attendance,
+        ]);
+      }
+    }
+
+    setQuickIdScanInput('');
+    setQuickScanFeedback(`Checked in ${matchedMember.name} ✓`);
+    setTimeout(() => setQuickScanFeedback(null), 3000);
   };
 
   const handleMarkAllPresent = () => {
-    if (!activeSession) return;
-    onUpdateAttendance(
-      attendance.map((s) =>
-        s.id === activeSession.id
-          ? { ...s, presentMemberIds: members.map((m) => m.id) }
-          : s
-      )
-    );
+    const session = ensureActiveSession();
+    const allIds = members.map((m) => m.id);
+    const sessionInList = attendance.some((s) => s.id === session.id);
+    if (sessionInList) {
+      onUpdateAttendance(
+        attendance.map((s) =>
+          s.id === session.id ? { ...s, presentMemberIds: allIds } : s
+        )
+      );
+    } else {
+      onUpdateAttendance([
+        { ...session, presentMemberIds: allIds },
+        ...attendance,
+      ]);
+    }
   };
 
   const handleCreateSession = (e: React.FormEvent) => {
@@ -235,6 +345,129 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     onUpdateMembers(members.filter((m) => m.id !== id));
   };
 
+  // Parse CSV / Spreadsheet text into preview rows
+  const parsedCsvRows = useMemo<ParsedCsvMemberRow[]>(() => {
+    if (!csvText.trim()) return [];
+    const existingNames = new Set(
+      members.map((m) => m.name.trim().toLowerCase())
+    );
+    const seenInBatch = new Set<string>();
+
+    const lines = csvText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const rows: ParsedCsvMemberRow[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const cols = (line.includes('\t') ? line.split('\t') : line.split(',')).map(
+        (c) => c.replace(/^["']|["']$/g, '').trim()
+      );
+      if (cols.length === 0 || !cols[0]) continue;
+
+      // Skip header row if first cell looks like "Name" or "Full Name" or "Member"
+      if (
+        i === 0 &&
+        /^(name|full\s*name|student|member|player)$/i.test(cols[0])
+      ) {
+        continue;
+      }
+
+      const name = cols[0];
+      const grade = cols[1] ? normalizeGrade(cols[1]) : 10;
+      const skillLevel = cols[2] ? normalizeSkill(cols[2]) : 'Intermediate';
+      const duprRaw = cols[3] || '';
+      const duprRating =
+        duprRaw && /^[2-6](\.\d{1,3})?$/.test(duprRaw) ? duprRaw : undefined;
+      const paddleNotes =
+        cols[4] ||
+        (duprRating ? 'Personal Paddle' : cols[3] || 'Personal Paddle');
+
+      const nameKey = name.toLowerCase();
+      const isDuplicate =
+        existingNames.has(nameKey) || seenInBatch.has(nameKey);
+      seenInBatch.add(nameKey);
+
+      rows.push({
+        name,
+        grade,
+        skillLevel,
+        duprRating,
+        paddleNotes,
+        isDuplicate,
+      });
+    }
+
+    return rows;
+  }, [csvText, members]);
+
+  const validNewCsvRows = useMemo(
+    () => parsedCsvRows.filter((r) => !r.isDuplicate),
+    [parsedCsvRows]
+  );
+
+  const handleCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setCsvText(reader.result);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleLoadSampleCsv = () => {
+    setCsvText(
+      [
+        'Name, Grade, Skill Level, DUPR, Paddle',
+        'Ethan Carter, 12, Advanced, 4.15, JOOLA Perseus 16mm',
+        'Maya Lin, 11, Advanced, 3.90, Vatic Pro Prism Flash',
+        'Lucas Brooks, 10, Intermediate, 3.45, Selkirk Vanguard Control',
+        'Sophia Patel, 11, Intermediate, 3.35, Six Zero Double Black Diamond',
+        'Noah Ramirez, 9, Beginner, 2.85, Club Loaner Paddle',
+        'Chloe Nguyen, 12, Advanced, 3.80, CRBN 1X Power 16mm',
+      ].join('\n')
+    );
+  };
+
+  const handleCommitBulkImport = () => {
+    if (validNewCsvRows.length === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const baseTs = Date.now();
+    const createdMembers: Member[] = validNewCsvRows.map((row, idx) => ({
+      id: `mem-${baseTs}-${idx + 1}`,
+      name: row.name,
+      grade: row.grade,
+      skillLevel: row.skillLevel,
+      duprRating: row.duprRating,
+      paddleNotes: row.paddleNotes || 'Personal Paddle',
+      joinDate: today,
+      elo:
+        row.skillLevel === 'Advanced'
+          ? 1240
+          : row.skillLevel === 'Beginner'
+          ? 1160
+          : 1200,
+      monthStartElo: 1200,
+      wins: 0,
+      losses: 0,
+      pointsFor: 0,
+      pointsAgainst: 0,
+      streak: 0,
+      duesPaid: false,
+      duesAmount: 25,
+    }));
+
+    onUpdateMembers([...members, ...createdMembers]);
+    setCsvText('');
+    setShowBulkImport(false);
+  };
+
   const filteredMembers = members.filter((m) => {
     const matchesSearch =
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -255,13 +488,25 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               Practice Attendance & Member Roster
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              One-tap practice check-in, QR code pass generation & live
-              attendance percentages
+              One-tap practice check-in, bulk CSV roster import & QR pass
+              verification
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onNavigateToMultiCourt && (
+              <button
+                type="button"
+                onClick={onNavigateToMultiCourt}
+                className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Smart Court Generator
+              </button>
+            )}
+
             <button
+              type="button"
               onClick={() => onOpenPracticeQr(activePracticeQrTarget, 'display')}
               className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
             >
@@ -270,14 +515,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             </button>
 
             <button
-              onClick={() => onOpenPracticeQr(activePracticeQrTarget, 'scan')}
-              className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-            >
-              <ScanLine className="w-4 h-4" />
-              Scan QR Check-In
-            </button>
-
-            <button
+              type="button"
               onClick={() => setShowNewSessionForm(!showNewSessionForm)}
               className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
             >
@@ -285,7 +523,19 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               New Practice Date
             </button>
 
+            {isOfficer && (
+              <button
+                type="button"
+                onClick={() => setShowBulkImport(!showBulkImport)}
+                className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                Bulk CSV Import
+              </button>
+            )}
+
             <button
+              type="button"
               onClick={openAddMember}
               className="min-h-[42px] px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
               style={{ backgroundColor: 'var(--club-primary)' }}
@@ -346,62 +596,220 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
           </form>
         )}
 
-        {/* Active Practice Session Selector Strip */}
-        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+        {/* Active Practice Session Selector + Quick Member Digital ID Scanner */}
+        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <UserCheck className="w-4 h-4 text-emerald-600" />
               Active Check-In Date:
             </span>
-            <select
-              value={activeSession?.id || ''}
-              onChange={(e) => setSelectedSessionId(e.target.value)}
-              aria-label="Select Practice Session"
-              className="min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-            >
-              {sortedSessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.date} — {s.title} ({s.presentMemberIds.length}/
-                  {members.length} Present)
-                </option>
-              ))}
-            </select>
+            {sortedSessions.length > 0 ? (
+              <select
+                value={activeSession?.id || ''}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
+                aria-label="Select Practice Session"
+                className="min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+              >
+                {sortedSessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.date} — {s.title} ({s.presentMemberIds.length}/
+                    {members.length} Present)
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs text-slate-500">
+                No session yet (Checking in a player will auto-create today's
+                session)
+              </span>
+            )}
           </div>
 
-          {activeSession && (
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-                Checked In:{' '}
-                <strong className="text-slate-900 dark:text-white">
-                  {activeSession.presentMemberIds.length} / {members.length}
-                </strong>{' '}
-                (
-                {Math.round(
-                  (activeSession.presentMemberIds.length /
-                    Math.max(1, members.length)) *
-                    100
-                )}
-                %)
-              </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Scan / Paste Member Digital ID QR Token */}
+            <form
+              onSubmit={handleQuickMemberQrScan}
+              className="flex items-center gap-1.5"
+            >
+              <div className="relative">
+                <ScanLine className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={quickIdScanInput}
+                  onChange={(e) => setQuickIdScanInput(e.target.value)}
+                  placeholder="Scan Member ID (BNHS-MEMBER|...)"
+                  className="min-h-[38px] pl-8 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white w-56"
+                />
+              </div>
               <button
+                type="submit"
+                className="min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white dark:bg-white dark:text-slate-900 cursor-pointer"
+              >
+                Check In ID
+              </button>
+            </form>
+
+            {quickScanFeedback && (
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                {quickScanFeedback}
+              </span>
+            )}
+
+            {members.length > 0 && (
+              <button
+                type="button"
                 onClick={handleMarkAllPresent}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 cursor-pointer"
+                className="min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 cursor-pointer"
               >
                 Mark All Present
               </button>
-              {isOfficer && attendance.length > 1 && (
+            )}
+
+            {isOfficer && activeSession && attendance.length > 1 && (
+              <button
+                type="button"
+                onClick={() => handleDeleteSession(activeSession.id)}
+                className="p-2 rounded-lg text-slate-400 hover:text-red-600 cursor-pointer"
+                title="Delete this attendance session"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ================================================================= */}
+      {/* BULK CSV / SPREADSHEET ROSTER IMPORT DRAWER                       */}
+      {/* ================================================================= */}
+      {showBulkImport && (
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <span>Bulk CSV & Spreadsheet Roster Import</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Paste rows from Google Sheets or Excel, or upload a CSV file.
+                Format: <strong>Name, Grade, Skill Level, DUPR, Paddle</strong>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBulkImport(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={csvFileInputRef}
+              type="file"
+              accept=".csv,.txt,.tsv"
+              onChange={handleCsvFileUpload}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => csvFileInputRef.current?.click()}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Upload .CSV File</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleLoadSampleCsv}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 cursor-pointer"
+            >
+              Load Sample 6-Player Roster
+            </button>
+            {csvText && (
+              <button
+                type="button"
+                onClick={() => setCsvText('')}
+                className="px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <textarea
+            rows={5}
+            value={csvText}
+            onChange={(e) => setCsvText(e.target.value)}
+            placeholder={`Name, Grade, Skill Level, DUPR, Paddle\nEthan Carter, 12, Advanced, 4.15, JOOLA Perseus 16mm\nMaya Lin, 11, Intermediate, 3.50, Vatic Pro Prism Flash`}
+            className="w-full p-3.5 rounded-xl text-xs font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+          />
+
+          {parsedCsvRows.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  Preview ({validNewCsvRows.length} new members ready to import
+                  {parsedCsvRows.length - validNewCsvRows.length > 0
+                    ? ` · ${
+                        parsedCsvRows.length - validNewCsvRows.length
+                      } duplicate skipped`
+                    : ''}
+                  )
+                </span>
+              </div>
+
+              <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                {parsedCsvRows.map((row, idx) => (
+                  <div
+                    key={`${row.name}-${idx}`}
+                    className={`px-3.5 py-2 flex items-center justify-between gap-3 ${
+                      row.isDuplicate
+                        ? 'opacity-50 bg-slate-50 dark:bg-slate-900'
+                        : 'bg-white dark:bg-slate-900'
+                    }`}
+                  >
+                    <div className="font-semibold text-slate-900 dark:text-white">
+                      {row.name}{' '}
+                      {row.isDuplicate && (
+                        <span className="text-[11px] font-normal text-amber-600">
+                          (Already on roster — skipped)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-slate-500 font-mono-num">
+                      Grade {row.grade} · {row.skillLevel}
+                      {row.duprRating ? ` · ${row.duprRating} DUPR` : ''} ·{' '}
+                      {row.paddleNotes}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
                 <button
-                  onClick={() => handleDeleteSession(activeSession.id)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 cursor-pointer"
-                  title="Delete this attendance session"
+                  type="button"
+                  onClick={() => setShowBulkImport(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  Cancel
                 </button>
-              )}
+                <button
+                  type="button"
+                  disabled={validNewCsvRows.length === 0}
+                  onClick={handleCommitBulkImport}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 cursor-pointer"
+                  style={{ backgroundColor: 'var(--club-primary)' }}
+                >
+                  Import {validNewCsvRows.length} Member
+                  {validNewCsvRows.length === 1 ? '' : 's'}
+                </button>
+              </div>
             </div>
           )}
         </div>
-      </div>
+      )}
 
       {/* Add / Edit Member Modal Drawer */}
       {isAddingMember && (
@@ -584,7 +992,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 <th className="py-3 pr-3">
-                  1-Tap Check-In ({activeSession?.date})
+                  1-Tap Check-In ({activeSession?.date || 'Today'})
                 </th>
                 <th className="py-3 px-3">Member & Join Date</th>
                 <th className="py-3 px-3">Grade</th>
@@ -685,9 +1093,18 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 <tr>
                   <td
                     colSpan={isOfficer ? 7 : 6}
-                    className="py-8 text-center text-sm text-slate-500"
+                    className="py-10 text-center space-y-2"
                   >
-                    No members match your current search or filter criteria.
+                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      {members.length === 0
+                        ? 'Your Club Roster is Empty'
+                        : 'No members match your current search or filter'}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {members.length === 0
+                        ? 'Click "Add Member" or "Bulk CSV Import" above to add your club players in seconds.'
+                        : 'Try clearing the grade or skill filter.'}
+                    </div>
                   </td>
                 </tr>
               )}

@@ -9,7 +9,6 @@ import {
   Clock,
   MapPin,
   Package,
-  Pin,
   Play,
   QrCode,
   ShieldCheck,
@@ -28,7 +27,6 @@ interface HomeDashboardProps {
   data: ClubDataState;
   isOfficer: boolean;
   onNavigate: (tab: NavTab) => void;
-  onQuickAddAnnouncement: () => void;
   onOpenPracticeQr: (
     target: PracticeQrTarget,
     mode: 'display' | 'scan'
@@ -66,12 +64,6 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
   const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
   const seconds = Math.floor((diffMs / 1000) % 60);
-
-  const sortedAnnouncements = [...data.announcements].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    return b.date.localeCompare(a.date);
-  });
-  const latestAnnouncement = sortedAnnouncements[0] || null;
 
   const top5Members = [...data.members]
     .sort((a, b) => b.elo - a.elo)
@@ -461,42 +453,43 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
           </div>
 
-          {/* Latest Pinned Announcement Card */}
+          {/* Active In-Club Brackets Card */}
           <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 flex-1 flex flex-col justify-between space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 inline-flex items-center gap-1.5">
-                {latestAnnouncement?.pinned && (
-                  <Pin className="w-3.5 h-3.5 text-amber-500" />
-                )}
-                Latest Club Bulletin
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                In-Club Tournament Brackets
               </span>
               <button
-                onClick={() => onNavigate('announcements')}
+                onClick={() => onNavigate('tournaments')}
                 className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
               >
-                All ({data.announcements.length})
+                All ({data.clubTournaments.length})
               </button>
             </div>
 
-            {latestAnnouncement ? (
+            {data.clubTournaments[0] ? (
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {latestAnnouncement.title}
+                  {data.clubTournaments[0].name}
                 </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mt-1 leading-relaxed">
-                  {latestAnnouncement.body}
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                  {data.clubTournaments[0].format} ·{' '}
+                  {data.clubTournaments[0].status}
                 </p>
               </div>
             ) : (
               <p className="text-xs text-slate-500 py-2">
-                No announcements posted yet.
+                No in-club brackets created yet.
               </p>
             )}
 
-            {latestAnnouncement && (
+            {data.clubTournaments[0] && (
               <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
-                <span>{latestAnnouncement.author}</span>
-                <span className="font-mono-num">{latestAnnouncement.date}</span>
+                <span>{data.clubTournaments[0].matches.length} matches</span>
+                <span className="font-mono-num">
+                  {data.clubTournaments[0].date}
+                </span>
               </div>
             )}
           </div>

@@ -11,7 +11,6 @@ import {
   Lock,
   LogIn,
   LogOut,
-  Megaphone,
   Moon,
   Package,
   Play,
@@ -65,7 +64,6 @@ import { TournamentsView } from './components/TournamentsView';
 import { OfficersTasksView } from './components/OfficersTasksView';
 import { CalendarEventsView } from './components/CalendarEventsView';
 import {
-  AnnouncementsView,
   EquipmentView,
   SettingsView,
   TreasuryView,
@@ -94,7 +92,6 @@ const MEMBER_ALLOWED_TABS: NavTab[] = [
   'tournaments',
   'watch',
   'calendar',
-  'announcements',
 ];
 
 export default function App() {
@@ -165,6 +162,9 @@ export default function App() {
   // Context when launching Live Score Keeper from a Club Tournament bracket match
   const [pendingTournamentMatch, setPendingTournamentMatch] =
     useState<PendingTournamentScoreContext | null>(null);
+  const [scoreModePreference, setScoreModePreference] = useState<
+    'single' | 'multicourt'
+  >('single');
 
   // Toast status message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -742,12 +742,6 @@ export default function App() {
       icon: <Play className="w-4 h-4" />,
     },
     {
-      id: 'announcements',
-      label: 'Announcements',
-      access: 'member',
-      icon: <Megaphone className="w-4 h-4" />,
-    },
-    {
       id: 'members',
       label: 'Members & Attendance',
       access: 'officer',
@@ -1248,9 +1242,6 @@ export default function App() {
                       data={data}
                       isOfficer={true}
                       onNavigate={handleNavigate}
-                      onQuickAddAnnouncement={() =>
-                        setActiveTab('announcements')
-                      }
                       onOpenPracticeQr={openPracticeQrModal}
                     />
                   )}
@@ -1258,6 +1249,8 @@ export default function App() {
                   {activeTab === 'scorekeeper' && (
                     <LiveScoreKeeper
                       members={data.members}
+                      attendance={data.attendance}
+                      initialScoreMode={scoreModePreference}
                       isOfficer={true}
                       pendingTournamentMatch={pendingTournamentMatch}
                       onClearPendingTournamentMatch={() =>
@@ -1318,18 +1311,6 @@ export default function App() {
                     />
                   )}
 
-                  {activeTab === 'announcements' && (
-                    <AnnouncementsView
-                      announcements={data.announcements}
-                      officers={data.officers}
-                      isOfficer={true}
-                      onUpdateAnnouncements={(announcements) =>
-                        setData((prev) => ({ ...prev, announcements }))
-                      }
-                      onRequestOfficerUnlock={() => setShowPinModal(true)}
-                    />
-                  )}
-
                   {activeTab === 'members' && (
                     <MembersAttendanceView
                       members={data.members}
@@ -1343,6 +1324,10 @@ export default function App() {
                       }
                       onRequestOfficerUnlock={() => setShowPinModal(true)}
                       onOpenPracticeQr={openPracticeQrModal}
+                      onNavigateToMultiCourt={() => {
+                        setScoreModePreference('multicourt');
+                        setActiveTab('scorekeeper');
+                      }}
                     />
                   )}
 
