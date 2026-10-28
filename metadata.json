@@ -1,0 +1,6 @@
+{
+  "name": "BNHS Pickleball Club HQ",
+  "description": "High school pickleball club management dashboard featuring live side-out and rally score keeping, Elo ladder, tournament brackets, attendance, treasury, and equipment tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
