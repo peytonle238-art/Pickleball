@@ -5,18 +5,28 @@ import {
   ArrowRight,
   Award,
   Calendar,
+  CheckCircle2,
   ChevronDown,
   Clock,
   Eye,
+  Hash,
   Home,
   Lock,
+  LogOut,
   Moon,
-  QrCode,
   ShieldCheck,
   Sun,
   Trophy,
+  UserCheck,
+  UserPlus,
 } from 'lucide-react';
-import { ClubDataState, NavTab } from '../types';
+import {
+  ClubDataState,
+  GradeLevel,
+  Member,
+  NavTab,
+  SkillLevel,
+} from '../types';
 import { getNextUpcomingEvent } from '../utils/clubUtils';
 
 export const BOBCATS_LOGO_URL = '/assets/aistudio/images_25669a2b.png';
@@ -24,13 +34,20 @@ export const BOBCATS_LOGO_URL = '/assets/aistudio/images_25669a2b.png';
 interface WelcomeScreenProps {
   data: ClubDataState;
   darkMode: boolean;
+  linkedMemberId: string;
   onToggleDarkMode: () => void;
   onEnterAsMember: (targetTab: NavTab) => void;
   onEnterAsOfficer: (pin: string, targetTab: NavTab) => boolean;
-  onOpenQrScanner: () => void;
+  onSignInBySchoolId: (schoolId: string) => Member | null;
+  onRegisterMember: (payload: {
+    schoolId: string;
+    name: string;
+    grade: GradeLevel;
+    skillLevel: SkillLevel;
+    paddleNotes?: string;
+  }) => Member;
+  onSignOutMember: () => void;
 }
-
-const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const MEMBER_DESTINATIONS: {
   id: NavTab;
@@ -41,7 +58,7 @@ const MEMBER_DESTINATIONS: {
   {
     id: 'home',
     label: 'Member Overview',
-    description: 'Next practice countdown, achievements & standings lookup',
+    description: 'Welcome to BNHS Pickleball Club',
     icon: <Home className="w-4 h-4" />,
   },
   {
@@ -71,7 +88,7 @@ const MEMBER_DESTINATIONS: {
   {
     id: 'calendar',
     label: 'Practice Calendar',
-    description: 'Monthly practice schedule & QR attendance check-in',
+    description: 'Monthly practice schedule & club event dates',
     icon: <Calendar className="w-4 h-4" />,
   },
 ];
@@ -79,26 +96,58 @@ const MEMBER_DESTINATIONS: {
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   data,
   darkMode,
+  linkedMemberId,
   onToggleDarkMode,
   onEnterAsMember,
   onEnterAsOfficer,
-  onOpenQrScanner,
+  onSignInBySchoolId,
+  onRegisterMember,
+  onSignOutMember,
 }) => {
   const [selectedDestination, setSelectedDestination] =
     useState<NavTab>('home');
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [showOfficerPanel, setShowOfficerPanel] = useState(false);
+  const [accountTab, setAccountTab] = useState<
+    'signin' | 'register' | 'officer'
+  >('signin');
+
+  // School ID Sign-In state
+  const [schoolIdInput, setSchoolIdInput] = useState('');
+  const [signInFeedback, setSignInFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  // Add Yourself to Database state
+  const [regSchoolId, setRegSchoolId] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regGrade, setRegGrade] = useState<GradeLevel>(10);
+  const [regSkill, setRegSkill] = useState<SkillLevel>('Intermediate');
+  const [regNotes, setRegNotes] = useState('');
+  const [regFeedback, setRegFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   // Officer PIN unlock state (zero hints)
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
 
-  // Live clock for countdown
+  // Live clock for footer
   const [now, setNow] = useState<Date>(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const activeMember =
+    data.members.find(
+      (m) =>
+        m.id === linkedMemberId ||
+        (m.schoolId &&
+          m.schoolId.trim().toLowerCase() ===
+            linkedMemberId.trim().toLowerCase())
+    ) || null;
 
   const hasScheduledEvents =
     data.events.length > 0 ||
@@ -119,6 +168,60 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     MEMBER_DESTINATIONS.find((d) => d.id === selectedDestination) ||
     MEMBER_DESTINATIONS[0];
 
+  const handleSchoolIdSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = schoolIdInput.trim();
+    if (!cleaned) {
+      setSignInFeedback({
+        type: 'error',
+        text: 'Please enter your School ID to continue.',
+      });
+      return;
+    }
+    const found = onSignInBySchoolId(cleaned);
+    if (found) {
+      setSignInFeedback({
+        type: 'success',
+        text: `Signed in as ${found.name} (ID: ${found.schoolId || found.id})`,
+      });
+      setSchoolIdInput('');
+      onEnterAsMember('activity');
+    } else {
+      setSignInFeedback({
+        type: 'error',
+        text: 'No member found with that School ID. Switch to "Add Yourself" to register.',
+      });
+    }
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanId = regSchoolId.trim();
+    const cleanName = regName.trim();
+    if (!cleanId || !cleanName) {
+      setRegFeedback({
+        type: 'error',
+        text: 'Please enter both your School ID and full name.',
+      });
+      return;
+    }
+    const created = onRegisterMember({
+      schoolId: cleanId,
+      name: cleanName,
+      grade: regGrade,
+      skillLevel: regSkill,
+      paddleNotes: regNotes.trim(),
+    });
+    setRegFeedback({
+      type: 'success',
+      text: `Account ready for ${created.name} (ID: ${created.schoolId})!`,
+    });
+    setRegSchoolId('');
+    setRegName('');
+    setRegNotes('');
+    onEnterAsMember('activity');
+  };
+
   const handleOfficerPinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const ok = onEnterAsOfficer(pinInput, selectedDestination);
@@ -129,7 +232,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-between relative overflow-hidden transition-colors duration-300">
+    <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-between relative overflow-x-hidden touch-scroll transition-colors duration-300">
       {/* Subtle Minimalist Ambient Glow */}
       <div
         className="pointer-events-none absolute inset-0 opacity-10 dark:opacity-20"
@@ -161,15 +264,15 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => setShowOfficerPanel(!showOfficerPanel)}
+            onClick={() => setAccountTab('officer')}
             className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
-              showOfficerPanel
+              accountTab === 'officer'
                 ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white'
                 : 'bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Lock className="w-3.5 h-3.5" />
-            <span>Officer Portal</span>
+            <span>Officer Sign In</span>
           </button>
 
           <button
@@ -188,7 +291,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       </motion.header>
 
       {/* Center Minimalist Hub */}
-      <main className="relative z-20 max-w-xl w-full mx-auto px-6 py-8 my-auto flex flex-col items-center text-center space-y-7">
+      <main className="relative z-20 max-w-xl w-full mx-auto px-6 py-8 my-auto flex flex-col items-center text-center space-y-6">
         {/* Official Bobcats Emblem Showcase */}
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}
@@ -220,19 +323,279 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             {data.settings.clubName}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            Access player stats, tournament brackets, the event calendar, and
-            live match scoring in one place.
+            Continue with your School ID or add yourself to the club database to
+            track your personal activity, matches, and standings.
           </p>
         </motion.div>
 
-        {/* Unified Dropdown Menu Card */}
+        {/* Unified Menu & Account Hub Card */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.12, ease: 'easeOut' }}
           className="w-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-5 shadow-lg text-left space-y-4"
         >
-          <div className="flex items-center justify-between text-xs">
+          {/* Member & Officer Account Access Section */}
+          <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 p-3.5 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Member & Officer Sign In
+              </div>
+              {activeMember && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                  <CheckCircle2 className="w-3 h-3" />
+                  ID: {activeMember.schoolId || activeMember.id}
+                </span>
+              )}
+            </div>
+
+            {/* 3-Tab Switcher: School ID Sign-In | Add Yourself | Officer Sign In */}
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-200/70 dark:bg-slate-900">
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountTab('signin');
+                  setSignInFeedback(null);
+                }}
+                className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+                  accountTab === 'signin'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>School ID</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountTab('register');
+                  setRegFeedback(null);
+                }}
+                className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+                  accountTab === 'register'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Add Yourself</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountTab('officer');
+                  setPinError('');
+                }}
+                className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+                  accountTab === 'officer'
+                    ? 'bg-slate-900 text-amber-400 dark:bg-white dark:text-slate-900 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Officer</span>
+              </button>
+            </div>
+
+            {/* TAB 1: SCHOOL ID SIGN IN */}
+            {accountTab === 'signin' && (
+              <div className="space-y-2.5">
+                {activeMember ? (
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {activeMember.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                          School ID: {activeMember.schoolId || 'Linked'} ·{' '}
+                          {activeMember.grade} Grade · {activeMember.elo} Elo
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onSignOutMember}
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-300 inline-flex items-center gap-1 cursor-pointer shrink-0"
+                      >
+                        <LogOut className="w-3 h-3" />
+                        <span>Switch</span>
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onEnterAsMember('activity')}
+                      className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Activity className="w-3.5 h-3.5" />
+                      <span>Continue to My Activity & Stats</span>
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSchoolIdSubmit} className="space-y-2">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Enter your School ID to sign in to your member account:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Hash className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={schoolIdInput}
+                          onChange={(e) => {
+                            setSignInFeedback(null);
+                            setSchoolIdInput(e.target.value);
+                          }}
+                          placeholder="Enter School ID (e.g. 204819)"
+                          className="w-full h-10 pl-8 pr-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer shrink-0 transition-colors"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {signInFeedback && (
+                  <div
+                    className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${
+                      signInFeedback.type === 'success'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {signInFeedback.text}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: ADD YOURSELF TO CLUB DATABASE */}
+            {accountTab === 'register' && (
+              <form onSubmit={handleRegisterSubmit} className="space-y-2.5">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Add yourself to the club database with your School ID to
+                  create your personal account:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={regSchoolId}
+                    onChange={(e) => {
+                      setRegFeedback(null);
+                      setRegSchoolId(e.target.value);
+                    }}
+                    placeholder="School ID (Required)"
+                    className="w-full h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  />
+                  <input
+                    type="text"
+                    required
+                    value={regName}
+                    onChange={(e) => {
+                      setRegFeedback(null);
+                      setRegName(e.target.value);
+                    }}
+                    placeholder="Full Name (First & Last)"
+                    className="w-full h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={regGrade}
+                    onChange={(e) =>
+                      setRegGrade(Number(e.target.value) as GradeLevel)
+                    }
+                    className="h-9 px-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  >
+                    <option value={9}>9th Grade</option>
+                    <option value={10}>10th Grade</option>
+                    <option value={11}>11th Grade</option>
+                    <option value={12}>12th Grade</option>
+                  </select>
+                  <select
+                    value={regSkill}
+                    onChange={(e) => setRegSkill(e.target.value as SkillLevel)}
+                    className="h-9 px-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+                <input
+                  type="text"
+                  value={regNotes}
+                  onChange={(e) => setRegNotes(e.target.value)}
+                  placeholder="Paddle / Preferred Partner (Optional)"
+                  className="w-full h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                />
+                <button
+                  type="submit"
+                  className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Add Myself & Continue</span>
+                </button>
+                {regFeedback && (
+                  <div
+                    className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${
+                      regFeedback.type === 'success'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {regFeedback.text}
+                  </div>
+                )}
+              </form>
+            )}
+
+            {/* TAB 3: OFFICER SIGN IN */}
+            {accountTab === 'officer' && (
+              <form onSubmit={handleOfficerPinSubmit} className="space-y-2.5">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Enter the 4-digit Officer access code to unlock the Officer
+                  Console:
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={pinInput}
+                    onChange={(e) => {
+                      setPinError('');
+                      setPinInput(
+                        e.target.value.replace(/\D/g, '').slice(0, 4)
+                      );
+                    }}
+                    placeholder="••••"
+                    className="flex-1 h-10 text-center font-mono-num text-lg tracking-[0.4em] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="submit"
+                    className="h-10 px-4 rounded-xl bg-slate-900 dark:bg-amber-400 text-white dark:text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Sign In</span>
+                  </button>
+                </div>
+                {pinError && (
+                  <div className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                    {pinError}
+                  </div>
+                )}
+              </form>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-xs pt-1">
             <span className="font-semibold text-slate-500 dark:text-slate-400">
               Select Destination
             </span>
@@ -299,7 +662,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             Club Navigation Menu
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Stats, Tournaments, Calendar & Scoring
+                            Activity, Standings, Tournaments & Calendar
                           </div>
                         </div>
                       </div>
@@ -362,47 +725,35 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </AnimatePresence>
           </div>
 
-          {/* Primary Launch Button + QR Check-in */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-            <motion.button
-              whileTap={{ scale: 0.985 }}
-              type="button"
-              onClick={() => onEnterAsMember(selectedDestination)}
-              className="sm:col-span-8 min-h-[48px] px-5 py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-opacity hover:opacity-95"
-              style={{ backgroundColor: 'var(--club-primary)' }}
-            >
-              <span>Open {activeDestObj.label}</span>
-              <ArrowRight className="w-4 h-4" />
-            </motion.button>
+          {/* Primary Launch Button */}
+          <motion.button
+            whileTap={{ scale: 0.985 }}
+            type="button"
+            onClick={() => onEnterAsMember(selectedDestination)}
+            className="w-full min-h-[48px] px-5 py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-opacity hover:opacity-95"
+            style={{ backgroundColor: 'var(--club-primary)' }}
+          >
+            <span>Open {activeDestObj.label}</span>
+            <ArrowRight className="w-4 h-4" />
+          </motion.button>
 
-            <motion.button
-              whileTap={{ scale: 0.985 }}
-              type="button"
-              onClick={onOpenQrScanner}
-              className="sm:col-span-4 min-h-[48px] px-4 py-3 rounded-2xl font-semibold text-xs bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer transition-colors"
-            >
-              <QrCode className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span>QR Check-In</span>
-            </motion.button>
-          </div>
-
-          {/* Minimalist 1-Tap Quick Pills for Stats, Tournaments, Calendar */}
+          {/* Minimalist 1-Tap Quick Pills for My Activity, Stats, Tournaments */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => onEnterAsMember('activity')}
+              className="py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Activity className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>My Activity</span>
+            </button>
             <button
               type="button"
               onClick={() => onEnterAsMember('ladder')}
               className="py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Award className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <Award className="w-3.5 h-3.5 text-amber-500" />
               <span>Stats</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onEnterAsMember('tournaments')}
-              className="py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Trophy className="w-3.5 h-3.5 text-amber-500" />
-              <span>Tournaments</span>
             </button>
             <button
               type="button"
@@ -414,64 +765,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </button>
           </div>
         </motion.div>
-
-        {/* Collapsible Officer Access Card (Zero Hints) */}
-        <AnimatePresence>
-          {showOfficerPanel && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, y: -8 }}
-              animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -8 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="w-full overflow-hidden"
-            >
-              <form
-                onSubmit={handleOfficerPinSubmit}
-                className="w-full rounded-3xl bg-slate-900 text-white p-5 border border-slate-800 shadow-xl text-left space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-400">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Officer Full-Access Login</span>
-                  </div>
-                  <span className="text-[11px] text-slate-400">
-                    4-Digit Access Code
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={pinInput}
-                    onChange={(e) => {
-                      setPinError('');
-                      setPinInput(
-                        e.target.value.replace(/\D/g, '').slice(0, 4)
-                      );
-                    }}
-                    placeholder="••••"
-                    className="flex-1 h-12 text-center font-mono-num text-2xl tracking-[0.5em] rounded-xl bg-slate-950 border border-white/15 text-white focus:outline-none focus:border-amber-400"
-                  />
-                  <button
-                    type="submit"
-                    className="h-12 px-5 rounded-xl font-bold text-xs text-slate-950 cursor-pointer shrink-0 transition-opacity hover:opacity-95"
-                    style={{ backgroundColor: 'var(--club-secondary)' }}
-                  >
-                    Unlock
-                  </button>
-                </div>
-
-                {pinError && (
-                  <div className="text-xs font-semibold text-red-400">
-                    {pinError}
-                  </div>
-                )}
-              </form>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </main>
 
       {/* Minimalist Footer */}

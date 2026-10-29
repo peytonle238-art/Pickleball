@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Award,
@@ -7,11 +7,9 @@ import {
   Download,
   Eye,
   Home,
-  Lock,
   Moon,
   Package,
   Play,
-  QrCode,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -24,12 +22,14 @@ import {
   X,
 } from 'lucide-react';
 import {
-  AttendanceSession,
   ClubDataState,
+  GradeLevel,
   MatchRecord,
+  Member,
   NavTab,
   PendingTournamentScoreContext,
   SeasonArchive,
+  SkillLevel,
 } from './types';
 import {
   INITIAL_CLUB_DATA,
@@ -40,15 +40,12 @@ import {
   updateTournamentMatchList,
 } from './utils/clubUtils';
 import {
-  QrCheckinRecord,
   User,
   auth,
   ensureUserProfileInFirestore,
   loadClubWorkspaceFromFirestore,
-  logQrCheckinToFirestore,
   onAuthStateChanged,
   saveClubWorkspaceToFirestore,
-  subscribeUserQrCheckins,
   updateUserLinkedMember,
 } from './firebase';
 import { HomeDashboard } from './components/HomeDashboard';
@@ -63,11 +60,6 @@ import {
   SettingsView,
   TreasuryView,
 } from './components/ManagementViews';
-import {
-  PracticeQrModal,
-  PracticeQrTarget,
-  buildPracticeQrToken,
-} from './components/PracticeQrModal';
 import { BOBCATS_LOGO_URL, WelcomeScreen } from './components/WelcomeScreen';
 import { MemberPortalView } from './components/MemberPortalView';
 
@@ -127,24 +119,13 @@ export default function App() {
   const [authReady, setAuthReady] = useState<boolean>(false);
   const [linkedMemberId, setLinkedMemberId] = useState<string>(() => {
     try {
-      return localStorage.getItem(LINKED_MEMBER_KEY) || 'mem-1';
+      return localStorage.getItem(LINKED_MEMBER_KEY) || '';
     } catch {
-      return 'mem-1';
+      return '';
     }
   });
-  const [recentQrCheckins, setRecentQrCheckins] = useState<QrCheckinRecord[]>(
-    []
-  );
-  const [cloudSynced, setCloudSynced] = useState<boolean>(false);
   const workspaceDocExistsRef = useRef<boolean>(false);
   const initialCloudLoadDoneRef = useRef<boolean>(false);
-
-  // Practice QR Code Modal state
-  const [qrModalState, setQrModalState] = useState<{
-    open: boolean;
-    mode: 'display' | 'scan';
-    target: PracticeQrTarget;
-  } | null>(null);
 
   // Officer 4-Digit PIN Modal state (no hints)
   const [showPinModal, setShowPinModal] = useState<boolean>(false);
@@ -184,129 +165,15 @@ export default function App() {
     setActiveTab(targetTab);
   };
 
-  // Build available practice targets from Calendar events, Attendance sessions, and Recurring practice dates
-  const availablePracticeTargets = useMemo<PracticeQrTarget[]>(() => {
-    const map = new Map<string, PracticeQrTarget>();
-
-    for (const ev of data.events) {
-      if (ev.type === 'Practice') {
-        map.set(ev.date, {
-          eventId: ev.id,
-          title: ev.title,
-          date: ev.date,
-          time: ev.time,
-          location: ev.location,
-          token: buildPracticeQrToken(ev.date, ev.id),
-        });
-      }
-    }
-
-    for (const att of data.attendance) {
-      if (!map.has(att.date)) {
-        map.set(att.date, {
-          eventId: att.id,
-          title: att.title,
-          date: att.date,
-          time: data.settings.recurringPractices.timeRange,
-          location: data.settings.recurringPractices.location,
-          token: buildPracticeQrToken(att.date, att.id),
-        });
-      }
-    }
-
-    if (
-      data.settings.recurringPractices.enabled &&
-      data.settings.recurringPractices.daysOfWeek.length > 0
-    ) {
-      const now = new Date();
-      const dayNames = [
-        'Sunday',
-        'Monday',
-        'Tuesday',
-        'Wednesday',
-        'Thursday',
-        'Friday',
-        'Saturday',
-      ];
-      for (let offset = -2; offset <= 21; offset++) {
-        const d = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() + offset
-        );
-        if (data.settings.recurringPractices.daysOfWeek.includes(d.getDay())) {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          const dateStr = `${y}-${m}-${day}`;
-          if (!map.has(dateStr)) {
-            const evId = `rec-${dateStr}`;
-            map.set(dateStr, {
-              eventId: evId,
-              title: `${dayNames[d.getDay()]} After-School Club Practice`,
-              date: dateStr,
-              time: data.settings.recurringPractices.timeRange,
-              location: data.settings.recurringPractices.location,
-              token: buildPracticeQrToken(dateStr, evId),
-            });
-          }
-        }
-      }
-    }
-
-    return Array.from(map.values()).sort((a, b) =>
-      b.date.localeCompare(a.date)
-    );
-  }, [data.events, data.attendance, data.settings.recurringPractices]);
-
-  // Check URL query parameters on initial load for scanned QR check-in deep link
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('qr_checkin') === '1') {
-      const dateParam =
-        params.get('date') || new Date().toISOString().slice(0, 10);
-      const titleParam = params.get('title') || 'After-School Club Practice';
-      const tokenParam =
-        params.get('token') || buildPracticeQrToken(dateParam, 'scan');
-
-      setShowWelcomeScreen(false);
-      setQrModalState({
-        open: true,
-        mode: 'scan',
-        target: {
-          eventId: `qr-${dateParam}`,
-          title: titleParam,
-          date: dateParam,
-          time: data.settings.recurringPractices.timeRange,
-          location: data.settings.recurringPractices.location,
-          token: tokenParam,
-        },
-      });
-
-      const cleanUrl = window.location.pathname + window.location.hash;
-      window.history.replaceState({}, '', cleanUrl);
-    }
-  }, []);
-
   // Listen to Firebase Auth state & load user profile + Firestore workspace
   useEffect(() => {
-    let unsubscribeCheckins: (() => void) | null = null;
-
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       setAuthReady(true);
 
-      if (unsubscribeCheckins) {
-        unsubscribeCheckins();
-        unsubscribeCheckins = null;
-      }
-
       if (!user) {
-        setCloudSynced(false);
         workspaceDocExistsRef.current = false;
         initialCloudLoadDoneRef.current = false;
-        setRecentQrCheckins([]);
         return;
       }
 
@@ -316,11 +183,12 @@ export default function App() {
             user.displayName &&
             m.name.toLowerCase() === user.displayName.toLowerCase()
         );
-        const defaultMemId =
-          matchedRosterMember?.id || data.members[0]?.id || 'mem-1';
+        const defaultMemId = matchedRosterMember?.id || linkedMemberId || '';
 
         const profile = await ensureUserProfileInFirestore(user, defaultMemId);
-        setLinkedMemberId(profile.linkedMemberId);
+        if (profile.linkedMemberId) {
+          setLinkedMemberId(profile.linkedMemberId);
+        }
 
         const cloudData = await loadClubWorkspaceFromFirestore(user.uid);
         if (cloudData && cloudData.members && cloudData.settings) {
@@ -329,17 +197,11 @@ export default function App() {
           initialCloudLoadDoneRef.current = true;
           setData(cleaned);
           await saveClubWorkspaceToFirestore(user.uid, cleaned, true);
-          setCloudSynced(true);
         } else {
           await saveClubWorkspaceToFirestore(user.uid, data, false);
           workspaceDocExistsRef.current = true;
           initialCloudLoadDoneRef.current = true;
-          setCloudSynced(true);
         }
-
-        unsubscribeCheckins = subscribeUserQrCheckins(user.uid, (records) => {
-          setRecentQrCheckins(records);
-        });
       } catch (err) {
         console.error('Error syncing Firebase user workspace:', err);
       }
@@ -347,7 +209,6 @@ export default function App() {
 
     return () => {
       unsubscribeAuth();
-      if (unsubscribeCheckins) unsubscribeCheckins();
     };
   }, []);
 
@@ -368,7 +229,6 @@ export default function App() {
             workspaceDocExistsRef.current
           );
           workspaceDocExistsRef.current = true;
-          setCloudSynced(true);
         } catch (err) {
           console.error('Failed to sync club workspace to Firestore:', err);
         }
@@ -402,85 +262,189 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // Complete a QR Code Practice Attendance Check-In
-  const handleCompleteQrCheckin = async ({
-    target,
-    memberId,
-  }: {
-    target: PracticeQrTarget;
-    memberId: string;
-  }) => {
-    const member = data.members.find((m) => m.id === memberId);
-    const memberName = member?.name || 'Club Member';
-
-    setData((prev) => {
-      const existing = prev.attendance.find((s) => s.date === target.date);
-      let nextAttendance: AttendanceSession[];
-      if (existing) {
-        const nextPresent = existing.presentMemberIds.includes(memberId)
-          ? existing.presentMemberIds
-          : [...existing.presentMemberIds, memberId];
-        nextAttendance = prev.attendance.map((s) =>
-          s.id === existing.id ? { ...s, presentMemberIds: nextPresent } : s
-        );
-      } else {
-        const createdSession: AttendanceSession = {
-          id: `att-${target.date.replace(/[^0-9]/g, '')}`,
-          date: target.date,
-          title: target.title,
-          presentMemberIds: [memberId],
-        };
-        nextAttendance = [createdSession, ...prev.attendance];
-      }
-
-      return {
-        ...prev,
-        attendance: nextAttendance,
-      };
-    });
-
-    if (currentUser) {
-      setLinkedMemberId(memberId);
-      await updateUserLinkedMember(
-        currentUser.uid,
-        currentUser.displayName || memberName,
-        memberId
-      );
-      await logQrCheckinToFirestore({
-        uid: currentUser.uid,
-        memberId,
-        memberName,
-        practiceDate: target.date,
-        practiceTitle: target.title,
-        qrCodeToken: target.token,
-      });
-    }
-
-    showToast(`QR Check-In verified for ${memberName} (${target.date})!`);
-  };
-
   const handleSelectLinkedMember = async (memberId: string) => {
     setLinkedMemberId(memberId);
     try {
-      localStorage.setItem(LINKED_MEMBER_KEY, memberId);
+      if (memberId) {
+        localStorage.setItem(LINKED_MEMBER_KEY, memberId);
+      } else {
+        localStorage.removeItem(LINKED_MEMBER_KEY);
+      }
     } catch {
       // Ignore storage quota errors
     }
-    const member = data.members.find((m) => m.id === memberId);
-    if (currentUser) {
+    const member = data.members.find(
+      (m) =>
+        m.id === memberId ||
+        (m.schoolId &&
+          m.schoolId.trim().toLowerCase() === memberId.trim().toLowerCase())
+    );
+    if (currentUser && member) {
       try {
         await updateUserLinkedMember(
           currentUser.uid,
-          currentUser.displayName || member?.name || 'Club Member',
-          memberId
+          currentUser.displayName || member.name || 'Club Member',
+          member.id
         );
       } catch (err) {
         console.error('Failed to update linked member in Firestore:', err);
       }
     }
     if (member) {
-      showToast(`Activity profile set to ${member.name}`);
+      showToast(`Signed in as ${member.name}`);
     }
+  };
+
+  // Sign in an existing member using their School ID
+  const handleSignInBySchoolId = (schoolId: string): Member | null => {
+    const cleaned = schoolId.trim().toLowerCase();
+    if (!cleaned) return null;
+
+    const found =
+      data.members.find(
+        (m) =>
+          (m.schoolId && m.schoolId.trim().toLowerCase() === cleaned) ||
+          m.id.toLowerCase() === cleaned
+      ) || null;
+
+    if (found) {
+      handleSelectLinkedMember(found.id);
+    }
+    return found;
+  };
+
+  // Let a member add themselves directly into the club database with their School ID
+  const handleRegisterMember = ({
+    schoolId,
+    name,
+    grade,
+    skillLevel,
+    paddleNotes,
+  }: {
+    schoolId: string;
+    name: string;
+    grade: GradeLevel;
+    skillLevel: SkillLevel;
+    paddleNotes?: string;
+  }): Member => {
+    const cleanSchoolId = schoolId.trim();
+    const cleanName = name.trim();
+
+    // Check if a member with this School ID already exists
+    const existingById = data.members.find(
+      (m) =>
+        m.schoolId &&
+        m.schoolId.trim().toLowerCase() === cleanSchoolId.toLowerCase()
+    );
+
+    if (existingById) {
+      const updatedMember: Member = {
+        ...existingById,
+        schoolId: cleanSchoolId,
+        name: cleanName || existingById.name,
+        grade,
+        skillLevel,
+        paddleNotes:
+          paddleNotes !== undefined ? paddleNotes : existingById.paddleNotes,
+      };
+      setData((prev) => ({
+        ...prev,
+        members: prev.members.map((m) =>
+          m.id === existingById.id ? updatedMember : m
+        ),
+      }));
+      handleSelectLinkedMember(updatedMember.id);
+      showToast(`Account updated & signed in as ${updatedMember.name}!`);
+      return updatedMember;
+    }
+
+    // Or if a member with the exact same name exists without a School ID yet, link their School ID
+    const existingByName = data.members.find(
+      (m) => !m.schoolId && m.name.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+
+    if (existingByName) {
+      const linkedMember: Member = {
+        ...existingByName,
+        schoolId: cleanSchoolId,
+        grade,
+        skillLevel,
+        paddleNotes: paddleNotes || existingByName.paddleNotes,
+      };
+      setData((prev) => ({
+        ...prev,
+        members: prev.members.map((m) =>
+          m.id === existingByName.id ? linkedMember : m
+        ),
+      }));
+      handleSelectLinkedMember(linkedMember.id);
+      showToast(
+        `Linked School ID ${cleanSchoolId} to ${linkedMember.name}'s account!`
+      );
+      return linkedMember;
+    }
+
+    // Create a brand-new Member record in the club database
+    const newMember: Member = {
+      id: `mem-${Date.now()}`,
+      schoolId: cleanSchoolId,
+      name: cleanName,
+      grade,
+      skillLevel,
+      elo: 1200,
+      monthStartElo: 1200,
+      wins: 0,
+      losses: 0,
+      pointsFor: 0,
+      pointsAgainst: 0,
+      streak: 0,
+      duesPaid: false,
+      duesAmount: data.settings.duesAmount,
+      paddleNotes: paddleNotes || '',
+      joinDate: new Date().toISOString().slice(0, 10),
+    };
+
+    setData((prev) => ({
+      ...prev,
+      members: [...prev.members, newMember],
+    }));
+
+    setLinkedMemberId(newMember.id);
+    try {
+      localStorage.setItem(LINKED_MEMBER_KEY, newMember.id);
+    } catch {
+      // Ignore storage quota errors
+    }
+
+    showToast(
+      `Welcome ${newMember.name}! Added to database (ID: ${cleanSchoolId}).`
+    );
+    return newMember;
+  };
+
+  const handleSignOutMember = () => {
+    setLinkedMemberId('');
+    try {
+      localStorage.removeItem(LINKED_MEMBER_KEY);
+    } catch {
+      // Ignore storage errors
+    }
+    showToast('Signed out of member account');
+  };
+
+  const handleOfficerSignIn = (pin: string): boolean => {
+    if (pin === data.settings.officerPin) {
+      setIsOfficer(true);
+      setShowPinModal(false);
+      setPinInput('');
+      setPinError('');
+      if (activeTab === 'activity') {
+        setActiveTab('home');
+      }
+      showToast('Officer Mode unlocked (Full Edit Access)');
+      return true;
+    }
+    return false;
   };
 
   // Handle Officer PIN Verification (NO HINTS)
@@ -657,23 +621,6 @@ export default function App() {
     showToast(`Season archived as "${archiveEntry.seasonName}" & stats reset!`);
   };
 
-  const openPracticeQrModal = (
-    target: PracticeQrTarget,
-    mode: 'display' | 'scan'
-  ) => {
-    setQrModalState({ open: true, mode, target });
-  };
-
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const defaultQrTarget: PracticeQrTarget = availablePracticeTargets[0] || {
-    eventId: `practice-${todayIso}`,
-    title: 'Club Practice Check-In',
-    date: todayIso,
-    time: data.settings.recurringPractices.timeRange || '3:50 PM – 5:30 PM',
-    location: data.settings.recurringPractices.location || 'BNHS Varsity Courts',
-    token: buildPracticeQrToken(todayIso, `practice-${todayIso}`),
-  };
-
   const allNavItems: {
     id: NavTab;
     label: string;
@@ -757,52 +704,31 @@ export default function App() {
   // If Welcome Screen is active, render the animated full-screen Welcome Hub
   if (showWelcomeScreen) {
     return (
-      <>
-        <WelcomeScreen
-          data={data}
-          darkMode={darkMode}
-          onToggleDarkMode={() => setDarkMode(!darkMode)}
-          onEnterAsMember={(targetTab) => {
-            setActiveTab(
-              MEMBER_ALLOWED_TABS.includes(targetTab) ? targetTab : 'home'
-            );
+      <WelcomeScreen
+        data={data}
+        darkMode={darkMode}
+        linkedMemberId={linkedMemberId}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+        onEnterAsMember={(targetTab) => {
+          setActiveTab(
+            MEMBER_ALLOWED_TABS.includes(targetTab) ? targetTab : 'home'
+          );
+          setShowWelcomeScreen(false);
+        }}
+        onEnterAsOfficer={(pin, targetTab) => {
+          if (pin === data.settings.officerPin) {
+            setIsOfficer(true);
+            setActiveTab(targetTab);
             setShowWelcomeScreen(false);
-          }}
-          onEnterAsOfficer={(pin, targetTab) => {
-            if (pin === data.settings.officerPin) {
-              setIsOfficer(true);
-              setActiveTab(targetTab);
-              setShowWelcomeScreen(false);
-              showToast('Officer Mode unlocked (Full Edit Access)');
-              return true;
-            }
-            return false;
-          }}
-          onOpenQrScanner={() => {
-            setShowWelcomeScreen(false);
-            openPracticeQrModal(defaultQrTarget, 'scan');
-          }}
-        />
-
-        {qrModalState && qrModalState.open && (
-          <PracticeQrModal
-            initialMode={qrModalState.mode}
-            target={qrModalState.target}
-            availablePracticeTargets={availablePracticeTargets}
-            members={data.members}
-            attendance={data.attendance}
-            linkedMemberId={linkedMemberId}
-            recentQrCheckins={recentQrCheckins}
-            onClose={() => setQrModalState(null)}
-            onSelectTarget={(nextTarget) =>
-              setQrModalState((prev) =>
-                prev ? { ...prev, target: nextTarget } : null
-              )
-            }
-            onCompleteQrCheckin={handleCompleteQrCheckin}
-          />
-        )}
-      </>
+            showToast('Officer Mode unlocked (Full Edit Access)');
+            return true;
+          }
+          return false;
+        }}
+        onSignInBySchoolId={handleSignInBySchoolId}
+        onRegisterMember={handleRegisterMember}
+        onSignOutMember={handleSignOutMember}
+      />
     );
   }
 
@@ -816,11 +742,12 @@ export default function App() {
           data={data}
           activeTab={activeTab}
           darkMode={darkMode}
-          currentUser={currentUser}
           linkedMemberId={linkedMemberId}
-          recentQrCheckins={recentQrCheckins}
-          defaultQrTarget={defaultQrTarget}
           onSelectLinkedMember={handleSelectLinkedMember}
+          onSignInBySchoolId={handleSignInBySchoolId}
+          onRegisterMember={handleRegisterMember}
+          onSignOutMember={handleSignOutMember}
+          onOfficerSignIn={handleOfficerSignIn}
           onNavigate={handleNavigate}
           onToggleDarkMode={() => setDarkMode(!darkMode)}
           onRequestOfficerLogin={() => {
@@ -829,14 +756,13 @@ export default function App() {
             setPinError('');
             setShowPinModal(true);
           }}
-          onOpenPracticeQr={openPracticeQrModal}
           onShowWelcomeScreen={() => setShowWelcomeScreen(true)}
         />
       ) : (
         /* =============================================================== */
         /* VIEW 2: FULL-FEATURED OFFICER EXECUTIVE COMMAND CONSOLE         */
         /* =============================================================== */
-        <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-300">
+        <div className="min-h-[100dvh] bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-0 overflow-x-hidden touch-scroll transition-colors duration-300">
           {/* Officer Command Header */}
           <header className="sticky top-0 z-30 h-16 bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-6 no-print">
             <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-4">
@@ -887,7 +813,7 @@ export default function App() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.98 }}
                         transition={{ duration: 0.2, ease: SMOOTH_EASE }}
-                        className="absolute left-1/2 -translate-x-1/2 mt-2.5 w-80 sm:w-96 z-40 rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-2xl p-3 space-y-3"
+                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 top-16 sm:top-auto sm:mt-2.5 w-auto sm:w-96 max-w-md z-40 rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-2xl p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
                       >
                         <div className="p-3 rounded-2xl bg-slate-900 text-white flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
@@ -903,7 +829,7 @@ export default function App() {
                                 {data.settings.clubName}
                               </div>
                               <div className="text-[11px] text-amber-400 truncate">
-                                Officer Console · All 12 Modules Unlocked
+                                Officer Console · All Modules Unlocked
                               </div>
                             </div>
                           </div>
@@ -962,37 +888,23 @@ export default function App() {
                         </div>
 
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                          <div className="grid grid-cols-2 gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMenuOpen(false);
-                                openPracticeQrModal(defaultQrTarget, 'display');
-                              }}
-                              className="px-3 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              <QrCode className="w-3.5 h-3.5" />
-                              <span>Practice QR</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setDarkMode(!darkMode)}
-                              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              {darkMode ? (
-                                <>
-                                  <Sun className="w-3.5 h-3.5 text-amber-400" />
-                                  <span>Light Theme</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Moon className="w-3.5 h-3.5" />
-                                  <span>Dark Theme</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setDarkMode(!darkMode)}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            {darkMode ? (
+                              <>
+                                <Sun className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Light Theme</span>
+                              </>
+                            ) : (
+                              <>
+                                <Moon className="w-3.5 h-3.5" />
+                                <span>Dark Theme</span>
+                              </>
+                            )}
+                          </button>
 
                           <div className="grid grid-cols-2 gap-1.5">
                             <button
@@ -1133,16 +1045,6 @@ export default function App() {
               </div>
 
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    openPracticeQrModal(defaultQrTarget, 'display')
-                  }
-                  className="w-full py-2.5 px-3 rounded-xl bg-slate-900 text-white dark:bg-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer hover:opacity-95"
-                >
-                  <QrCode className="w-4 h-4 text-amber-400" />
-                  <span>Display Practice QR</span>
-                </button>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
@@ -1184,7 +1086,6 @@ export default function App() {
                       data={data}
                       isOfficer={true}
                       onNavigate={handleNavigate}
-                      onOpenPracticeQr={openPracticeQrModal}
                     />
                   )}
 
@@ -1218,7 +1119,7 @@ export default function App() {
                   {(activeTab === 'tournaments' || activeTab === 'watch') && (
                     <TournamentsView
                       activeSubTab={activeTab}
-                      onSwitchSubTab={(sub) => handleNavigate(sub)}
+                      onSwitchSubTab={(sub: NavTab) => handleNavigate(sub)}
                       clubTournaments={data.clubTournaments}
                       outsideTournaments={data.outsideTournaments}
                       members={data.members}
@@ -1249,7 +1150,6 @@ export default function App() {
                         setData((prev) => ({ ...prev, settings }))
                       }
                       onRequestOfficerUnlock={() => setShowPinModal(true)}
-                      onOpenPracticeQr={openPracticeQrModal}
                     />
                   )}
 
@@ -1265,7 +1165,6 @@ export default function App() {
                         setData((prev) => ({ ...prev, attendance }))
                       }
                       onRequestOfficerUnlock={() => setShowPinModal(true)}
-                      onOpenPracticeQr={openPracticeQrModal}
                       onNavigateToMultiCourt={() => {
                         setScoreModePreference('multicourt');
                         setActiveTab('scorekeeper');
@@ -1338,6 +1237,37 @@ export default function App() {
               </AnimatePresence>
             </main>
           </div>
+
+          {/* Officer Mobile Thumb-Friendly Bottom Navigation Dock */}
+          <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 text-white backdrop-blur-xl border-t border-slate-800 px-1 pt-1.5 pb-safe grid grid-cols-6 gap-0.5 no-print shadow-2xl">
+            {[
+              { id: 'home', label: 'Home', icon: <Home className="w-4 h-4" /> },
+              { id: 'scorekeeper', label: 'Live Score', icon: <Play className="w-4 h-4" /> },
+              { id: 'ladder', label: 'Stats', icon: <Award className="w-4 h-4" /> },
+              { id: 'tournaments', label: 'Tourneys', icon: <Trophy className="w-4 h-4" /> },
+              { id: 'members', label: 'Roster', icon: <Users className="w-4 h-4" /> },
+              { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleNavigate(tab.id as NavTab)}
+                  className={`py-1.5 px-0.5 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-colors cursor-pointer min-h-[44px] ${
+                    isActive
+                      ? 'text-amber-400 bg-slate-800/90'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {tab.icon}
+                  <span className="truncate max-w-full text-[9px] leading-tight">
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
       )}
 
@@ -1363,28 +1293,6 @@ export default function App() {
       </AnimatePresence>
 
       {/* ================================================================= */}
-      {/* PRACTICE EVENT QR CODE GENERATOR & SCANNER MODAL                  */}
-      {/* ================================================================= */}
-      {qrModalState && qrModalState.open && (
-        <PracticeQrModal
-          initialMode={qrModalState.mode}
-          target={qrModalState.target}
-          availablePracticeTargets={availablePracticeTargets}
-          members={data.members}
-          attendance={data.attendance}
-          linkedMemberId={linkedMemberId}
-          recentQrCheckins={recentQrCheckins}
-          onClose={() => setQrModalState(null)}
-          onSelectTarget={(nextTarget) =>
-            setQrModalState((prev) =>
-              prev ? { ...prev, target: nextTarget } : null
-            )
-          }
-          onCompleteQrCheckin={handleCompleteQrCheckin}
-        />
-      )}
-
-      {/* ================================================================= */}
       {/* OFFICER 4-DIGIT PIN UNLOCK MODAL (ZERO HINTS)                     */}
       {/* ================================================================= */}
       <AnimatePresence>
@@ -1404,7 +1312,7 @@ export default function App() {
             >
               <div className="flex items-center justify-between">
                 <h3 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
-                  Officer Access
+                  Officer Sign In
                 </h3>
                 <button
                   onClick={() => {
@@ -1459,7 +1367,7 @@ export default function App() {
                     className="flex-1 min-h-[44px] rounded-xl text-xs font-bold text-white cursor-pointer"
                     style={{ backgroundColor: 'var(--club-primary)' }}
                   >
-                    Unlock
+                    Sign In
                   </button>
                 </div>
               </form>

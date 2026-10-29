@@ -10,7 +10,6 @@ import {
   MapPin,
   Package,
   Play,
-  QrCode,
   ShieldCheck,
   Trophy,
   Users,
@@ -18,26 +17,17 @@ import {
 } from 'lucide-react';
 import { ClubDataState, NavTab } from '../types';
 import { getDaysUntil, getNextUpcomingEvent } from '../utils/clubUtils';
-import {
-  PracticeQrTarget,
-  buildPracticeQrToken,
-} from './PracticeQrModal';
 
 interface HomeDashboardProps {
   data: ClubDataState;
   isOfficer: boolean;
   onNavigate: (tab: NavTab) => void;
-  onOpenPracticeQr: (
-    target: PracticeQrTarget,
-    mode: 'display' | 'scan'
-  ) => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   data,
   isOfficer,
   onNavigate,
-  onOpenPracticeQr,
 }) => {
   const [now, setNow] = useState<Date>(() => new Date());
 
@@ -77,15 +67,6 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   const featuredOutsideTournament =
     activeOutsideTournaments[0] || data.outsideTournaments[0] || null;
-
-  const nextPracticeQrTarget: PracticeQrTarget = {
-    eventId: nextEvent.id,
-    title: nextEvent.title,
-    date: nextEvent.date,
-    time: nextEvent.time,
-    location: nextEvent.location,
-    token: buildPracticeQrToken(nextEvent.date, nextEvent.id),
-  };
 
   return (
     <div className="space-y-6">
@@ -157,7 +138,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               Club Calendar
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Practices, dates & QR passes
+              Practices, dates & events
             </div>
           </div>
         </motion.button>
@@ -255,14 +236,6 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   <div className="text-[10px] text-white/70">Sec</div>
                 </div>
               </div>
-
-              <button
-                onClick={() => onOpenPracticeQr(nextPracticeQrTarget, 'scan')}
-                className="min-h-[48px] px-4 py-2.5 rounded-2xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-bold inline-flex items-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0"
-              >
-                <QrCode className="w-4 h-4 text-blue-600" />
-                <span>Practice QR Check-In</span>
-              </button>
             </div>
           </>
         ) : (

@@ -5,7 +5,6 @@ import {
   FileSpreadsheet,
   Play,
   Plus,
-  QrCode,
   Search,
   Trash2,
   Upload,
@@ -19,10 +18,6 @@ import {
   Member,
   SkillLevel,
 } from '../types';
-import {
-  PracticeQrTarget,
-  buildPracticeQrToken,
-} from './PracticeQrModal';
 
 interface MembersAttendanceViewProps {
   members: Member[];
@@ -31,10 +26,6 @@ interface MembersAttendanceViewProps {
   onUpdateMembers: (members: Member[]) => void;
   onUpdateAttendance: (attendance: AttendanceSession[]) => void;
   onRequestOfficerUnlock: () => void;
-  onOpenPracticeQr: (
-    target: PracticeQrTarget,
-    mode: 'display' | 'scan'
-  ) => void;
   onNavigateToMultiCourt?: () => void;
 }
 
@@ -67,7 +58,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   onUpdateMembers,
   onUpdateAttendance,
   onRequestOfficerUnlock,
-  onOpenPracticeQr,
   onNavigateToMultiCourt,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,6 +83,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
 
+  const [formSchoolId, setFormSchoolId] = useState('');
   const [formName, setFormName] = useState('');
   const [formGrade, setFormGrade] = useState<GradeLevel>(10);
   const [formSkill, setFormSkill] = useState<SkillLevel>('Intermediate');
@@ -109,27 +100,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
 
   const activeSession =
     attendance.find((s) => s.id === selectedSessionId) || sortedSessions[0];
-
-  const activePracticeQrTarget: PracticeQrTarget = activeSession
-    ? {
-        eventId: activeSession.id,
-        title: activeSession.title,
-        date: activeSession.date,
-        time: '3:50 PM – 5:30 PM',
-        location: 'BNHS Varsity Courts 1–6',
-        token: buildPracticeQrToken(activeSession.date, activeSession.id),
-      }
-    : {
-        eventId: 'att-today',
-        title: 'After-School Practice',
-        date: new Date().toISOString().slice(0, 10),
-        time: '3:50 PM – 5:30 PM',
-        location: 'BNHS Varsity Courts 1–6',
-        token: buildPracticeQrToken(
-          new Date().toISOString().slice(0, 10),
-          'att-today'
-        ),
-      };
 
   const getMemberAttendanceStats = (memberId: string) => {
     const total = attendance.length;
@@ -222,6 +192,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
       return;
     }
     setEditingMember(null);
+    setFormSchoolId('');
     setFormName('');
     setFormGrade(10);
     setFormSkill('Intermediate');
@@ -237,6 +208,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
       return;
     }
     setEditingMember(m);
+    setFormSchoolId(m.schoolId || '');
     setFormName(m.name);
     setFormGrade(m.grade);
     setFormSkill(m.skillLevel);
@@ -250,12 +222,15 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     e.preventDefault();
     if (!formName.trim()) return;
 
+    const cleanedSchoolId = formSchoolId.trim() || undefined;
+
     if (editingMember) {
       onUpdateMembers(
         members.map((m) =>
           m.id === editingMember.id
             ? {
                 ...m,
+                schoolId: cleanedSchoolId,
                 name: formName.trim(),
                 grade: formGrade,
                 skillLevel: formSkill,
@@ -269,6 +244,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     } else {
       const newMember: Member = {
         id: `mem-${Date.now()}`,
+        schoolId: cleanedSchoolId,
         name: formName.trim(),
         grade: formGrade,
         skillLevel: formSkill,
@@ -421,6 +397,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   const filteredMembers = members.filter((m) => {
     const matchesSearch =
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.schoolId &&
+        m.schoolId.toLowerCase().includes(searchQuery.toLowerCase())) ||
       m.paddleNotes.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.duprRating && m.duprRating.includes(searchQuery));
     const matchesGrade = gradeFilter === 'all' || m.grade === gradeFilter;
@@ -430,7 +408,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Practice Attendance Check-In Control Header */}
+      {/* Practice Attendance & Member Roster Control Header */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -438,8 +416,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               Practice Attendance & Member Roster
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              One-tap practice check-in, bulk CSV roster import & QR pass
-              verification
+              Manage club members, School IDs, attendance sessions & bulk CSV
+              roster import
             </p>
           </div>
 
@@ -454,15 +432,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 Smart Court Generator
               </button>
             )}
-
-            <button
-              type="button"
-              onClick={() => onOpenPracticeQr(activePracticeQrTarget, 'display')}
-              className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-            >
-              <QrCode className="w-4 h-4" />
-              Practice QR Code
-            </button>
 
             <button
               type="button"
@@ -746,6 +715,19 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
           >
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                School ID
+              </label>
+              <input
+                type="text"
+                value={formSchoolId}
+                onChange={(e) => setFormSchoolId(e.target.value)}
+                placeholder="e.g. 204819"
+                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
                 Full Name
               </label>
               <input
@@ -908,8 +890,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
         </div>
 
         {/* Roster List */}
-        <div className="overflow-x-auto mt-4">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto touch-scroll mt-4">
+          <table className="w-full min-w-[720px] text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 <th className="py-3 pr-3">
@@ -949,8 +931,13 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                     </td>
 
                     <td className="py-3 px-3">
-                      <div className="font-semibold text-slate-900 dark:text-white">
-                        {member.name}
+                      <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>{member.name}</span>
+                        {member.schoolId && (
+                          <span className="font-mono-num text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                            ID: {member.schoolId}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                         Joined {member.joinDate} · {member.elo} Elo

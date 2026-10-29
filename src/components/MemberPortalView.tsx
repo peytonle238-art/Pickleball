@@ -13,27 +13,31 @@ import {
   Eye,
   Flame,
   Home,
+  IdCard,
   Lock,
+  LogIn,
+  LogOut,
   MapPin,
   Moon,
-  QrCode,
   ShieldCheck,
   Sparkles,
   Sun,
   Trophy,
+  UserPlus,
   Zap,
 } from 'lucide-react';
-import { ClubDataState, NavTab } from '../types';
+import {
+  ClubDataState,
+  GradeLevel,
+  Member,
+  NavTab,
+  SkillLevel,
+} from '../types';
 import {
   MemberAchievement,
   computeMemberAchievements,
   getNextUpcomingEvent,
 } from '../utils/clubUtils';
-import { QrCheckinRecord, User } from '../firebase';
-import {
-  PracticeQrTarget,
-  buildPracticeQrToken,
-} from './PracticeQrModal';
 import { BOBCATS_LOGO_URL } from './WelcomeScreen';
 import { LadderStatsView } from './LadderStatsView';
 import { TournamentsView } from './TournamentsView';
@@ -43,18 +47,21 @@ interface MemberPortalViewProps {
   data: ClubDataState;
   activeTab: NavTab;
   darkMode: boolean;
-  currentUser: User | null;
   linkedMemberId: string;
-  recentQrCheckins: QrCheckinRecord[];
-  defaultQrTarget: PracticeQrTarget;
   onSelectLinkedMember: (memberId: string) => void;
+  onSignInBySchoolId: (schoolId: string) => Member | null;
+  onRegisterMember: (payload: {
+    schoolId: string;
+    name: string;
+    grade: GradeLevel;
+    skillLevel: SkillLevel;
+    paddleNotes?: string;
+  }) => Member;
+  onSignOutMember: () => void;
+  onOfficerSignIn: (pin: string) => boolean;
   onNavigate: (tab: NavTab) => void;
   onToggleDarkMode: () => void;
   onRequestOfficerLogin: () => void;
-  onOpenPracticeQr: (
-    target: PracticeQrTarget,
-    mode: 'display' | 'scan'
-  ) => void;
   onShowWelcomeScreen: () => void;
 }
 
@@ -71,14 +78,14 @@ const MEMBER_NAV_TABS: {
     id: 'home',
     label: 'Overview',
     shortLabel: 'Overview',
-    description: 'Welcome & next practice check-in',
+    description: 'Welcome to BNHS Pickleball Club',
     icon: <Home className="w-4 h-4" />,
   },
   {
     id: 'activity',
     label: 'My Activity & Badges',
     shortLabel: 'My Activity',
-    description: 'Achievement milestones, matches, attendance & tasks',
+    description: 'Your personal account, matches, attendance & tasks',
     icon: <Activity className="w-4 h-4" />,
   },
   {
@@ -106,7 +113,7 @@ const MEMBER_NAV_TABS: {
     id: 'calendar',
     label: 'Calendar',
     shortLabel: 'Calendar',
-    description: 'Monthly practice schedule & QR check-in',
+    description: 'Monthly practice schedule & club events',
     icon: <Calendar className="w-4 h-4" />,
   },
 ];
@@ -128,18 +135,37 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   data,
   activeTab,
   darkMode,
-  currentUser,
   linkedMemberId,
-  recentQrCheckins,
-  defaultQrTarget,
-  onSelectLinkedMember,
+  onSignInBySchoolId,
+  onRegisterMember,
+  onSignOutMember,
+  onOfficerSignIn,
   onNavigate,
   onToggleDarkMode,
   onRequestOfficerLogin,
-  onOpenPracticeQr,
   onShowWelcomeScreen,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAccountTab, setMenuAccountTab] = useState<
+    'signin' | 'register' | 'officer'
+  >('signin');
+
+  // School ID Sign-In state
+  const [schoolIdInput, setSchoolIdInput] = useState('');
+  const [schoolIdError, setSchoolIdError] = useState('');
+
+  // Self-Registration ("Add Yourself to Database") state
+  const [regSchoolId, setRegSchoolId] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regGrade, setRegGrade] = useState<GradeLevel>(10);
+  const [regSkill, setRegSkill] = useState<SkillLevel>('Intermediate');
+  const [regPaddle, setRegPaddle] = useState('');
+  const [regError, setRegError] = useState('');
+
+  // Officer Sign-In inside Menu state
+  const [officerPinInput, setOfficerPinInput] = useState('');
+  const [officerPinError, setOfficerPinError] = useState('');
+
   const [activityFilter, setActivityFilter] = useState<
     'all' | 'achievements' | 'matches' | 'attendance' | 'tasks'
   >('all');
@@ -153,19 +179,18 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   const currentNav =
     MEMBER_NAV_TABS.find((t) => t.id === activeTab) || MEMBER_NAV_TABS[0];
 
-  // Resolve the active member profile for the logged-in user
+  // Resolve the active member profile strictly from the signed-in member ID / School ID
   const activeMember = useMemo(() => {
-    const byId = data.members.find((m) => m.id === linkedMemberId);
-    if (byId) return byId;
-    if (currentUser?.displayName) {
-      const byName = data.members.find(
-        (m) =>
-          m.name.toLowerCase() === currentUser.displayName!.trim().toLowerCase()
-      );
-      if (byName) return byName;
-    }
-    return data.members[0] || null;
-  }, [data.members, linkedMemberId, currentUser]);
+    if (!linkedMemberId) return null;
+    const byId = data.members.find(
+      (m) =>
+        m.id === linkedMemberId ||
+        (m.schoolId &&
+          m.schoolId.trim().toLowerCase() ===
+            linkedMemberId.trim().toLowerCase())
+    );
+    return byId || null;
+  }, [data.members, linkedMemberId]);
 
   const getMemberName = (id: string) =>
     data.members.find((m) => m.id === id)?.name || 'Club Player';
@@ -185,15 +210,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
   const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
-
-  const nextPracticeQrTarget: PracticeQrTarget = {
-    eventId: nextEvent.id,
-    title: nextEvent.title,
-    date: nextEvent.date,
-    time: nextEvent.time,
-    location: nextEvent.location,
-    token: buildPracticeQrToken(nextEvent.date, nextEvent.id),
-  };
 
   // 1. Filtered Matches for the logged-in member
   const myMatches = useMemo(() => {
@@ -255,15 +271,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       }));
   }, [data.attendance, activeMember]);
 
-  const myVerifiedQrCheckins = useMemo(() => {
-    if (!activeMember) return recentQrCheckins;
-    return recentQrCheckins.filter(
-      (c) =>
-        c.memberId === activeMember.id ||
-        (currentUser && c.uid === currentUser.uid)
-    );
-  }, [recentQrCheckins, activeMember, currentUser]);
-
   const attendanceStats = useMemo(() => {
     const total = myAttendanceSessions.length;
     const attended = myAttendanceSessions.filter((s) => s.present).length;
@@ -273,16 +280,12 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
 
   // 3. Filtered Tasks the logged-in member is involved in
   const myTasks = useMemo(() => {
+    if (!activeMember) return [];
     const candidateNames = new Set<string>();
-    if (activeMember?.name) {
+    if (activeMember.name) {
       candidateNames.add(activeMember.name.trim().toLowerCase());
       const firstName = activeMember.name.trim().split(' ')[0]?.toLowerCase();
       if (firstName && firstName.length >= 2) candidateNames.add(firstName);
-    }
-    if (currentUser?.displayName) {
-      candidateNames.add(currentUser.displayName.trim().toLowerCase());
-      const first = currentUser.displayName.trim().split(' ')[0]?.toLowerCase();
-      if (first && first.length >= 2) candidateNames.add(first);
     }
 
     if (candidateNames.size === 0) return [];
@@ -301,7 +304,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       }
       return false;
     });
-  }, [data.tasks, activeMember, currentUser]);
+  }, [data.tasks, activeMember]);
 
   // 4. Computed Member Achievements
   const myAchievements = useMemo(
@@ -315,6 +318,73 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
     [myAchievements]
   );
 
+  // Handle continuing with School ID
+  const handleSchoolIdSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = schoolIdInput.trim();
+    if (!trimmed) {
+      setSchoolIdError('Please enter your School ID.');
+      return;
+    }
+    const found = onSignInBySchoolId(trimmed);
+    if (found) {
+      setSchoolIdInput('');
+      setSchoolIdError('');
+      setMenuOpen(false);
+      onNavigate('activity');
+    } else {
+      setSchoolIdError(
+        `No account found for School ID "${trimmed}". Add yourself below!`
+      );
+      setRegSchoolId(trimmed);
+    }
+  };
+
+  // Handle self-registration into the club database
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanId = regSchoolId.trim();
+    const cleanName = regName.trim();
+    if (!cleanId) {
+      setRegError('Please enter your School ID.');
+      return;
+    }
+    if (!cleanName) {
+      setRegError('Please enter your full name.');
+      return;
+    }
+
+    onRegisterMember({
+      schoolId: cleanId,
+      name: cleanName,
+      grade: regGrade,
+      skillLevel: regSkill,
+      paddleNotes: regPaddle.trim() || 'Personal Paddle',
+    });
+
+    setRegSchoolId('');
+    setRegName('');
+    setRegPaddle('');
+    setRegError('');
+    setMenuAccountTab('signin');
+    setMenuOpen(false);
+    onNavigate('activity');
+  };
+
+  // Handle Officer Sign-In inside the Menu
+  const handleMenuOfficerSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const ok = onOfficerSignIn(officerPinInput);
+    if (ok) {
+      setOfficerPinInput('');
+      setOfficerPinError('');
+      setMenuOpen(false);
+    } else {
+      setOfficerPinError('Invalid 4-digit Officer access code.');
+      setOfficerPinInput('');
+    }
+  };
+
   // No-op handlers for read-only member subviews
   const noop = () => {};
 
@@ -326,7 +396,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       : 0;
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] dark:bg-[#070b14] text-slate-900 dark:text-slate-100 flex flex-col pb-20 md:pb-10 transition-colors duration-300">
+    <div className="min-h-[100dvh] bg-[#f4f7fb] dark:bg-[#070b14] text-slate-900 dark:text-slate-100 flex flex-col pb-28 md:pb-12 overflow-x-hidden touch-scroll transition-colors duration-300">
       {/* ================================================================= */}
       {/* STICKY TOP BAR + EFFORTLESS 1-TAP NAVIGATION DOCK                 */}
       {/* ================================================================= */}
@@ -357,23 +427,27 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
               </div>
             </button>
 
-            {/* Right Controls: Quick QR Scan, Theme Toggle, Menu, Officer Login */}
+            {/* Right Controls: Theme Toggle, Menu (with Member & Officer Sign-In), Officer Sign In */}
             <div className="flex items-center gap-2">
-              {/* Quick QR Check-In Button */}
-              <motion.button
-                whileTap={{ scale: 0.97 }}
+              {/* Active School ID Badge or Quick Sign-In Trigger */}
+              <button
                 type="button"
-                onClick={() =>
-                  onOpenPracticeQr(
-                    hasScheduledEvents ? nextPracticeQrTarget : defaultQrTarget,
-                    'scan'
-                  )
-                }
-                className="hidden sm:inline-flex min-h-[38px] px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold items-center gap-1.5 shadow-2xs cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                onClick={() => {
+                  setMenuAccountTab('signin');
+                  setMenuOpen(true);
+                }}
+                className="hidden sm:inline-flex min-h-[38px] px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100/80 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 border border-blue-200/80 dark:border-blue-800/60 text-xs font-semibold text-blue-700 dark:text-blue-300 items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
               >
-                <QrCode className="w-3.5 h-3.5" />
-                <span>Check In (QR)</span>
-              </motion.button>
+                <IdCard className="w-3.5 h-3.5" />
+                {activeMember ? (
+                  <span>
+                    {activeMember.name.split(' ')[0]} · ID:{' '}
+                    {activeMember.schoolId || activeMember.id}
+                  </span>
+                ) : (
+                  <span>School ID Sign In / Join</span>
+                )}
+              </button>
 
               {/* Dark/Light Mode Button */}
               <button
@@ -389,18 +463,18 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 )}
               </button>
 
-              {/* Unified Bobcats Quick Menu */}
+              {/* Unified Bobcats Quick Menu with Member Database Registration, School ID Sign-In & Officer Sign-In */}
               <div className="relative">
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   type="button"
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="min-h-[38px] px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/90 dark:hover:bg-slate-700 border border-slate-200/70 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 inline-flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                  className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/90 dark:hover:bg-slate-700 border border-slate-200/70 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 inline-flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0"
                 >
                   <span className="text-blue-600 dark:text-blue-400">
                     {currentNav.icon}
                   </span>
-                  <span className="hidden xs:inline">Menu</span>
+                  <span>Menu</span>
                   <ChevronDown
                     className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
                       menuOpen ? 'rotate-180' : ''
@@ -420,7 +494,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -6, scale: 0.98 }}
                         transition={{ duration: 0.2, ease: SMOOTH_EASE }}
-                        className="absolute right-0 mt-2.5 w-80 z-40 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-3 space-y-2.5"
+                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-auto sm:mt-2.5 w-auto sm:w-96 max-w-md z-40 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
                       >
                         {/* Bobcats Header inside Dropdown */}
                         <div className="p-3 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center gap-3">
@@ -436,11 +510,347 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                               {data.settings.clubName}
                             </div>
                             <div className="text-[11px] text-blue-100 truncate">
-                              Quick Navigation Menu
+                              Member Account, Database & Navigation
                             </div>
                           </div>
                         </div>
 
+                        {/* ================================================= */}
+                        {/* MEMBER & OFFICER ACCOUNT HUB IN MENU              */}
+                        {/* ================================================= */}
+                        <div className="rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-800 p-3 space-y-3">
+                          {/* 3-Tab Switcher: School ID Sign In | Add Yourself | Officer Sign In */}
+                          <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-slate-200/70 dark:bg-slate-900">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuAccountTab('signin');
+                                setSchoolIdError('');
+                              }}
+                              className={`py-1.5 px-2 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                                menuAccountTab === 'signin'
+                                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              School ID
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuAccountTab('register');
+                                setRegError('');
+                              }}
+                              className={`py-1.5 px-2 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                                menuAccountTab === 'register'
+                                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              Add Yourself
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuAccountTab('officer');
+                                setOfficerPinError('');
+                              }}
+                              className={`py-1.5 px-2 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                                menuAccountTab === 'officer'
+                                  ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-2xs'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              Officer Sign In
+                            </button>
+                          </div>
+
+                          {/* TAB 1: CONTINUE WITH SCHOOL ID / ACTIVE MEMBER ACCOUNT */}
+                          {menuAccountTab === 'signin' && (
+                            <div className="space-y-2.5">
+                              {activeMember ? (
+                                <div className="space-y-2.5">
+                                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                        Signed In · School ID:{' '}
+                                        {activeMember.schoolId ||
+                                          activeMember.id}
+                                      </div>
+                                      <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                        {activeMember.name}
+                                      </div>
+                                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                        Grade {activeMember.grade} ·{' '}
+                                        {activeMember.skillLevel} ·{' '}
+                                        {activeMember.elo} Elo
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onSignOutMember();
+                                        setSchoolIdInput('');
+                                      }}
+                                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-300 inline-flex items-center gap-1 cursor-pointer shrink-0"
+                                      title="Sign out or switch School ID"
+                                    >
+                                      <LogOut className="w-3 h-3" />
+                                      <span>Switch ID</span>
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMenuOpen(false);
+                                        onNavigate('activity');
+                                      }}
+                                      className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                      <Activity className="w-3.5 h-3.5" />
+                                      <span>My Activity</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setMenuAccountTab('register')
+                                      }
+                                      className="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    >
+                                      <UserPlus className="w-3.5 h-3.5" />
+                                      <span>Add Member</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <form
+                                  onSubmit={handleSchoolIdSubmit}
+                                  className="space-y-2"
+                                >
+                                  <div className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                                    Enter your School ID to continue to your
+                                    account & activity:
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="text"
+                                      value={schoolIdInput}
+                                      onChange={(e) => {
+                                        setSchoolIdError('');
+                                        setSchoolIdInput(e.target.value);
+                                      }}
+                                      placeholder="School ID (e.g. 204819)"
+                                      className="flex-1 min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-mono-num bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                                    />
+                                    <button
+                                      type="submit"
+                                      className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer shrink-0"
+                                    >
+                                      <LogIn className="w-3.5 h-3.5" />
+                                      <span>Continue</span>
+                                    </button>
+                                  </div>
+
+                                  {schoolIdError && (
+                                    <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold flex items-center justify-between gap-2 pt-0.5">
+                                      <span>{schoolIdError}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setMenuAccountTab('register')
+                                        }
+                                        className="underline font-bold text-blue-600 dark:text-blue-400 shrink-0 cursor-pointer"
+                                      >
+                                        Add Yourself →
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+                                    <span>Not in the club database yet?</span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setMenuAccountTab('register')
+                                      }
+                                      className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                    >
+                                      + Add Yourself Here
+                                    </button>
+                                  </div>
+                                </form>
+                              )}
+                            </div>
+                          )}
+
+                          {/* TAB 2: ADD YOURSELF TO THE DATABASE */}
+                          {menuAccountTab === 'register' && (
+                            <form
+                              onSubmit={handleRegisterSubmit}
+                              className="space-y-2.5"
+                            >
+                              <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                                Add yourself to the BNHS Pickleball database:
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                                    School ID *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    required
+                                    value={regSchoolId}
+                                    onChange={(e) => {
+                                      setRegError('');
+                                      setRegSchoolId(e.target.value);
+                                    }}
+                                    placeholder="e.g. 204819"
+                                    className="w-full min-h-[36px] px-2.5 py-1 rounded-lg text-xs font-mono-num bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                                    Full Name *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    required
+                                    value={regName}
+                                    onChange={(e) => {
+                                      setRegError('');
+                                      setRegName(e.target.value);
+                                    }}
+                                    placeholder="Jordan Alvarez"
+                                    className="w-full min-h-[36px] px-2.5 py-1 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                                    Grade
+                                  </label>
+                                  <select
+                                    value={regGrade}
+                                    onChange={(e) =>
+                                      setRegGrade(
+                                        Number(e.target.value) as GradeLevel
+                                      )
+                                    }
+                                    className="w-full min-h-[36px] px-2 py-1 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  >
+                                    <option value={9}>9th Grade</option>
+                                    <option value={10}>10th Grade</option>
+                                    <option value={11}>11th Grade</option>
+                                    <option value={12}>12th Grade</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                                    Skill Level
+                                  </label>
+                                  <select
+                                    value={regSkill}
+                                    onChange={(e) =>
+                                      setRegSkill(e.target.value as SkillLevel)
+                                    }
+                                    className="w-full min-h-[36px] px-2 py-1 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  >
+                                    <option value="Beginner">Beginner</option>
+                                    <option value="Intermediate">
+                                      Intermediate
+                                    </option>
+                                    <option value="Advanced">Advanced</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                                  Paddle / Notes (Optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={regPaddle}
+                                  onChange={(e) => setRegPaddle(e.target.value)}
+                                  placeholder="e.g. Personal Paddle or Loaner"
+                                  className="w-full min-h-[36px] px-2.5 py-1 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                />
+                              </div>
+
+                              {regError && (
+                                <div className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                                  {regError}
+                                </div>
+                              )}
+
+                              <button
+                                type="submit"
+                                className="w-full min-h-[38px] px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <UserPlus className="w-3.5 h-3.5" />
+                                <span>Add to Database & Continue</span>
+                              </button>
+                            </form>
+                          )}
+
+                          {/* TAB 3: OFFICER SIGN IN */}
+                          {menuAccountTab === 'officer' && (
+                            <form
+                              onSubmit={handleMenuOfficerSubmit}
+                              className="space-y-2.5"
+                            >
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+                                  Officer Console Sign In
+                                </span>
+                                <span className="text-slate-400">
+                                  4-Digit PIN
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="password"
+                                  inputMode="numeric"
+                                  maxLength={4}
+                                  value={officerPinInput}
+                                  onChange={(e) => {
+                                    setOfficerPinError('');
+                                    setOfficerPinInput(
+                                      e.target.value
+                                        .replace(/\D/g, '')
+                                        .slice(0, 4)
+                                    );
+                                  }}
+                                  placeholder="••••"
+                                  className="flex-1 h-10 text-center font-mono-num text-lg tracking-[0.4em] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                                />
+                                <button
+                                  type="submit"
+                                  className="h-10 px-4 rounded-xl bg-slate-900 text-white dark:bg-amber-400 dark:text-slate-950 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+                                >
+                                  <Lock className="w-3.5 h-3.5" />
+                                  <span>Sign In</span>
+                                </button>
+                              </div>
+
+                              {officerPinError && (
+                                <div className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                                  {officerPinError}
+                                </div>
+                              )}
+                            </form>
+                          )}
+                        </div>
+
+                        {/* Navigation Links */}
                         <div className="space-y-1">
                           {MEMBER_NAV_TABS.map((item) => {
                             const isSelected = activeTab === item.id;
@@ -483,20 +893,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           })}
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMenuOpen(false);
-                              onOpenPracticeQr(defaultQrTarget, 'scan');
-                            }}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            <QrCode className="w-3.5 h-3.5" />
-                            <span>Practice QR Check-In</span>
-                          </button>
-                        </div>
-
                         <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between px-1 text-xs">
                           <button
                             type="button"
@@ -509,6 +905,18 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             <Sparkles className="w-3.5 h-3.5" />
                             <span>Welcome Screen</span>
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              onRequestOfficerLogin();
+                            }}
+                            className="font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Lock className="w-3 h-3" />
+                            <span>Officer Sign In</span>
+                          </button>
                         </div>
                       </motion.div>
                     </>
@@ -516,14 +924,14 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 </AnimatePresence>
               </div>
 
-              {/* Officer Login Button */}
+              {/* Officer Sign In Button */}
               <button
                 type="button"
                 onClick={onRequestOfficerLogin}
                 className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
               >
                 <Lock className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Officer Login</span>
+                <span className="hidden sm:inline">Officer Sign In</span>
               </button>
             </div>
           </div>
@@ -607,34 +1015,47 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {data.members.length > 0 && (
+                  {activeMember ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        Athlete:
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        {activeMember.name}{' '}
+                        <span className="font-mono-num text-blue-600 dark:text-blue-400">
+                          (ID: {activeMember.schoolId || activeMember.id})
+                        </span>
                       </span>
-                      <select
-                        value={activeMember?.id || ''}
-                        onChange={(e) => onSelectLinkedMember(e.target.value)}
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuAccountTab('signin');
+                          setMenuOpen(true);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
                       >
-                        {data.members.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name} ({m.elo} Elo)
-                          </option>
-                        ))}
-                      </select>
+                        Switch ID
+                      </button>
                     </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuAccountTab('signin');
+                        setMenuOpen(true);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <IdCard className="w-3.5 h-3.5" />
+                      <span>Sign In with School ID / Join</span>
+                    </button>
                   )}
                 </div>
               </div>
             )}
 
             {/* ============================================================= */}
-            {/* OVERVIEW TAB: VISUAL ATHLETE HUB                              */}
+            {/* OVERVIEW TAB: ONLY WELCOME TO BNHS PICKLEBALL CLUB            */}
             {/* ============================================================= */}
             {activeTab === 'home' && (
               <div className="space-y-6">
-                {/* 1. Vibrant Athletic Hero Banner with Pickleball Court Lines */}
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#0f172a] text-white p-6 sm:p-8 shadow-lg">
                   {/* Decorative Pickleball Court Geometry Overlay */}
                   <svg
@@ -731,16 +1152,15 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         </div>
                       ) : (
                         <p className="text-sm text-blue-100/90 leading-relaxed max-w-lg">
-                          Track your match streaks, unlock attendance
-                          achievements, and check live club standings with one
-                          tap.
+                          Use the Menu above to sign in with your School ID or
+                          add yourself to the club database to track your
+                          matches, attendance, and badges.
                         </p>
                       )}
                     </div>
 
-                    {/* Right Side of Hero: Countdown + Primary Actions */}
-                    <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-4 shrink-0">
-                      {hasScheduledEvents && (
+                    {hasScheduledEvents && (
+                      <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-4 shrink-0">
                         <div className="flex items-center justify-center gap-3 px-4 py-3 rounded-2xl bg-slate-950/35 backdrop-blur-md border border-white/15">
                           <div className="text-center min-w-[42px]">
                             <div className="font-mono-num text-2xl font-bold text-white tabular-nums leading-none">
@@ -769,28 +1189,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             </div>
                           </div>
                         </div>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <motion.button
-                          whileHover={{ y: -1 }}
-                          whileTap={{ scale: 0.98 }}
-                          type="button"
-                          onClick={() =>
-                            onOpenPracticeQr(
-                              hasScheduledEvents
-                                ? nextPracticeQrTarget
-                                : defaultQrTarget,
-                              'scan'
-                            )
-                          }
-                          className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold inline-flex items-center justify-center gap-2 shadow-md cursor-pointer transition-colors whitespace-nowrap"
-                        >
-                          <QrCode className="w-4 h-4" />
-                          <span>Practice Check-In</span>
-                        </motion.button>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -801,568 +1201,714 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
             {/* ============================================================= */}
             {activeTab === 'activity' && (
               <div className="space-y-6">
-                {/* Personal Metrics & Season Performance Card */}
-                <div>
-                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between gap-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-                      <div>
-                        <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                          Personal Athlete Dashboard
-                        </div>
-                        <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
-                          Season Performance & Milestones
-                        </h2>
+                {!activeMember ? (
+                  /* Prompt to Sign In with School ID or Add Yourself in Menu */
+                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-2xs space-y-6">
+                    <div className="max-w-xl space-y-2">
+                      <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                        <IdCard className="w-4 h-4" />
+                        <span>Member School ID Account</span>
                       </div>
+                      <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+                        Sign In with Your School ID or Add Yourself
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Enter your BNHS School ID to view your personal match
+                        record, attendance log, achievement badges, and club
+                        tasks—or add yourself to the database in seconds.
+                      </p>
+                    </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        {data.members.length > 0 && (
-                          <select
-                            aria-label="Select your member profile"
-                            value={activeMember?.id || ''}
-                            onChange={(e) =>
-                              onSelectLinkedMember(e.target.value)
-                            }
-                            className="min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer"
-                          >
-                            {data.members.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name} (Grade {m.grade} · {m.elo} Elo)
-                              </option>
-                            ))}
-                          </select>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                      {/* Left: Continue with School ID */}
+                      <form
+                        onSubmit={handleSchoolIdSubmit}
+                        className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-4 flex flex-col justify-between"
+                      >
+                        <div className="space-y-3">
+                          <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <LogIn className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <span>Continue with School ID</span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Already added yourself? Enter your School ID to load
+                            your personal account.
+                          </p>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Your School ID
+                            </label>
+                            <input
+                              type="text"
+                              value={schoolIdInput}
+                              onChange={(e) => {
+                                setSchoolIdError('');
+                                setSchoolIdInput(e.target.value);
+                              }}
+                              placeholder="e.g. 204819"
+                              className="w-full min-h-[42px] px-3.5 py-2 rounded-xl text-sm font-mono-num bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                            />
+                          </div>
+                          {schoolIdError && (
+                            <div className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                              {schoolIdError}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full min-h-[42px] px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <LogIn className="w-4 h-4" />
+                          <span>Continue with School ID</span>
+                        </button>
+                      </form>
+
+                      {/* Right: Add Yourself to the Database */}
+                      <form
+                        onSubmit={handleRegisterSubmit}
+                        className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-3"
+                      >
+                        <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <UserPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>New Member? Add Yourself to Database</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              School ID *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={regSchoolId}
+                              onChange={(e) => {
+                                setRegError('');
+                                setRegSchoolId(e.target.value);
+                              }}
+                              placeholder="e.g. 204819"
+                              className="w-full min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-mono-num bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Full Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={regName}
+                              onChange={(e) => {
+                                setRegError('');
+                                setRegName(e.target.value);
+                              }}
+                              placeholder="e.g. Jordan Alvarez"
+                              className="w-full min-h-[40px] px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Grade
+                            </label>
+                            <select
+                              value={regGrade}
+                              onChange={(e) =>
+                                setRegGrade(
+                                  Number(e.target.value) as GradeLevel
+                                )
+                              }
+                              className="w-full min-h-[40px] px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                            >
+                              <option value={9}>Grade 9</option>
+                              <option value={10}>Grade 10</option>
+                              <option value={11}>Grade 11</option>
+                              <option value={12}>Grade 12</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                              Skill Level
+                            </label>
+                            <select
+                              value={regSkill}
+                              onChange={(e) =>
+                                setRegSkill(e.target.value as SkillLevel)
+                              }
+                              className="w-full min-h-[40px] px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                            >
+                              <option value="Beginner">Beginner</option>
+                              <option value="Intermediate">Intermediate</option>
+                              <option value="Advanced">Advanced</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {regError && (
+                          <div className="text-xs font-semibold text-red-600 dark:text-red-400">
+                            {regError}
+                          </div>
                         )}
 
                         <button
-                          type="button"
-                          onClick={() =>
-                            onOpenPracticeQr(defaultQrTarget, 'scan')
-                          }
-                          className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                          type="submit"
+                          className="w-full min-h-[42px] px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer"
                         >
-                          <QrCode className="w-3.5 h-3.5" />
-                          <span>Practice Check-In</span>
+                          <UserPlus className="w-4 h-4" />
+                          <span>Add Yourself to Database & Continue</span>
                         </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                        <div className="text-xs font-medium text-slate-500">
-                          Badges Unlocked
-                        </div>
-                        <div className="font-mono-num text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-                          {unlockedAchievementsCount}/{myAchievements.length}
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                          <div
-                            className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                            style={{
-                              width: `${Math.round(
-                                (unlockedAchievementsCount /
-                                  Math.max(1, myAchievements.length)) *
-                                  100
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-                          <span>Match Record</span>
-                          <span className="font-mono-num font-bold text-slate-700 dark:text-slate-300">
-                            {winRatePct}%
-                          </span>
-                        </div>
-                        <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-                          {activeMember?.wins || 0}W–{activeMember?.losses || 0}
-                          L
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                          <div
-                            className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                            style={{ width: `${winRatePct}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-                          <span>Attendance</span>
-                          <span className="font-mono-num font-bold text-emerald-600 dark:text-emerald-400">
-                            {attendanceStats.attended}/{attendanceStats.total}
-                          </span>
-                        </div>
-                        <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-                          {attendanceStats.pct}%
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                            style={{ width: `${attendanceStats.pct}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
-                        <div className="text-xs font-medium text-slate-500">
-                          Tasks Involved In
-                        </div>
-                        <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-                          {myTasks.length}
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-mono-num tabular-nums">
-                          {myTasks.filter((t) => t.status === 'Done').length}{' '}
-                          done ·{' '}
-                          {myTasks.filter((t) => t.status !== 'Done').length}{' '}
-                          open
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Segmented Activity Filter */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {(
-                        [
-                          { id: 'all', label: 'All Activity' },
-                          {
-                            id: 'achievements',
-                            label: `Achievements (${unlockedAchievementsCount}/${myAchievements.length})`,
-                          },
-                          {
-                            id: 'matches',
-                            label: `My Matches (${
-                              myMatches.length +
-                              myTournamentBracketMatches.length
-                            })`,
-                          },
-                          {
-                            id: 'attendance',
-                            label: `My Attendance (${myAttendanceSessions.length})`,
-                          },
-                          {
-                            id: 'tasks',
-                            label: `My Tasks (${myTasks.length})`,
-                          },
-                        ] as const
-                      ).map((tab) => (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => setActivityFilter(tab.id)}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
-                            activityFilter === tab.id
-                              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700'
-                          }`}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
+                      </form>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    {/* Personal Metrics & Season Performance Card */}
+                    <div>
+                      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between gap-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                          <div>
+                            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                              Personal Athlete Account · School ID:{' '}
+                              {activeMember.schoolId || activeMember.id}
+                            </div>
+                            <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
+                              {activeMember.name} — Season Performance &
+                              Milestones
+                            </h2>
+                          </div>
 
-                {/* SECTION 0: ACHIEVEMENT BADGES & MILESTONES */}
-                {(activityFilter === 'all' ||
-                  activityFilter === 'achievements') && (
-                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                          Achievement Badges & Club Milestones
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Automatically unlocked from your official match
-                          streaks, wins, and practice attendance
-                        </p>
-                      </div>
-                      <span className="text-xs font-mono-num font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-                        {unlockedAchievementsCount} of {myAchievements.length}{' '}
-                        Unlocked
-                      </span>
-                    </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              Grade {activeMember.grade} ·{' '}
+                              {activeMember.skillLevel} · {activeMember.elo} Elo
+                            </span>
+                            <button
+                              type="button"
+                              onClick={onSignOutMember}
+                              className="min-h-[36px] px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                              <span>Switch School ID</span>
+                            </button>
+                          </div>
+                        </div>
 
-                    {myAchievements.length === 0 ? (
-                      <div className="py-8 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500">
-                        Once club members are added to the roster, your personal
-                        achievement milestones will appear here.
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {myAchievements.map((ach) => {
-                          const iconColors = ach.unlocked
-                            ? 'bg-emerald-500 text-white shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400';
-                          return (
-                            <div
-                              key={ach.id}
-                              className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
-                                ach.unlocked
-                                  ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/90 dark:border-emerald-800/60'
-                                  : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-800'
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
+                            <div className="text-xs font-medium text-slate-500">
+                              Badges Unlocked
+                            </div>
+                            <div className="font-mono-num text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
+                              {unlockedAchievementsCount}/
+                              {myAchievements.length}
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                              <div
+                                className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${Math.round(
+                                    (unlockedAchievementsCount /
+                                      Math.max(1, myAchievements.length)) *
+                                      100
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+                              <span>Match Record</span>
+                              <span className="font-mono-num font-bold text-slate-700 dark:text-slate-300">
+                                {winRatePct}%
+                              </span>
+                            </div>
+                            <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                              {activeMember.wins}W–{activeMember.losses}L
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                              <div
+                                className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                                style={{ width: `${winRatePct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+                              <span>Attendance</span>
+                              <span className="font-mono-num font-bold text-emerald-600 dark:text-emerald-400">
+                                {attendanceStats.attended}/
+                                {attendanceStats.total}
+                              </span>
+                            </div>
+                            <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                              {attendanceStats.pct}%
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                style={{ width: `${attendanceStats.pct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-1.5">
+                            <div className="text-xs font-medium text-slate-500">
+                              Tasks Involved In
+                            </div>
+                            <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                              {myTasks.length}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono-num tabular-nums">
+                              {
+                                myTasks.filter((t) => t.status === 'Done')
+                                  .length
+                              }{' '}
+                              done ·{' '}
+                              {
+                                myTasks.filter((t) => t.status !== 'Done')
+                                  .length
+                              }{' '}
+                              open
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Segmented Activity Filter */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-scroll py-1 overscroll-x-contain">
+                          {(
+                            [
+                              { id: 'all', label: 'All Activity' },
+                              {
+                                id: 'achievements',
+                                label: `Achievements (${unlockedAchievementsCount}/${myAchievements.length})`,
+                              },
+                              {
+                                id: 'matches',
+                                label: `My Matches (${
+                                  myMatches.length +
+                                  myTournamentBracketMatches.length
+                                })`,
+                              },
+                              {
+                                id: 'attendance',
+                                label: `My Attendance (${myAttendanceSessions.length})`,
+                              },
+                              {
+                                id: 'tasks',
+                                label: `My Tasks (${myTasks.length})`,
+                              },
+                            ] as const
+                          ).map((tab) => (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setActivityFilter(tab.id)}
+                              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+                                activityFilter === tab.id
+                                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700'
                               }`}
                             >
-                              <div className="space-y-2.5">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div
-                                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconColors}`}
-                                  >
-                                    {renderAchievementIcon(ach)}
-                                  </div>
-                                  <span
-                                    className={`text-[10px] font-mono-num font-extrabold uppercase tracking-wider ${
-                                      ach.unlocked
-                                        ? 'text-emerald-600 dark:text-emerald-400'
-                                        : 'text-slate-400'
-                                    }`}
-                                  >
-                                    {ach.unlocked ? 'UNLOCKED ✓' : ach.category}
-                                  </span>
-                                </div>
-
-                                <div>
-                                  <div className="font-display text-lg font-bold text-slate-900 dark:text-white leading-tight">
-                                    {ach.title}
-                                  </div>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                                    {ach.description}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="space-y-1.5 pt-1">
-                                <div className="flex items-center justify-between text-[11px] font-mono-num">
-                                  <span className="text-slate-600 dark:text-slate-300 font-semibold">
-                                    {ach.progressLabel}
-                                  </span>
-                                  <span className="font-bold text-slate-900 dark:text-white">
-                                    {ach.pct}%
-                                  </span>
-                                </div>
-                                <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all duration-500 ${
-                                      ach.unlocked
-                                        ? 'bg-emerald-500'
-                                        : 'bg-blue-600'
-                                    }`}
-                                    style={{ width: `${ach.pct}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                              {tab.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {/* SECTION 1: MY MATCHES HISTORY */}
-                {(activityFilter === 'all' || activityFilter === 'matches') && (
-                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                          My Match History
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Ladder and tournament matches involving{' '}
-                          {activeMember?.name || 'you'}
-                        </p>
-                      </div>
-                      <span className="text-xs font-mono-num text-slate-500 tabular-nums">
-                        {myMatches.length} ladder ·{' '}
-                        {myTournamentBracketMatches.length} bracket
-                      </span>
                     </div>
 
-                    {myMatches.length === 0 &&
-                    myTournamentBracketMatches.length === 0 ? (
-                      <div className="py-8 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                        No recorded matches found for{' '}
-                        {activeMember?.name || 'your profile'} yet.
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {myMatches.map((m) => {
-                          const inT1 = activeMember
-                            ? m.team1Ids.includes(activeMember.id)
-                            : false;
-                          const won =
-                            (inT1 && m.winnerTeam === 1) ||
-                            (!inT1 && m.winnerTeam === 2);
-                          const t1Names = m.team1Ids
-                            .map(getMemberName)
-                            .join(' / ');
-                          const t2Names = m.team2Ids
-                            .map(getMemberName)
-                            .join(' / ');
-                          const scoreStr = m.games
-                            .map((g) => `${g.team1Score}–${g.team2Score}`)
-                            .join(', ');
+                    {/* SECTION 0: ACHIEVEMENT BADGES & MILESTONES */}
+                    {(activityFilter === 'all' ||
+                      activityFilter === 'achievements') && (
+                      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+                              Achievement Badges & Club Milestones
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Automatically unlocked from your official match
+                              streaks, wins, and practice attendance
+                            </p>
+                          </div>
+                          <span className="text-xs font-mono-num font-bold text-amber-600 dark:text-amber-400 tabular-nums">
+                            {unlockedAchievementsCount} of{' '}
+                            {myAchievements.length} Unlocked
+                          </span>
+                        </div>
 
-                          return (
-                            <div
-                              key={m.id}
-                              className={`p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 border-l-4 ${
-                                won ? 'border-l-emerald-500' : 'border-l-red-500'
-                              } flex flex-wrap items-center justify-between gap-4 text-sm`}
-                            >
-                              <div className="space-y-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span
-                                    className={`text-xs font-extrabold ${
-                                      won
-                                        ? 'text-emerald-600 dark:text-emerald-400'
-                                        : 'text-red-500'
-                                    }`}
-                                  >
-                                    {won ? 'VICTORY' : 'DEFEAT'}
-                                  </span>
-                                  <span
-                                    aria-hidden="true"
-                                    className="text-slate-300"
-                                  >
-                                    ·
-                                  </span>
-                                  <span className="font-bold text-slate-900 dark:text-white">
-                                    {t1Names} vs. {t2Names}
-                                  </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                          {myAchievements.map((ach) => {
+                            const iconColors = ach.unlocked
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-400';
+                            return (
+                              <div
+                                key={ach.id}
+                                className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
+                                  ach.unlocked
+                                    ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/90 dark:border-emerald-800/60'
+                                    : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-800'
+                                }`}
+                              >
+                                <div className="space-y-2.5">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div
+                                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconColors}`}
+                                    >
+                                      {renderAchievementIcon(ach)}
+                                    </div>
+                                    <span
+                                      className={`text-[10px] font-mono-num font-extrabold uppercase tracking-wider ${
+                                        ach.unlocked
+                                          ? 'text-emerald-600 dark:text-emerald-400'
+                                          : 'text-slate-400'
+                                      }`}
+                                    >
+                                      {ach.unlocked
+                                        ? 'UNLOCKED ✓'
+                                        : ach.category}
+                                    </span>
+                                  </div>
+
+                                  <div>
+                                    <div className="font-display text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                                      {ach.title}
+                                    </div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                                      {ach.description}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div className="text-xs text-slate-500 flex items-center gap-2">
-                                  <span className="capitalize">{m.format}</span>
-                                  <span aria-hidden="true">·</span>
-                                  <span className="capitalize">
-                                    {m.scoringType}
-                                  </span>
-                                  <span aria-hidden="true">·</span>
-                                  <span className="font-mono-num tabular-nums">
-                                    {m.date}
-                                  </span>
+
+                                <div className="space-y-1.5 pt-1">
+                                  <div className="flex items-center justify-between text-[11px] font-mono-num">
+                                    <span className="text-slate-600 dark:text-slate-300 font-semibold">
+                                      {ach.progressLabel}
+                                    </span>
+                                    <span className="font-bold text-slate-900 dark:text-white">
+                                      {ach.pct}%
+                                    </span>
+                                  </div>
+                                  <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${
+                                        ach.unlocked
+                                          ? 'bg-emerald-500'
+                                          : 'bg-blue-600'
+                                      }`}
+                                      style={{ width: `${ach.pct}%` }}
+                                    />
+                                  </div>
                                 </div>
                               </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
-                              <div className="text-right font-mono-num tabular-nums">
-                                <div className="text-base font-bold text-slate-900 dark:text-white">
-                                  {scoreStr}
-                                </div>
+                    {/* SECTION 1: MY MATCHES HISTORY */}
+                    {(activityFilter === 'all' ||
+                      activityFilter === 'matches') && (
+                      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+                              My Match History
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Ladder and tournament matches involving{' '}
+                              {activeMember.name}
+                            </p>
+                          </div>
+                          <span className="text-xs font-mono-num text-slate-500 tabular-nums">
+                            {myMatches.length} ladder ·{' '}
+                            {myTournamentBracketMatches.length} bracket
+                          </span>
+                        </div>
+
+                        {myMatches.length === 0 &&
+                        myTournamentBracketMatches.length === 0 ? (
+                          <div className="py-8 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                            No recorded matches found for {activeMember.name}{' '}
+                            yet.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {myMatches.map((m) => {
+                              const inT1 = m.team1Ids.includes(activeMember.id);
+                              const won =
+                                (inT1 && m.winnerTeam === 1) ||
+                                (!inT1 && m.winnerTeam === 2);
+                              const t1Names = m.team1Ids
+                                .map(getMemberName)
+                                .join(' / ');
+                              const t2Names = m.team2Ids
+                                .map(getMemberName)
+                                .join(' / ');
+                              const scoreStr = m.games
+                                .map((g) => `${g.team1Score}–${g.team2Score}`)
+                                .join(', ');
+
+                              return (
                                 <div
-                                  className={`text-xs font-bold ${
+                                  key={m.id}
+                                  className={`p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 border-l-4 ${
                                     won
-                                      ? 'text-emerald-600 dark:text-emerald-400'
-                                      : 'text-red-500'
-                                  }`}
+                                      ? 'border-l-emerald-500'
+                                      : 'border-l-red-500'
+                                  } flex flex-wrap items-center justify-between gap-4 text-sm`}
                                 >
-                                  {won ? `+${m.eloDelta}` : `-${m.eloDelta}`} Elo
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                                  <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span
+                                        className={`text-xs font-extrabold ${
+                                          won
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-red-500'
+                                        }`}
+                                      >
+                                        {won ? 'VICTORY' : 'DEFEAT'}
+                                      </span>
+                                      <span
+                                        aria-hidden="true"
+                                        className="text-slate-300"
+                                      >
+                                        ·
+                                      </span>
+                                      <span className="font-bold text-slate-900 dark:text-white">
+                                        {t1Names} vs. {t2Names}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-slate-500 flex items-center gap-2">
+                                      <span className="capitalize">
+                                        {m.format}
+                                      </span>
+                                      <span aria-hidden="true">·</span>
+                                      <span className="capitalize">
+                                        {m.scoringType}
+                                      </span>
+                                      <span aria-hidden="true">·</span>
+                                      <span className="font-mono-num tabular-nums">
+                                        {m.date}
+                                      </span>
+                                    </div>
+                                  </div>
 
-                        {myTournamentBracketMatches.map((tm) => {
-                          const isDone = tm.winner !== null;
-                          const won =
-                            (tm.isTeam1 && tm.winner === 1) ||
-                            (!tm.isTeam1 && tm.winner === 2);
-                          return (
-                            <div
-                              key={tm.id}
-                              className={`p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 border-l-4 ${
-                                !isDone
-                                  ? 'border-l-amber-500'
-                                  : won
-                                  ? 'border-l-emerald-500'
-                                  : 'border-l-red-500'
-                              } flex flex-wrap items-center justify-between gap-4 text-sm`}
-                            >
-                              <div className="space-y-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span
-                                    className={`text-xs font-extrabold ${
-                                      !isDone
-                                        ? 'text-amber-600 dark:text-amber-400'
-                                        : won
-                                        ? 'text-emerald-600 dark:text-emerald-400'
-                                        : 'text-red-500'
-                                    }`}
-                                  >
-                                    {!isDone
-                                      ? 'UPCOMING BRACKET'
+                                  <div className="text-right font-mono-num tabular-nums">
+                                    <div className="text-base font-bold text-slate-900 dark:text-white">
+                                      {scoreStr}
+                                    </div>
+                                    <div
+                                      className={`text-xs font-bold ${
+                                        won
+                                          ? 'text-emerald-600 dark:text-emerald-400'
+                                          : 'text-red-500'
+                                      }`}
+                                    >
+                                      {won
+                                        ? `+${m.eloDelta}`
+                                        : `-${m.eloDelta}`}{' '}
+                                      Elo
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            {myTournamentBracketMatches.map((tm) => {
+                              const isDone = tm.winner !== null;
+                              const won =
+                                (tm.isTeam1 && tm.winner === 1) ||
+                                (!tm.isTeam1 && tm.winner === 2);
+                              return (
+                                <div
+                                  key={tm.id}
+                                  className={`p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 border-l-4 ${
+                                    !isDone
+                                      ? 'border-l-amber-500'
                                       : won
-                                      ? 'TOURNAMENT WIN'
-                                      : 'TOURNAMENT LOSS'}
-                                  </span>
-                                  <span
-                                    aria-hidden="true"
-                                    className="text-slate-300"
-                                  >
-                                    ·
-                                  </span>
-                                  <span className="font-bold text-slate-900 dark:text-white">
-                                    {tm.team1Name} vs. {tm.team2Name}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-slate-500 flex items-center gap-2">
-                                  <span>{tm.tournamentName}</span>
-                                  <span aria-hidden="true">·</span>
-                                  <span>{tm.roundLabel}</span>
-                                  <span aria-hidden="true">·</span>
-                                  <span>{tm.court}</span>
-                                </div>
-                              </div>
+                                      ? 'border-l-emerald-500'
+                                      : 'border-l-red-500'
+                                  } flex flex-wrap items-center justify-between gap-4 text-sm`}
+                                >
+                                  <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span
+                                        className={`text-xs font-extrabold ${
+                                          !isDone
+                                            ? 'text-amber-600 dark:text-amber-400'
+                                            : won
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-red-500'
+                                        }`}
+                                      >
+                                        {!isDone
+                                          ? 'UPCOMING BRACKET'
+                                          : won
+                                          ? 'TOURNAMENT WIN'
+                                          : 'TOURNAMENT LOSS'}
+                                      </span>
+                                      <span
+                                        aria-hidden="true"
+                                        className="text-slate-300"
+                                      >
+                                        ·
+                                      </span>
+                                      <span className="font-bold text-slate-900 dark:text-white">
+                                        {tm.team1Name} vs. {tm.team2Name}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-slate-500 flex items-center gap-2">
+                                      <span>{tm.tournamentName}</span>
+                                      <span aria-hidden="true">·</span>
+                                      <span>{tm.roundLabel}</span>
+                                      <span aria-hidden="true">·</span>
+                                      <span>{tm.court}</span>
+                                    </div>
+                                  </div>
 
-                              <div className="text-right font-mono-num tabular-nums">
-                                <div className="font-bold text-slate-900 dark:text-white">
-                                  {tm.score1 !== null && tm.score2 !== null
-                                    ? `${tm.score1}–${tm.score2}`
-                                    : 'Scheduled'}
+                                  <div className="text-right font-mono-num tabular-nums">
+                                    <div className="font-bold text-slate-900 dark:text-white">
+                                      {tm.score1 !== null && tm.score2 !== null
+                                        ? `${tm.score1}–${tm.score2}`
+                                        : 'Scheduled'}
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
-                )}
 
-                {/* SECTION 2: MY ATTENDANCE HISTORY */}
-                {(activityFilter === 'all' ||
-                  activityFilter === 'attendance') && (
-                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                          My Practice Attendance
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Attendance log & verified QR check-ins for{' '}
-                          {activeMember?.name || 'your profile'}
-                        </p>
-                      </div>
-                      <span className="text-xs font-mono-num font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        {attendanceStats.attended}/{attendanceStats.total}{' '}
-                        Present ({attendanceStats.pct}%)
-                      </span>
-                    </div>
+                    {/* SECTION 2: MY ATTENDANCE HISTORY */}
+                    {(activityFilter === 'all' ||
+                      activityFilter === 'attendance') && (
+                      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+                              My Practice Attendance
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Attendance history for {activeMember.name}
+                            </p>
+                          </div>
+                          <span className="text-xs font-mono-num font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                            {attendanceStats.attended}/{attendanceStats.total}{' '}
+                            Present ({attendanceStats.pct}%)
+                          </span>
+                        </div>
 
-                    {myAttendanceSessions.length === 0 &&
-                    myVerifiedQrCheckins.length === 0 ? (
-                      <div className="py-8 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                        No practice attendance sessions recorded yet. Use the
-                        Practice Check-In button at practice!
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {myAttendanceSessions.map((session) => {
-                          const qrMatch = myVerifiedQrCheckins.find(
-                            (q) => q.practiceDate === session.date
-                          );
-                          return (
-                            <div
-                              key={session.id}
-                              className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-3 text-sm"
-                            >
-                              <div className="space-y-0.5 min-w-0">
-                                <div className="font-bold text-slate-900 dark:text-white truncate">
-                                  {session.title}
+                        {myAttendanceSessions.length === 0 ? (
+                          <div className="py-8 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                            No practice attendance sessions recorded yet.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {myAttendanceSessions.map((session) => (
+                              <div
+                                key={session.id}
+                                className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-3 text-sm"
+                              >
+                                <div className="space-y-0.5 min-w-0">
+                                  <div className="font-bold text-slate-900 dark:text-white truncate">
+                                    {session.title}
+                                  </div>
+                                  <div className="text-xs text-slate-500 flex items-center gap-2 font-mono-num tabular-nums">
+                                    <span>{session.date}</span>
+                                  </div>
                                 </div>
-                                <div className="text-xs text-slate-500 flex items-center gap-2 font-mono-num tabular-nums">
-                                  <span>{session.date}</span>
-                                  {qrMatch && (
-                                    <>
-                                      <span aria-hidden="true">·</span>
-                                      <span className="text-emerald-600 dark:text-emerald-400 font-sans font-semibold">
-                                        QR Verified
-                                      </span>
-                                    </>
+
+                                <div className="flex items-center gap-1.5 text-xs font-bold shrink-0">
+                                  {session.present ? (
+                                    <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                                      <CheckCircle2 className="w-4 h-4" />
+                                      Present
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">
+                                      Absent
+                                    </span>
                                   )}
                                 </div>
                               </div>
-
-                              <div className="flex items-center gap-1.5 text-xs font-bold shrink-0">
-                                {session.present ? (
-                                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Present
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-400">Absent</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
-                )}
 
-                {/* SECTION 3: TASKS INVOLVED IN */}
-                {(activityFilter === 'all' || activityFilter === 'tasks') && (
-                  <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                          Club Tasks Involved In
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Club responsibilities and event tasks assigned to{' '}
-                          {activeMember?.name || 'you'}
-                        </p>
-                      </div>
-                      <span className="text-xs font-mono-num text-slate-500 tabular-nums">
-                        {myTasks.length} tasks
-                      </span>
-                    </div>
+                    {/* SECTION 3: TASKS INVOLVED IN */}
+                    {(activityFilter === 'all' ||
+                      activityFilter === 'tasks') && (
+                      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+                              Club Tasks Involved In
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Club responsibilities and event tasks assigned to{' '}
+                              {activeMember.name}
+                            </p>
+                          </div>
+                          <span className="text-xs font-mono-num text-slate-500 tabular-nums">
+                            {myTasks.length} tasks
+                          </span>
+                        </div>
 
-                    {myTasks.length === 0 ? (
-                      <div className="py-8 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                        No club tasks are currently assigned to{' '}
-                        {activeMember?.name || 'your profile'}.
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {myTasks.map((task) => (
-                          <div
-                            key={task.id}
-                            className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-sm"
-                          >
-                            <div className="space-y-1">
-                              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                <ClipboardList className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                                <span>{task.title}</span>
-                              </div>
-                              <div className="text-xs text-slate-500 flex items-center gap-2">
-                                <span>{task.category}</span>
-                                <span aria-hidden="true">·</span>
-                                <span>Assigned: {task.assignee}</span>
-                                <span aria-hidden="true">·</span>
-                                <span className="font-mono-num tabular-nums">
-                                  Due {task.dueDate}
+                        {myTasks.length === 0 ? (
+                          <div className="py-8 text-center rounded-2xl bg-slate-50/60 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                            No club tasks are currently assigned to{' '}
+                            {activeMember.name}.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {myTasks.map((task) => (
+                              <div
+                                key={task.id}
+                                className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-sm"
+                              >
+                                <div className="space-y-1">
+                                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <ClipboardList className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                    <span>{task.title}</span>
+                                  </div>
+                                  <div className="text-xs text-slate-500 flex items-center gap-2">
+                                    <span>{task.category}</span>
+                                    <span aria-hidden="true">·</span>
+                                    <span>Assigned: {task.assignee}</span>
+                                    <span aria-hidden="true">·</span>
+                                    <span className="font-mono-num tabular-nums">
+                                      Due {task.dueDate}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <span
+                                  className={`text-xs font-extrabold ${
+                                    task.status === 'Done'
+                                      ? 'text-emerald-600 dark:text-emerald-400'
+                                      : task.status === 'In Progress'
+                                      ? 'text-amber-600 dark:text-amber-400'
+                                      : 'text-slate-500'
+                                  }`}
+                                >
+                                  {task.status}
                                 </span>
                               </div>
-                            </div>
-
-                            <span
-                              className={`text-xs font-extrabold ${
-                                task.status === 'Done'
-                                  ? 'text-emerald-600 dark:text-emerald-400'
-                                  : task.status === 'In Progress'
-                                  ? 'text-amber-600 dark:text-amber-400'
-                                  : 'text-slate-500'
-                              }`}
-                            >
-                              {task.status}
-                            </span>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -1381,7 +1927,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
             {(activeTab === 'tournaments' || activeTab === 'watch') && (
               <TournamentsView
                 activeSubTab={activeTab}
-                onSwitchSubTab={(sub) => onNavigate(sub)}
+                onSwitchSubTab={(sub: NavTab) => onNavigate(sub)}
                 members={data.members}
                 clubTournaments={data.clubTournaments}
                 outsideTournaments={data.outsideTournaments}
@@ -1401,9 +1947,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 onUpdateEvents={noop}
                 onUpdateSettings={noop}
                 onRequestOfficerUnlock={onRequestOfficerLogin}
-                onOpenPracticeQr={(target, mode) =>
-                  onOpenPracticeQr(target, mode === 'display' ? 'scan' : mode)
-                }
               />
             )}
           </motion.div>
@@ -1411,24 +1954,26 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       </main>
 
       {/* ================================================================= */}
-      {/* MOBILE THUMB-FRIENDLY BOTTOM NAVIGATION BAR                       */}
+      {/* MOBILE THUMB-FRIENDLY BOTTOM NAVIGATION BAR (ALL 6 TABS)          */}
       {/* ================================================================= */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-[#0b1120]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 px-2 py-1.5 grid grid-cols-5 gap-1 no-print">
-        {MEMBER_NAV_TABS.slice(0, 5).map((tab) => {
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-[#0b1120]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 px-1 pt-1.5 pb-safe grid grid-cols-6 gap-0.5 no-print shadow-lg">
+        {MEMBER_NAV_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               type="button"
               onClick={() => onNavigate(tab.id)}
-              className={`py-1.5 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-colors cursor-pointer ${
+              className={`py-1.5 px-0.5 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-colors cursor-pointer min-h-[44px] ${
                 isActive
-                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/50'
-                  : 'text-slate-500 dark:text-slate-400'
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50/90 dark:bg-blue-950/60'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {tab.icon}
-              <span className="truncate max-w-full px-1">{tab.shortLabel}</span>
+              <span className="truncate max-w-full text-[9px] leading-tight">
+                {tab.shortLabel}
+              </span>
             </button>
           );
         })}

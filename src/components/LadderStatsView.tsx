@@ -386,8 +386,8 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
           </form>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto touch-scroll">
+          <table className="w-full min-w-[660px] text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 <th className="py-3 pr-3">Rank</th>
