@@ -16,6 +16,13 @@ export interface ClubSettings {
   primaryColor: string;
   secondaryColor: string;
   officerPin: string;
+  presidentPassword?: string;
+  registrationLocked?: boolean;
+  broadcastNotice?: {
+    enabled: boolean;
+    text: string;
+    level?: 'info' | 'urgent';
+  };
   seasonStartDate: string;
   duesAmount: number;
   recurringPractices: {
@@ -246,7 +253,7 @@ export type NavTab =
   | 'officers'
   | 'announcements'
   | 'treasury'
-  | 'equipment'
+  | 'admin'
   | 'settings';
 
 export interface PendingTournamentScoreContext {

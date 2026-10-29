@@ -7,6 +7,13 @@ export const INITIAL_CLUB_DATA: ClubDataState = {
     primaryColor: '#1d4ed8',
     secondaryColor: '#eab308',
     officerPin: '9002',
+    presidentPassword: '8855',
+    registrationLocked: false,
+    broadcastNotice: {
+      enabled: false,
+      text: '',
+      level: 'info',
+    },
     seasonStartDate: new Date().toISOString().slice(0, 10),
     duesAmount: 25,
     recurringPractices: {

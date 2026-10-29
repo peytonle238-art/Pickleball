@@ -238,7 +238,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-between relative overflow-x-hidden touch-scroll transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-start relative overflow-x-hidden overflow-y-auto transition-colors duration-300">
       {/* Subtle Minimalist Ambient Glow */}
       <div
         className="pointer-events-none absolute inset-0 opacity-10 dark:opacity-20"
@@ -252,7 +252,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="relative z-20 max-w-5xl w-full mx-auto px-6 py-5 flex items-center justify-between"
+        className="relative z-20 max-w-5xl w-full mx-auto px-6 py-5 flex items-center justify-between shrink-0"
       >
         <div className="flex items-center gap-3">
           <div className="bg-white px-2.5 py-1 rounded-xl shadow-xs border border-slate-200/80 flex items-center justify-center">
@@ -297,7 +297,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       </motion.header>
 
       {/* Center Minimalist Hub */}
-      <main className="relative z-20 max-w-xl w-full mx-auto px-6 py-8 my-auto flex flex-col items-center text-center space-y-6">
+      <main className="relative z-20 max-w-xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 flex-1 flex flex-col items-center text-center space-y-6">
         {/* Official Bobcats Emblem Showcase */}
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}

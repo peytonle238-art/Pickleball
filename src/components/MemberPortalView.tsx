@@ -403,7 +403,33 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       : 0;
 
   return (
-    <div className="min-h-[100dvh] bg-[#f4f7fb] dark:bg-[#070b14] text-slate-900 dark:text-slate-100 flex flex-col pb-28 md:pb-12 overflow-x-hidden touch-scroll transition-colors duration-300">
+    <div className="min-h-screen bg-[#f4f7fb] dark:bg-[#070b14] text-slate-900 dark:text-slate-100 flex flex-col pb-32 md:pb-16 overflow-y-auto overflow-x-hidden transition-colors duration-300">
+      {/* Broadcast Alert Banner if active */}
+      {data.settings.broadcastNotice?.enabled && data.settings.broadcastNotice.text && (
+        <aside
+          role="alert"
+          className={`sticky top-0 z-40 px-4 py-2 text-xs font-bold shadow-md ${
+            data.settings.broadcastNotice.level === 'urgent'
+              ? 'bg-red-600 text-white'
+              : 'bg-blue-600 text-white'
+          }`}
+        >
+          <div className="max-w-6xl mx-auto w-full flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="shrink-0">
+                {data.settings.broadcastNotice.level === 'urgent' ? '⚠️' : '📢'}
+              </span>
+              <span className="truncate">
+                {data.settings.broadcastNotice.text}
+              </span>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider opacity-85 shrink-0">
+              Club Broadcast
+            </span>
+          </div>
+        </aside>
+      )}
+
       {/* ================================================================= */}
       {/* STICKY TOP BAR + EFFORTLESS 1-TAP NAVIGATION DOCK                 */}
       {/* ================================================================= */}

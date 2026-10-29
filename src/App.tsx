@@ -4,13 +4,14 @@ import {
   Award,
   Calendar,
   ChevronDown,
+  Crown,
   Download,
   Eye,
   Home,
   Moon,
-  Package,
   Play,
   Settings,
+  Shield,
   ShieldCheck,
   Sparkles,
   Sun,
@@ -56,10 +57,10 @@ import { TournamentsView } from './components/TournamentsView';
 import { OfficersTasksView } from './components/OfficersTasksView';
 import { CalendarEventsView } from './components/CalendarEventsView';
 import {
-  EquipmentView,
   SettingsView,
   TreasuryView,
 } from './components/ManagementViews';
+import { PresidentAdminView } from './components/PresidentAdminView';
 import { BOBCATS_LOGO_URL, WelcomeScreen } from './components/WelcomeScreen';
 import { MemberPortalView } from './components/MemberPortalView';
 
@@ -110,6 +111,7 @@ export default function App() {
   const [showWelcomeScreen, setShowWelcomeScreen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [isOfficer, setIsOfficer] = useState<boolean>(false);
+  const [isPresident, setIsPresident] = useState<boolean>(false);
 
   // Universal Dropdown Menu state ("Everything Menu")
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
@@ -155,6 +157,13 @@ export default function App() {
   // Safe navigation helper that enforces Member vs Officer access
   const handleNavigate = (targetTab: NavTab) => {
     setMenuOpen(false);
+    if (targetTab === 'admin' && !isPresident) {
+      setPendingOfficerTab('admin');
+      setPinInput('');
+      setPinError('');
+      setShowPinModal(true);
+      return;
+    }
     if (!isOfficer && !MEMBER_ALLOWED_TABS.includes(targetTab)) {
       setPendingOfficerTab(targetTab);
       setPinInput('');
@@ -438,15 +447,25 @@ export default function App() {
   };
 
   const handleOfficerSignIn = (pin: string): boolean => {
-    if (pin === data.settings.officerPin) {
+    const entered = pin.trim();
+    const presPass = (data.settings.presidentPassword || '8855').trim();
+    const isPres = entered === presPass;
+    const isOff = entered === data.settings.officerPin || isPres;
+
+    if (isOff) {
       setIsOfficer(true);
+      setIsPresident(isPres);
       setShowPinModal(false);
       setPinInput('');
       setPinError('');
       if (activeTab === 'activity') {
-        setActiveTab('home');
+        setActiveTab(isPres ? 'admin' : 'home');
       }
-      showToast('Officer Mode unlocked (Full Edit Access)');
+      showToast(
+        isPres
+          ? 'President Administration unlocked (Highest Authority)'
+          : 'Officer Mode unlocked (Full Edit Access)'
+      );
       return true;
     }
     return false;
@@ -455,8 +474,14 @@ export default function App() {
   // Handle Officer PIN Verification (NO HINTS)
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === data.settings.officerPin) {
+    const entered = pinInput.trim();
+    const presPass = (data.settings.presidentPassword || '8855').trim();
+    const isPres = entered === presPass;
+    const isOff = entered === data.settings.officerPin || isPres;
+
+    if (isOff) {
       setIsOfficer(true);
+      setIsPresident(isPres);
       setShowPinModal(false);
       setPinInput('');
       setPinError('');
@@ -464,9 +489,13 @@ export default function App() {
         setActiveTab(pendingOfficerTab);
         setPendingOfficerTab(null);
       } else if (activeTab === 'activity') {
-        setActiveTab('home');
+        setActiveTab(isPres ? 'admin' : 'home');
       }
-      showToast('Officer Mode unlocked (Full Edit Access)');
+      showToast(
+        isPres
+          ? 'President Administration unlocked (Highest Authority)'
+          : 'Officer Mode unlocked (Full Edit Access)'
+      );
     } else {
       setPinError('Invalid access code.');
     }
@@ -475,6 +504,7 @@ export default function App() {
   const handleToggleMode = () => {
     if (isOfficer) {
       setIsOfficer(false);
+      setIsPresident(false);
       if (!MEMBER_ALLOWED_TABS.includes(activeTab)) {
         setActiveTab('home');
       }
@@ -485,6 +515,55 @@ export default function App() {
       setPinError('');
       setShowPinModal(true);
     }
+  };
+
+  const handleVoidMatch = (matchId: string) => {
+    const match = data.matches.find((m) => m.id === matchId);
+    if (!match) return;
+
+    const delta1 = match.winnerTeam === 1 ? -match.eloDelta : match.eloDelta;
+    const delta2 = match.winnerTeam === 2 ? -match.eloDelta : match.eloDelta;
+
+    const revertedMembers = data.members.map((m) => {
+      if (match.team1Ids.includes(m.id)) {
+        const wasWinner = match.winnerTeam === 1;
+        return {
+          ...m,
+          elo: Math.max(100, m.elo + delta1),
+          wins: Math.max(0, m.wins - (wasWinner ? 1 : 0)),
+          losses: Math.max(0, m.losses - (wasWinner ? 0 : 1)),
+        };
+      }
+      if (match.team2Ids.includes(m.id)) {
+        const wasWinner = match.winnerTeam === 2;
+        return {
+          ...m,
+          elo: Math.max(100, m.elo + delta2),
+          wins: Math.max(0, m.wins - (wasWinner ? 1 : 0)),
+          losses: Math.max(0, m.losses - (wasWinner ? 0 : 1)),
+        };
+      }
+      return m;
+    });
+
+    setData((prev) => ({
+      ...prev,
+      members: revertedMembers,
+      matches: prev.matches.filter((m) => m.id !== matchId),
+    }));
+    showToast('Match voided & player Elo reverted.');
+  };
+
+  const handleResetAllElo = () => {
+    setData((prev) => ({
+      ...prev,
+      members: prev.members.map((m) => ({
+        ...m,
+        elo: 1200,
+        monthStartElo: 1200,
+      })),
+    }));
+    showToast('All member Elo ratings reset to 1200.');
   };
 
   const handleSaveCompletedMatch = (newMatch: MatchRecord) => {
@@ -687,10 +766,10 @@ export default function App() {
       icon: <Wallet className="w-4 h-4" />,
     },
     {
-      id: 'equipment',
-      label: 'Equipment Locker',
+      id: 'admin',
+      label: 'President Admin',
       access: 'officer',
-      icon: <Package className="w-4 h-4" />,
+      icon: <Crown className="w-4 h-4 text-amber-500" />,
     },
     {
       id: 'settings',
@@ -721,11 +800,21 @@ export default function App() {
           setShowWelcomeScreen(false);
         }}
         onEnterAsOfficer={(pin, targetTab) => {
-          if (pin === data.settings.officerPin) {
+          const entered = pin.trim();
+          const presPass = (data.settings.presidentPassword || '8855').trim();
+          const isPres = entered === presPass;
+          const isOff = entered === data.settings.officerPin || isPres;
+
+          if (isOff) {
             setIsOfficer(true);
-            setActiveTab(targetTab);
+            setIsPresident(isPres);
+            setActiveTab(isPres && targetTab === 'home' ? 'admin' : targetTab);
             setShowWelcomeScreen(false);
-            showToast('Officer Mode unlocked (Full Edit Access)');
+            showToast(
+              isPres
+                ? 'President Administration unlocked (Highest Authority)'
+                : 'Officer Mode unlocked (Full Edit Access)'
+            );
             return true;
           }
           return false;
@@ -767,7 +856,33 @@ export default function App() {
         /* =============================================================== */
         /* VIEW 2: FULL-FEATURED OFFICER EXECUTIVE COMMAND CONSOLE         */
         /* =============================================================== */
-        <div className="min-h-[100dvh] bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-0 overflow-x-hidden touch-scroll transition-colors duration-300">
+        <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 overflow-y-auto overflow-x-hidden transition-colors duration-300">
+          {/* President Broadcast Notice Alert Banner if active */}
+          {data.settings.broadcastNotice?.enabled && data.settings.broadcastNotice.text && (
+            <aside
+              role="alert"
+              className={`sticky top-0 z-40 px-4 py-2 text-xs font-bold shadow-md ${
+                data.settings.broadcastNotice.level === 'urgent'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-blue-600 text-white'
+              }`}
+            >
+              <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="shrink-0">
+                    {data.settings.broadcastNotice.level === 'urgent' ? '⚠️' : '📢'}
+                  </span>
+                  <span className="truncate">
+                    {data.settings.broadcastNotice.text}
+                  </span>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider opacity-85 shrink-0">
+                  President Broadcast
+                </span>
+              </div>
+            </aside>
+          )}
+
           {/* Officer Command Header */}
           <header className="sticky top-0 z-30 h-16 bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-6 no-print">
             <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-4">
@@ -962,8 +1077,28 @@ export default function App() {
                 </AnimatePresence>
               </div>
 
-              {/* Zone 3: Officer Mode Switch */}
+              {/* Zone 3: Officer Mode Switch & President Badge */}
               <div className="flex items-center gap-2 shrink-0">
+                {isPresident ? (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-bold">
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>President Admin</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingOfficerTab('admin');
+                      setPinInput('');
+                      setPinError('');
+                      setShowPinModal(true);
+                    }}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 cursor-pointer"
+                  >
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Unlock President</span>
+                  </button>
+                )}
                 <button
                   onClick={handleToggleMode}
                   className="min-h-[38px] px-3.5 py-1.5 text-xs font-bold rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer"
@@ -1208,15 +1343,40 @@ export default function App() {
                     />
                   )}
 
-                  {activeTab === 'equipment' && (
-                    <EquipmentView
-                      equipment={data.equipment}
-                      members={data.members}
-                      isOfficer={true}
-                      onUpdateEquipment={(equipment) =>
-                        setData((prev) => ({ ...prev, equipment }))
+                  {activeTab === 'admin' && (
+                    <PresidentAdminView
+                      data={data}
+                      isPresident={isPresident}
+                      onUpdateSettings={(settings) =>
+                        setData((prev) => ({ ...prev, settings }))
                       }
-                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                      onUpdateMembers={(members) =>
+                        setData((prev) => ({ ...prev, members }))
+                      }
+                      onUpdateOfficers={(officers) =>
+                        setData((prev) => ({ ...prev, officers }))
+                      }
+                      onUpdateMatches={(matches) =>
+                        setData((prev) => ({ ...prev, matches }))
+                      }
+                      onVoidMatch={handleVoidMatch}
+                      onResetAllElo={handleResetAllElo}
+                      onResetAllLiveCourts={() => {
+                        setPendingTournamentMatch(null);
+                        showToast('All court scoreboards reset.');
+                      }}
+                      onExportJSON={handleExportJSON}
+                      onImportJSON={handleImportJSON}
+                      onResetFactoryData={() => {
+                        setData(INITIAL_CLUB_DATA);
+                        showToast('Cleared all club data to factory baseline!');
+                      }}
+                      onRequestPresidentUnlock={() => {
+                        setPendingOfficerTab('admin');
+                        setPinInput('');
+                        setPinError('');
+                        setShowPinModal(true);
+                      }}
                     />
                   )}
 
@@ -1251,7 +1411,9 @@ export default function App() {
               { id: 'ladder', label: 'Stats', icon: <Award className="w-4 h-4" /> },
               { id: 'tournaments', label: 'Tourneys', icon: <Trophy className="w-4 h-4" /> },
               { id: 'members', label: 'Roster', icon: <Users className="w-4 h-4" /> },
-              { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
+              ...(isPresident
+                ? [{ id: 'admin', label: 'President', icon: <Crown className="w-4 h-4 text-amber-400" /> }]
+                : [{ id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> }]),
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -1298,7 +1460,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* ================================================================= */}
-      {/* OFFICER 4-DIGIT PIN UNLOCK MODAL (ZERO HINTS)                     */}
+      {/* OFFICER & PRESIDENT PIN UNLOCK MODAL                               */}
       {/* ================================================================= */}
       <AnimatePresence>
         {showPinModal && (
@@ -1316,9 +1478,14 @@ export default function App() {
               className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl"
             >
               <div className="flex items-center justify-between">
-                <h3 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
-                  Officer Sign In
-                </h3>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+                    Administration Sign In
+                  </h3>
+                </div>
                 <button
                   onClick={() => {
                     setShowPinModal(false);
@@ -1331,23 +1498,22 @@ export default function App() {
               </div>
 
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Enter your 4-digit Officer access code to unlock administrative
-                controls.
+                Enter your Officer PIN or President Password to unlock administrative controls.
               </p>
 
               <form onSubmit={handlePinSubmit} className="space-y-4">
                 <input
                   type="password"
-                  inputMode="numeric"
-                  maxLength={4}
+                  inputMode="text"
+                  maxLength={10}
                   autoFocus
                   value={pinInput}
                   onChange={(e) => {
                     setPinError('');
-                    setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                    setPinInput(e.target.value.trim());
                   }}
                   placeholder="••••"
-                  className="w-full h-14 text-center font-mono-num text-3xl tracking-[0.5em] rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  className="w-full h-14 text-center font-mono-num text-2xl tracking-[0.4em] rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                 />
 
                 {pinError && (
@@ -1369,10 +1535,9 @@ export default function App() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 min-h-[44px] rounded-xl text-xs font-bold text-white cursor-pointer"
-                    style={{ backgroundColor: 'var(--club-primary)' }}
+                    className="flex-1 min-h-[44px] rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-black dark:bg-amber-500 dark:hover:bg-amber-400 dark:text-slate-950 cursor-pointer transition-colors"
                   >
-                    Sign In
+                    Unlock
                   </button>
                 </div>
               </form>

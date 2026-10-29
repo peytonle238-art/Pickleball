@@ -7,8 +7,8 @@ import {
   Award,
   Calendar,
   Clock,
+  Crown,
   MapPin,
-  Package,
   Play,
   ShieldCheck,
   Trophy,
@@ -528,13 +528,13 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </button>
 
             <button
-              onClick={() => onNavigate('equipment')}
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer"
+              onClick={() => onNavigate('admin')}
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer group"
             >
-              <Package className="w-4 h-4 text-purple-400" />
-              <div className="text-xs font-bold">Equipment Locker</div>
+              <Crown className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+              <div className="text-xs font-bold text-amber-300">President Admin</div>
               <div className="text-[11px] text-slate-400">
-                {data.equipment.length} club items
+                Full Club Command
               </div>
             </button>
           </div>
