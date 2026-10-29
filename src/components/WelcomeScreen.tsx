@@ -39,7 +39,9 @@ interface WelcomeScreenProps {
   onToggleDarkMode: () => void;
   onEnterAsMember: (targetTab: NavTab) => void;
   onEnterAsOfficer: (pin: string, targetTab: NavTab) => boolean;
-  onSignInBySchoolId: (schoolId: string) => Member | null;
+  onSignInBySchoolId: (
+    schoolId: string
+  ) => Promise<Member | null> | Member | null;
   onRegisterMember: (payload: {
     schoolId: string;
     name: string;
@@ -172,7 +174,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     MEMBER_DESTINATIONS.find((d) => d.id === selectedDestination) ||
     MEMBER_DESTINATIONS[0];
 
-  const handleSchoolIdSubmit = (e: React.FormEvent) => {
+  const handleSchoolIdSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = schoolIdInput.trim();
     if (!cleaned) {
@@ -182,7 +184,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       });
       return;
     }
-    const found = onSignInBySchoolId(cleaned);
+    const found = await onSignInBySchoolId(cleaned);
     if (found) {
       setSignInFeedback({
         type: 'success',

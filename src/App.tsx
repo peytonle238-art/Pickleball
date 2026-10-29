@@ -44,9 +44,11 @@ import {
   User,
   auth,
   ensureUserProfileInFirestore,
-  loadClubWorkspaceFromFirestore,
+  loadGlobalClubWorkspaceFromFirestore,
+  mergeClubDataStates,
   onAuthStateChanged,
-  saveClubWorkspaceToFirestore,
+  saveGlobalClubWorkspaceToFirestore,
+  subscribeGlobalClubWorkspace,
   updateUserLinkedMember,
 } from './firebase';
 import { HomeDashboard } from './components/HomeDashboard';
@@ -67,6 +69,7 @@ import { MemberPortalView } from './components/MemberPortalView';
 const STORAGE_KEY = 'bnhs_pickleball_hq_fresh_v2';
 const LEGACY_STORAGE_KEY = 'bnhs_pickleball_hq_v1';
 const THEME_KEY = 'bnhs_pickleball_theme_v1';
+const CLOUD_MIGRATED_KEY = 'bnhs_pickleball_cloud_migrated_v2';
 
 const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -116,9 +119,8 @@ export default function App() {
   // Universal Dropdown Menu state ("Everything Menu")
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
-  // Firebase Auth & Firestore state
+  // Firebase Auth & Global Firestore Sync state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [authReady, setAuthReady] = useState<boolean>(false);
   const [linkedMemberId, setLinkedMemberId] = useState<string>(() => {
     try {
       return localStorage.getItem(LINKED_MEMBER_KEY) || '';
@@ -128,6 +130,10 @@ export default function App() {
   });
   const workspaceDocExistsRef = useRef<boolean>(false);
   const initialCloudLoadDoneRef = useRef<boolean>(false);
+  const isApplyingRemoteSnapshotRef = useRef<boolean>(false);
+  const lastSavedSerializedRef = useRef<string>('');
+  const latestLocalDataRef = useRef<ClubDataState>(data);
+  latestLocalDataRef.current = data;
 
   // Officer 4-Digit PIN Modal state (no hints)
   const [showPinModal, setShowPinModal] = useState<boolean>(false);
@@ -174,77 +180,207 @@ export default function App() {
     setActiveTab(targetTab);
   };
 
-  // Listen to Firebase Auth state & load user profile + Firestore workspace
+  // Helper to immediately persist state to the shared cloud database across all devices
+  const persistClubDataImmediately = async (nextState: ClubDataState) => {
+    try {
+      if (!initialCloudLoadDoneRef.current) {
+        const { state: cloudState, exists } =
+          await loadGlobalClubWorkspaceFromFirestore();
+        if (exists && cloudState && cloudState.members && cloudState.settings) {
+          const cleanedCloud = sanitizeAndStripTemplateData(cloudState);
+          const merged = mergeClubDataStates(cleanedCloud, nextState);
+          workspaceDocExistsRef.current = true;
+          initialCloudLoadDoneRef.current = true;
+          lastSavedSerializedRef.current = JSON.stringify(merged);
+          isApplyingRemoteSnapshotRef.current = true;
+          setData(merged);
+          await saveGlobalClubWorkspaceToFirestore(merged, true);
+          return;
+        }
+      }
+      initialCloudLoadDoneRef.current = true;
+      lastSavedSerializedRef.current = JSON.stringify(nextState);
+      await saveGlobalClubWorkspaceToFirestore(
+        nextState,
+        workspaceDocExistsRef.current
+      );
+      workspaceDocExistsRef.current = true;
+    } catch (err) {
+      console.error('Failed to immediately persist club data to cloud:', err);
+    }
+  };
+
+  // Helper to pull fresh global roster/data on sign-in
+  const refreshFromGlobalCloud = async () => {
+    try {
+      const { state: cloudState, exists } =
+        await loadGlobalClubWorkspaceFromFirestore();
+      if (exists && cloudState && cloudState.members && cloudState.settings) {
+        const cleanedCloud = sanitizeAndStripTemplateData(cloudState);
+        const merged = mergeClubDataStates(
+          cleanedCloud,
+          latestLocalDataRef.current
+        );
+        workspaceDocExistsRef.current = true;
+        initialCloudLoadDoneRef.current = true;
+        const mergedStr = JSON.stringify(merged);
+        if (mergedStr !== JSON.stringify(latestLocalDataRef.current)) {
+          lastSavedSerializedRef.current = mergedStr;
+          isApplyingRemoteSnapshotRef.current = true;
+          setData(merged);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to refresh global cloud workspace:', err);
+    }
+  };
+
+  // Real-time Global Cloud Database sync across all devices (no Google Auth required)
   useEffect(() => {
+    let isMounted = true;
+
+    const unsubscribeGlobal = subscribeGlobalClubWorkspace(
+      async (cloudData, exists) => {
+        if (!isMounted) return;
+
+        if (exists && cloudData && cloudData.members && cloudData.settings) {
+          workspaceDocExistsRef.current = true;
+          const cleanedCloud = sanitizeAndStripTemplateData(cloudData);
+          let hasMigratedLocal = false;
+          try {
+            hasMigratedLocal =
+              localStorage.getItem(CLOUD_MIGRATED_KEY) === 'true';
+          } catch {
+            hasMigratedLocal = false;
+          }
+
+          if (!initialCloudLoadDoneRef.current && !hasMigratedLocal) {
+            // Merge any pre-existing local members/matches on this browser into the shared cloud DB
+            const merged = mergeClubDataStates(
+              cleanedCloud,
+              latestLocalDataRef.current
+            );
+            initialCloudLoadDoneRef.current = true;
+            try {
+              localStorage.setItem(CLOUD_MIGRATED_KEY, 'true');
+            } catch {
+              // Ignore storage errors
+            }
+            const mergedStr = JSON.stringify(merged);
+            const cloudStr = JSON.stringify(cleanedCloud);
+            lastSavedSerializedRef.current = mergedStr;
+            isApplyingRemoteSnapshotRef.current = true;
+            setData(merged);
+
+            if (mergedStr !== cloudStr) {
+              try {
+                await saveGlobalClubWorkspaceToFirestore(merged, true);
+              } catch (err) {
+                console.error('Failed to push merged local data to cloud:', err);
+              }
+            }
+            return;
+          }
+
+          initialCloudLoadDoneRef.current = true;
+          try {
+            localStorage.setItem(CLOUD_MIGRATED_KEY, 'true');
+          } catch {
+            // Ignore storage errors
+          }
+
+          const incomingStr = JSON.stringify(cleanedCloud);
+          const currentStr = JSON.stringify(latestLocalDataRef.current);
+          lastSavedSerializedRef.current = incomingStr;
+
+          if (incomingStr !== currentStr) {
+            isApplyingRemoteSnapshotRef.current = true;
+            setData(cleanedCloud);
+          }
+        } else if (!exists) {
+          // Initialize the global cloud database from current local state
+          workspaceDocExistsRef.current = false;
+          initialCloudLoadDoneRef.current = true;
+          try {
+            localStorage.setItem(CLOUD_MIGRATED_KEY, 'true');
+          } catch {
+            // Ignore storage errors
+          }
+          try {
+            const initialPayload = latestLocalDataRef.current;
+            lastSavedSerializedRef.current = JSON.stringify(initialPayload);
+            await saveGlobalClubWorkspaceToFirestore(initialPayload, false);
+            workspaceDocExistsRef.current = true;
+          } catch (err) {
+            console.error('Failed to initialize global club workspace:', err);
+          }
+        }
+      }
+    );
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      setAuthReady(true);
-
-      if (!user) {
-        workspaceDocExistsRef.current = false;
-        initialCloudLoadDoneRef.current = false;
-        return;
-      }
-
+      if (!user) return;
       try {
-        const matchedRosterMember = data.members.find(
+        const matchedRosterMember = latestLocalDataRef.current.members.find(
           (m) =>
             user.displayName &&
             m.name.toLowerCase() === user.displayName.toLowerCase()
         );
         const defaultMemId = matchedRosterMember?.id || linkedMemberId || '';
-
         const profile = await ensureUserProfileInFirestore(user, defaultMemId);
         if (profile.linkedMemberId) {
           setLinkedMemberId(profile.linkedMemberId);
         }
-
-        const cloudData = await loadClubWorkspaceFromFirestore(user.uid);
-        if (cloudData && cloudData.members && cloudData.settings) {
-          const cleaned = sanitizeAndStripTemplateData(cloudData);
-          workspaceDocExistsRef.current = true;
-          initialCloudLoadDoneRef.current = true;
-          setData(cleaned);
-          await saveClubWorkspaceToFirestore(user.uid, cleaned, true);
-        } else {
-          await saveClubWorkspaceToFirestore(user.uid, data, false);
-          workspaceDocExistsRef.current = true;
-          initialCloudLoadDoneRef.current = true;
-        }
       } catch (err) {
-        console.error('Error syncing Firebase user workspace:', err);
+        console.error('Error syncing Firebase user profile:', err);
       }
     });
 
     return () => {
+      isMounted = false;
+      unsubscribeGlobal();
       unsubscribeAuth();
     };
   }, []);
 
-  // Persist data to localStorage & sync to Firestore when signed in
+  // Persist data to localStorage & sync to global Firestore database for all devices
   useEffect(() => {
+    const serialized = JSON.stringify(data);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(STORAGE_KEY, serialized);
     } catch {
       // Ignore quota errors
     }
 
-    if (currentUser && authReady && initialCloudLoadDoneRef.current) {
-      const timer = setTimeout(async () => {
-        try {
-          await saveClubWorkspaceToFirestore(
-            currentUser.uid,
-            data,
-            workspaceDocExistsRef.current
-          );
-          workspaceDocExistsRef.current = true;
-        } catch (err) {
-          console.error('Failed to sync club workspace to Firestore:', err);
-        }
-      }, 600);
-      return () => clearTimeout(timer);
+    if (isApplyingRemoteSnapshotRef.current) {
+      isApplyingRemoteSnapshotRef.current = false;
+      return;
     }
-  }, [data, currentUser, authReady]);
+
+    if (!initialCloudLoadDoneRef.current) {
+      return;
+    }
+
+    if (serialized === lastSavedSerializedRef.current) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        lastSavedSerializedRef.current = serialized;
+        await saveGlobalClubWorkspaceToFirestore(
+          data,
+          workspaceDocExistsRef.current
+        );
+        workspaceDocExistsRef.current = true;
+      } catch (err) {
+        console.error('Failed to sync club workspace to Firestore:', err);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [data]);
 
   // Apply school colors to CSS variables
   useEffect(() => {
@@ -282,7 +418,7 @@ export default function App() {
     } catch {
       // Ignore storage quota errors
     }
-    const member = data.members.find(
+    const member = latestLocalDataRef.current.members.find(
       (m) =>
         m.id === memberId ||
         (m.schoolId &&
@@ -304,20 +440,52 @@ export default function App() {
     }
   };
 
-  // Sign in an existing member using their School ID
-  const handleSignInBySchoolId = (schoolId: string): Member | null => {
+  // Sign in an existing member using their School ID (checks local & refreshes global cloud roster if needed)
+  const handleSignInBySchoolId = async (
+    schoolId: string
+  ): Promise<Member | null> => {
     const cleaned = schoolId.trim().toLowerCase();
     if (!cleaned) return null;
 
-    const found =
-      data.members.find(
+    const findMember = (list: Member[]) =>
+      list.find(
         (m) =>
           (m.schoolId && m.schoolId.trim().toLowerCase() === cleaned) ||
           m.id.toLowerCase() === cleaned
       ) || null;
 
+    let found = findMember(latestLocalDataRef.current.members);
+
+    if (!found) {
+      try {
+        const { state: cloudState, exists } =
+          await loadGlobalClubWorkspaceFromFirestore();
+        if (exists && cloudState && cloudState.members && cloudState.settings) {
+          const cleanedCloud = sanitizeAndStripTemplateData(cloudState);
+          const merged = mergeClubDataStates(
+            cleanedCloud,
+            latestLocalDataRef.current
+          );
+          workspaceDocExistsRef.current = true;
+          initialCloudLoadDoneRef.current = true;
+          lastSavedSerializedRef.current = JSON.stringify(merged);
+          isApplyingRemoteSnapshotRef.current = true;
+          setData(merged);
+          found = findMember(merged.members);
+        }
+      } catch (err) {
+        console.error('Error checking cloud roster on School ID sign-in:', err);
+      }
+    }
+
     if (found) {
-      handleSelectLinkedMember(found.id);
+      setLinkedMemberId(found.id);
+      try {
+        localStorage.setItem(LINKED_MEMBER_KEY, found.id);
+      } catch {
+        // Ignore storage errors
+      }
+      showToast(`Signed in as ${found.name}`);
     }
     return found;
   };
@@ -340,9 +508,10 @@ export default function App() {
   }): Member => {
     const cleanSchoolId = schoolId.trim();
     const cleanName = name.trim();
+    const currentSnapshot = latestLocalDataRef.current;
 
     // Check if a member with this School ID already exists
-    const existingById = data.members.find(
+    const existingById = currentSnapshot.members.find(
       (m) =>
         m.schoolId &&
         m.schoolId.trim().toLowerCase() === cleanSchoolId.toLowerCase()
@@ -359,20 +528,23 @@ export default function App() {
           paddleNotes !== undefined ? paddleNotes : existingById.paddleNotes,
         photoUrl: photoUrl || existingById.photoUrl,
       };
-      setData((prev) => ({
-        ...prev,
-        members: prev.members.map((m) =>
+      const nextState: ClubDataState = {
+        ...currentSnapshot,
+        members: currentSnapshot.members.map((m) =>
           m.id === existingById.id ? updatedMember : m
         ),
-      }));
+      };
+      setData(nextState);
+      void persistClubDataImmediately(nextState);
       handleSelectLinkedMember(updatedMember.id);
       showToast(`Account updated & signed in as ${updatedMember.name}!`);
       return updatedMember;
     }
 
     // Or if a member with the exact same name exists without a School ID yet, link their School ID
-    const existingByName = data.members.find(
-      (m) => !m.schoolId && m.name.trim().toLowerCase() === cleanName.toLowerCase()
+    const existingByName = currentSnapshot.members.find(
+      (m) =>
+        !m.schoolId && m.name.trim().toLowerCase() === cleanName.toLowerCase()
     );
 
     if (existingByName) {
@@ -384,12 +556,14 @@ export default function App() {
         paddleNotes: paddleNotes || existingByName.paddleNotes,
         photoUrl: photoUrl || existingByName.photoUrl,
       };
-      setData((prev) => ({
-        ...prev,
-        members: prev.members.map((m) =>
+      const nextState: ClubDataState = {
+        ...currentSnapshot,
+        members: currentSnapshot.members.map((m) =>
           m.id === existingByName.id ? linkedMember : m
         ),
-      }));
+      };
+      setData(nextState);
+      void persistClubDataImmediately(nextState);
       handleSelectLinkedMember(linkedMember.id);
       showToast(
         `Linked School ID ${cleanSchoolId} to ${linkedMember.name}'s account!`
@@ -412,16 +586,19 @@ export default function App() {
       pointsAgainst: 0,
       streak: 0,
       duesPaid: false,
-      duesAmount: data.settings.duesAmount,
+      duesAmount: currentSnapshot.settings.duesAmount,
       paddleNotes: paddleNotes || '',
       photoUrl: photoUrl || '',
       joinDate: new Date().toISOString().slice(0, 10),
     };
 
-    setData((prev) => ({
-      ...prev,
-      members: [...prev.members, newMember],
-    }));
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
+      members: [...currentSnapshot.members, newMember],
+    };
+
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
 
     setLinkedMemberId(newMember.id);
     try {
@@ -458,6 +635,7 @@ export default function App() {
       setShowPinModal(false);
       setPinInput('');
       setPinError('');
+      void refreshFromGlobalCloud();
       if (activeTab === 'activity') {
         setActiveTab(isPres ? 'admin' : 'home');
       }
@@ -485,6 +663,7 @@ export default function App() {
       setShowPinModal(false);
       setPinInput('');
       setPinError('');
+      void refreshFromGlobalCloud();
       if (pendingOfficerTab) {
         setActiveTab(pendingOfficerTab);
         setPendingOfficerTab(null);
@@ -794,6 +973,7 @@ export default function App() {
         linkedMemberId={linkedMemberId}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         onEnterAsMember={(targetTab) => {
+          void refreshFromGlobalCloud();
           setActiveTab(
             MEMBER_ALLOWED_TABS.includes(targetTab) ? targetTab : 'home'
           );
@@ -806,6 +986,7 @@ export default function App() {
           const isOff = entered === data.settings.officerPin || isPres;
 
           if (isOff) {
+            void refreshFromGlobalCloud();
             setIsOfficer(true);
             setIsPresident(isPres);
             setActiveTab(isPres && targetTab === 'home' ? 'admin' : targetTab);

@@ -22,12 +22,14 @@ import {
   where,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { ClubDataState } from './types';
+import { ClubDataState, Member } from './types';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+export const GLOBAL_CLUB_WORKSPACE_ID = 'bnhs_global_club';
 
 export enum OperationType {
   CREATE = 'create',
@@ -100,6 +102,7 @@ testConnection();
 const SAFE_ID_REGEX = /^[a-zA-Z0-9_\-]+$/;
 const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{3,8}$/;
 const DATE_ISO_REGEX = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+const MAX_PAYLOAD_LENGTH = 940000;
 
 export function sanitizeId(raw: string, maxLen = 64): string {
   const cleaned = raw.replace(/[^a-zA-Z0-9_\-]/g, '-').slice(0, maxLen);
@@ -127,6 +130,118 @@ export function sanitizeDateISO(raw: string): string {
   return DATE_ISO_REGEX.test(trimmed)
     ? trimmed
     : new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Safely serializes ClubDataState so that it NEVER produces invalid truncated JSON
+ * and stays within the 950KB Firestore document payload limit.
+ */
+function serializeClubWorkspaceState(state: ClubDataState): string {
+  const json = JSON.stringify(state);
+  if (json.length <= MAX_PAYLOAD_LENGTH) {
+    return json;
+  }
+  // If large base64 photos push the payload over 940KB, trim oversized photoUrls first while keeping valid JSON
+  const compactedMembers: Member[] = state.members.map((m) => {
+    if (m.photoUrl && m.photoUrl.length > 25000) {
+      return { ...m, photoUrl: '' };
+    }
+    return m;
+  });
+  const secondTry = JSON.stringify({ ...state, members: compactedMembers });
+  if (secondTry.length <= MAX_PAYLOAD_LENGTH) {
+    return secondTry;
+  }
+  const strippedPhotos = state.members.map((m) => ({ ...m, photoUrl: '' }));
+  return JSON.stringify({ ...state, members: strippedPhotos });
+}
+
+/**
+ * Merges two ClubDataState objects so that members, matches, tournaments,
+ * events, announcements, and officers created on different devices are preserved.
+ */
+export function mergeClubDataStates(
+  primary: ClubDataState,
+  secondary: ClubDataState
+): ClubDataState {
+  // Merge members by id and schoolId
+  const memberMap = new Map<string, Member>();
+  const schoolIdToMemberId = new Map<string, string>();
+
+  for (const m of primary.members) {
+    memberMap.set(m.id, m);
+    if (m.schoolId && m.schoolId.trim()) {
+      schoolIdToMemberId.set(m.schoolId.trim().toLowerCase(), m.id);
+    }
+  }
+
+  for (const m of secondary.members) {
+    const cleanSchoolId = m.schoolId?.trim().toLowerCase() || '';
+    const existingIdBySchool = cleanSchoolId
+      ? schoolIdToMemberId.get(cleanSchoolId)
+      : undefined;
+    const targetId = existingIdBySchool || m.id;
+    const existing = memberMap.get(targetId);
+
+    if (!existing) {
+      memberMap.set(m.id, m);
+      if (cleanSchoolId) {
+        schoolIdToMemberId.set(cleanSchoolId, m.id);
+      }
+    } else {
+      // Combine any missing profile fields (such as photoUrl or schoolId) and pick higher activity count
+      const primaryGames = (existing.wins || 0) + (existing.losses || 0);
+      const secondaryGames = (m.wins || 0) + (m.losses || 0);
+      const base = secondaryGames > primaryGames ? m : existing;
+      const other = secondaryGames > primaryGames ? existing : m;
+      memberMap.set(targetId, {
+        ...other,
+        ...base,
+        id: existing.id,
+        schoolId: base.schoolId || other.schoolId,
+        photoUrl: base.photoUrl || other.photoUrl,
+        paddleNotes: base.paddleNotes || other.paddleNotes,
+      });
+    }
+  }
+
+  const mergeById = <T extends { id: string }>(arr1: T[], arr2: T[]): T[] => {
+    const map = new Map<string, T>();
+    for (const item of arr1 || []) {
+      map.set(item.id, item);
+    }
+    for (const item of arr2 || []) {
+      if (!map.has(item.id)) {
+        map.set(item.id, item);
+      }
+    }
+    return Array.from(map.values());
+  };
+
+  return {
+    ...primary,
+    settings: {
+      ...secondary.settings,
+      ...primary.settings,
+    },
+    members: Array.from(memberMap.values()),
+    attendance: mergeById(primary.attendance, secondary.attendance),
+    matches: mergeById(primary.matches, secondary.matches),
+    clubTournaments: mergeById(
+      primary.clubTournaments,
+      secondary.clubTournaments
+    ),
+    outsideTournaments: mergeById(
+      primary.outsideTournaments,
+      secondary.outsideTournaments
+    ),
+    officers: mergeById(primary.officers, secondary.officers),
+    tasks: mergeById(primary.tasks, secondary.tasks),
+    events: mergeById(primary.events, secondary.events),
+    announcements: mergeById(primary.announcements, secondary.announcements),
+    transactions: mergeById(primary.transactions, secondary.transactions),
+    archives: mergeById(primary.archives, secondary.archives),
+  };
 }
 
 export interface UserProfileDoc {
@@ -219,34 +334,85 @@ export async function updateUserLinkedMember(
   }
 }
 
-export async function loadClubWorkspaceFromFirestore(
-  uid: string
-): Promise<ClubDataState | null> {
-  const safeUid = sanitizeId(uid, 128);
-  const path = `clubWorkspaces/${safeUid}`;
-  const ref = doc(db, 'clubWorkspaces', safeUid);
+/**
+ * Loads the shared global club workspace (`clubWorkspaces/bnhs_global_club`)
+ * from Firestore so all devices see the same members, matches, and settings.
+ */
+export async function loadGlobalClubWorkspaceFromFirestore(): Promise<{
+  state: ClubDataState | null;
+  exists: boolean;
+}> {
+  const path = `clubWorkspaces/${GLOBAL_CLUB_WORKSPACE_ID}`;
+  const ref = doc(db, 'clubWorkspaces', GLOBAL_CLUB_WORKSPACE_ID);
 
   try {
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
+    let snap;
+    try {
+      snap = await getDocFromServer(ref);
+    } catch {
+      snap = await getDoc(ref);
+    }
+    if (!snap.exists()) {
+      return { state: null, exists: false };
+    }
     const rawPayload = snap.data().payload;
     if (typeof rawPayload === 'string' && rawPayload.length > 2) {
-      return JSON.parse(rawPayload) as ClubDataState;
+      return {
+        state: JSON.parse(rawPayload) as ClubDataState,
+        exists: true,
+      };
     }
-    return null;
+    return { state: null, exists: true };
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, path);
   }
 }
 
-export async function saveClubWorkspaceToFirestore(
-  uid: string,
+/**
+ * Subscribes in real time (`onSnapshot`) to the shared global club workspace
+ * (`clubWorkspaces/bnhs_global_club`) across all devices.
+ */
+export function subscribeGlobalClubWorkspace(
+  onUpdate: (state: ClubDataState | null, exists: boolean) => void
+): () => void {
+  const path = `clubWorkspaces/${GLOBAL_CLUB_WORKSPACE_ID}`;
+  const ref = doc(db, 'clubWorkspaces', GLOBAL_CLUB_WORKSPACE_ID);
+
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        onUpdate(null, false);
+        return;
+      }
+      const rawPayload = snap.data().payload;
+      if (typeof rawPayload === 'string' && rawPayload.length > 2) {
+        try {
+          const parsed = JSON.parse(rawPayload) as ClubDataState;
+          onUpdate(parsed, true);
+          return;
+        } catch (err) {
+          console.error('Failed to parse global club workspace JSON:', err);
+        }
+      }
+      onUpdate(null, true);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+  );
+}
+
+/**
+ * Saves the shared global club workspace (`clubWorkspaces/bnhs_global_club`)
+ * to Firestore, automatically handling create vs update.
+ */
+export async function saveGlobalClubWorkspaceToFirestore(
   state: ClubDataState,
-  existsAlready: boolean
+  existsHint = true
 ): Promise<void> {
-  const safeUid = sanitizeId(uid, 128);
-  const path = `clubWorkspaces/${safeUid}`;
-  const ref = doc(db, 'clubWorkspaces', safeUid);
+  const path = `clubWorkspaces/${GLOBAL_CLUB_WORKSPACE_ID}`;
+  const ref = doc(db, 'clubWorkspaces', GLOBAL_CLUB_WORKSPACE_ID);
 
   const clubName = sanitizeString(
     state.settings.clubName,
@@ -266,37 +432,84 @@ export async function saveClubWorkspaceToFirestore(
     state.settings.secondaryColor,
     '#eab308'
   );
-  const payload = JSON.stringify(state).slice(0, 500000);
+  const payload = serializeClubWorkspaceState(state);
+
+  const performUpdate = async () => {
+    await updateDoc(ref, {
+      clubName,
+      schoolName,
+      primaryColor,
+      secondaryColor,
+      payload,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const performCreate = async () => {
+    await setDoc(ref, {
+      ownerId: GLOBAL_CLUB_WORKSPACE_ID,
+      clubName,
+      schoolName,
+      primaryColor,
+      secondaryColor,
+      payload,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  };
 
   try {
-    if (existsAlready) {
-      await updateDoc(ref, {
-        clubName,
-        schoolName,
-        primaryColor,
-        secondaryColor,
-        payload,
-        updatedAt: serverTimestamp(),
-      });
+    if (existsHint) {
+      try {
+        await performUpdate();
+      } catch {
+        await performCreate();
+      }
     } else {
-      await setDoc(ref, {
-        ownerId: safeUid,
-        clubName,
-        schoolName,
-        primaryColor,
-        secondaryColor,
-        payload,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      try {
+        await performCreate();
+      } catch {
+        await performUpdate();
+      }
     }
   } catch (error) {
     handleFirestoreError(
       error,
-      existsAlready ? OperationType.UPDATE : OperationType.CREATE,
+      existsHint ? OperationType.UPDATE : OperationType.CREATE,
       path
     );
   }
+}
+
+export async function loadClubWorkspaceFromFirestore(
+  uid: string
+): Promise<ClubDataState | null> {
+  const { state } = await loadGlobalClubWorkspaceFromFirestore();
+  if (state) return state;
+
+  const safeUid = sanitizeId(uid, 128);
+  const path = `clubWorkspaces/${safeUid}`;
+  const ref = doc(db, 'clubWorkspaces', safeUid);
+
+  try {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const rawPayload = snap.data().payload;
+    if (typeof rawPayload === 'string' && rawPayload.length > 2) {
+      return JSON.parse(rawPayload) as ClubDataState;
+    }
+    return null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+  }
+}
+
+export async function saveClubWorkspaceToFirestore(
+  _uid: string,
+  state: ClubDataState,
+  existsAlready: boolean
+): Promise<void> {
+  await saveGlobalClubWorkspaceToFirestore(state, existsAlready);
 }
 
 export async function logQrCheckinToFirestore(params: {

@@ -40,12 +40,12 @@
     },
     "ClubWorkspace": {
       "title": "ClubWorkspace",
-      "description": "Persisted BNHS Pickleball Club HQ state synchronized to Firestore for the authenticated user.",
+      "description": "Persisted BNHS Pickleball Club HQ state synchronized to Firestore across all devices.",
       "type": "object",
       "properties": {
         "ownerId": {
           "type": "string",
-          "description": "Firebase Auth UID of the workspace owner.",
+          "description": "Workspace owner ID or global club key ('bnhs_global_club').",
           "minLength": 1,
           "maxLength": 128,
           "pattern": "^[a-zA-Z0-9_\\-]+$"
@@ -80,7 +80,7 @@
           "type": "string",
           "description": "Serialized club workspace snapshot for cross-device sync.",
           "minLength": 2,
-          "maxLength": 500000
+          "maxLength": 950000
         },
         "createdAt": {
           "type": "string",

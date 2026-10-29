@@ -10,8 +10,8 @@
    - Read access (`get`) is restricted strictly to `isOwner(userId) || isAdmin()`. `list` is denied to prevent user enumeration.
    - `createdAt` and `uid` are immutable on `update`; `updatedAt` must equal `request.time`.
 5. **ClubWorkspace (`/clubWorkspaces/{workspaceId}`)**:
-   - Document ID `workspaceId` must match `request.auth.uid` and `incoming().ownerId == request.auth.uid`.
-   - Only the owner or an admin can `get`, `create`, `update`, or `delete`.
+   - Supports the shared global club document (`workspaceId == 'bnhs_global_club'` with `ownerId == 'bnhs_global_club'`) so all devices signing in via School ID or Officer PIN share the live club database, as well as per-user workspace documents (`workspaceId == request.auth.uid`).
+   - `list` is denied (`allow list: if false;`); only targeted `get`, `create`, and `update` on validated IDs are permitted.
    - `ownerId` and `createdAt` are immutable on `update`; `updatedAt` must equal `request.time`.
 6. **QrCheckin (`/qrCheckins/{checkinId}`)**:
    - Can only be created if `incoming().uid == request.auth.uid`, `incoming().createdAt == request.time`, and `incoming().status == 'verified'`.

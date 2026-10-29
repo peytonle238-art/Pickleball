@@ -50,13 +50,12 @@ service cloud.firestore {
     function isValidClubWorkspace(data) {
       return data.keys().hasAll(['ownerId', 'clubName', 'schoolName', 'primaryColor', 'secondaryColor', 'payload', 'createdAt', 'updatedAt'])
         && data.keys().hasOnly(['ownerId', 'clubName', 'schoolName', 'primaryColor', 'secondaryColor', 'payload', 'createdAt', 'updatedAt'])
-        && data.ownerId == request.auth.uid
         && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
         && data.clubName is string && data.clubName.size() >= 1 && data.clubName.size() <= 120
         && data.schoolName is string && data.schoolName.size() >= 1 && data.schoolName.size() <= 120
         && data.primaryColor is string && data.primaryColor.size() >= 4 && data.primaryColor.size() <= 20 && data.primaryColor.matches('^#[0-9a-fA-F]{3,8}$')
         && data.secondaryColor is string && data.secondaryColor.size() >= 4 && data.secondaryColor.size() <= 20 && data.secondaryColor.matches('^#[0-9a-fA-F]{3,8}$')
-        && data.payload is string && data.payload.size() >= 2 && data.payload.size() <= 500000
+        && data.payload is string && data.payload.size() >= 2 && data.payload.size() <= 950000
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
@@ -101,12 +100,26 @@ service cloud.firestore {
     }
 
     match /clubWorkspaces/{workspaceId} {
-      allow get: if isSignedIn() && isValidId(workspaceId) && (request.auth.uid == workspaceId || isAdmin());
+      allow get: if isValidId(workspaceId) && (
+        workspaceId == 'bnhs_global_club' ||
+        (isSignedIn() && (request.auth.uid == workspaceId || isAdmin()))
+      );
       allow list: if false;
-      allow create: if isVerifiedUser() && isValidId(workspaceId) && request.auth.uid == workspaceId && isValidClubWorkspace(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
-      allow update: if isVerifiedUser() && isValidId(workspaceId) && isValidClubWorkspace(incoming()) && (
+      allow create: if isValidId(workspaceId) && isValidClubWorkspace(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time && (
+        (workspaceId == 'bnhs_global_club' && incoming().ownerId == 'bnhs_global_club') ||
+        (isVerifiedUser() && request.auth.uid == workspaceId && incoming().ownerId == request.auth.uid)
+      );
+      allow update: if isValidId(workspaceId) && isValidClubWorkspace(incoming()) && (
         isAdmin() || (
-          request.auth.uid == workspaceId
+          workspaceId == 'bnhs_global_club'
+          && existing().ownerId == 'bnhs_global_club'
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['clubName', 'schoolName', 'primaryColor', 'secondaryColor', 'payload', 'updatedAt'])
+        ) || (
+          isVerifiedUser()
+          && request.auth.uid == workspaceId
           && existing().ownerId == request.auth.uid
           && incoming().ownerId == existing().ownerId
           && incoming().createdAt == existing().createdAt

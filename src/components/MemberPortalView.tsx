@@ -51,7 +51,9 @@ interface MemberPortalViewProps {
   darkMode: boolean;
   linkedMemberId: string;
   onSelectLinkedMember: (memberId: string) => void;
-  onSignInBySchoolId: (schoolId: string) => Member | null;
+  onSignInBySchoolId: (
+    schoolId: string
+  ) => Promise<Member | null> | Member | null;
   onRegisterMember: (payload: {
     schoolId: string;
     name: string;
@@ -324,14 +326,14 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   );
 
   // Handle continuing with School ID
-  const handleSchoolIdSubmit = (e: React.FormEvent) => {
+  const handleSchoolIdSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = schoolIdInput.trim();
     if (!trimmed) {
       setSchoolIdError('Please enter your School ID.');
       return;
     }
-    const found = onSignInBySchoolId(trimmed);
+    const found = await onSignInBySchoolId(trimmed);
     if (found) {
       setSchoolIdInput('');
       setSchoolIdError('');
