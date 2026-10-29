@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  Camera,
   Check,
   Edit3,
   FileSpreadsheet,
@@ -18,6 +19,7 @@ import {
   Member,
   SkillLevel,
 } from '../types';
+import { processImageFileToDataUrl } from '../utils/clubUtils';
 
 interface MembersAttendanceViewProps {
   members: Member[];
@@ -85,6 +87,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
 
   const [formSchoolId, setFormSchoolId] = useState('');
   const [formName, setFormName] = useState('');
+  const [formPhoto, setFormPhoto] = useState('');
+  const [formPhotoUploading, setFormPhotoUploading] = useState(false);
   const [formGrade, setFormGrade] = useState<GradeLevel>(10);
   const [formSkill, setFormSkill] = useState<SkillLevel>('Intermediate');
   const [formDupr, setFormDupr] = useState('');
@@ -194,6 +198,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     setEditingMember(null);
     setFormSchoolId('');
     setFormName('');
+    setFormPhoto('');
     setFormGrade(10);
     setFormSkill('Intermediate');
     setFormDupr('3.25');
@@ -210,6 +215,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     setEditingMember(m);
     setFormSchoolId(m.schoolId || '');
     setFormName(m.name);
+    setFormPhoto(m.photoUrl || '');
     setFormGrade(m.grade);
     setFormSkill(m.skillLevel);
     setFormDupr(m.duprRating || '');
@@ -232,6 +238,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 ...m,
                 schoolId: cleanedSchoolId,
                 name: formName.trim(),
+                photoUrl: formPhoto.trim() || undefined,
                 grade: formGrade,
                 skillLevel: formSkill,
                 duprRating: formDupr.trim() || undefined,
@@ -245,6 +252,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
       const newMember: Member = {
         id: `mem-${Date.now()}`,
         schoolId: cleanedSchoolId,
+        photoUrl: formPhoto.trim() || undefined,
         name: formName.trim(),
         grade: formGrade,
         skillLevel: formSkill,
@@ -811,6 +819,66 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               />
             </div>
 
+            {/* Profile Photo Uploader */}
+            <div className="sm:col-span-2 lg:col-span-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-600">
+                  {formPhoto ? (
+                    <img
+                      src={formPhoto}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Camera className="w-5 h-5 text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white">
+                    {formPhoto ? 'Photo Attached' : 'Member Profile Photo'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {formPhotoUploading ? 'Processing...' : 'Upload player avatar photo (Optional)'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="min-h-[36px] px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-blue-100 transition-colors">
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>{formPhoto ? 'Change Photo' : 'Upload Photo'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        try {
+                          setFormPhotoUploading(true);
+                          const dataUrl = await processImageFileToDataUrl(file);
+                          setFormPhoto(dataUrl);
+                        } catch (err) {
+                          console.error('Error processing image:', err);
+                        } finally {
+                          setFormPhotoUploading(false);
+                        }
+                      }
+                    }}
+                  />
+                </label>
+                {formPhoto && (
+                  <button
+                    type="button"
+                    onClick={() => setFormPhoto('')}
+                    className="px-2.5 py-1.5 text-xs text-slate-400 hover:text-red-500 font-semibold cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
@@ -931,16 +999,35 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                     </td>
 
                     <td className="py-3 px-3">
-                      <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>{member.name}</span>
-                        {member.schoolId && (
-                          <span className="font-mono-num text-[11px] font-bold text-blue-600 dark:text-blue-400">
-                            ID: {member.schoolId}
-                          </span>
+                      <div className="flex items-center gap-2.5">
+                        {member.photoUrl ? (
+                          <img
+                            src={member.photoUrl}
+                            alt={member.name}
+                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-2xs"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-700 text-[11px]">
+                            {member.name
+                              .split(' ')
+                              .map((n) => n[0])
+                              .join('')
+                              .slice(0, 2)}
+                          </div>
                         )}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-                        Joined {member.joinDate} · {member.elo} Elo
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                            <span>{member.name}</span>
+                            {member.schoolId && (
+                              <span className="font-mono-num text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.2 rounded">
+                                ID: {member.schoolId}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                            Joined {member.joinDate} · {member.elo} Elo
+                          </div>
+                        </div>
                       </div>
                     </td>
 

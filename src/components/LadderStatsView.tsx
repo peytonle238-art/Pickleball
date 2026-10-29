@@ -128,13 +128,24 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 key={m.id}
                 className="flex items-center justify-between text-sm py-1 border-b border-slate-100 dark:border-slate-800/60 last:border-none"
               >
-                <span className="font-medium text-slate-900 dark:text-white">
-                  <strong className="font-mono-num text-slate-400 mr-2">
+                <span className="font-medium text-slate-900 dark:text-white flex items-center gap-2 min-w-0">
+                  <strong className="font-mono-num text-slate-400 mr-0.5 shrink-0">
                     0{idx + 1}
                   </strong>
-                  {m.name}
+                  {m.photoUrl ? (
+                    <img
+                      src={m.photoUrl}
+                      alt={m.name}
+                      className="w-5 h-5 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold flex items-center justify-center shrink-0 text-[9px]">
+                      {m.name.slice(0, 1)}
+                    </div>
+                  )}
+                  <span className="truncate">{m.name}</span>
                 </span>
-                <span className="font-mono-num font-bold text-slate-900 dark:text-white">
+                <span className="font-mono-num font-bold text-slate-900 dark:text-white shrink-0 ml-2">
                   {m.wins} Wins
                 </span>
               </div>
@@ -160,13 +171,24 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                   key={m.id}
                   className="flex items-center justify-between text-sm py-1 border-b border-slate-100 dark:border-slate-800/60 last:border-none"
                 >
-                  <span className="font-medium text-slate-900 dark:text-white">
-                    <strong className="font-mono-num text-slate-400 mr-2">
+                  <span className="font-medium text-slate-900 dark:text-white flex items-center gap-2 min-w-0">
+                    <strong className="font-mono-num text-slate-400 mr-0.5 shrink-0">
                       0{idx + 1}
                     </strong>
-                    {m.name}
+                    {m.photoUrl ? (
+                      <img
+                        src={m.photoUrl}
+                        alt={m.name}
+                        className="w-5 h-5 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold flex items-center justify-center shrink-0 text-[9px]">
+                        {m.name.slice(0, 1)}
+                      </div>
+                    )}
+                    <span className="truncate">{m.name}</span>
                   </span>
-                  <span className="font-mono-num font-bold text-slate-900 dark:text-white">
+                  <span className="font-mono-num font-bold text-slate-900 dark:text-white shrink-0 ml-2">
                     {pct}% ({m.wins}–{m.losses})
                   </span>
                 </div>
@@ -191,13 +213,24 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                   key={m.id}
                   className="flex items-center justify-between text-sm py-1 border-b border-slate-100 dark:border-slate-800/60 last:border-none"
                 >
-                  <span className="font-medium text-slate-900 dark:text-white">
-                    <strong className="font-mono-num text-slate-400 mr-2">
+                  <span className="font-medium text-slate-900 dark:text-white flex items-center gap-2 min-w-0">
+                    <strong className="font-mono-num text-slate-400 mr-0.5 shrink-0">
                       0{idx + 1}
                     </strong>
-                    {m.name}
+                    {m.photoUrl ? (
+                      <img
+                        src={m.photoUrl}
+                        alt={m.name}
+                        className="w-5 h-5 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold flex items-center justify-center shrink-0 text-[9px]">
+                        {m.name.slice(0, 1)}
+                      </div>
+                    )}
+                    <span className="truncate">{m.name}</span>
                   </span>
-                  <span className="font-mono-num font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="font-mono-num font-bold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
                     {gain >= 0 ? `+${gain}` : gain} Elo
                   </span>
                 </div>
@@ -424,19 +457,38 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                         #{index + 1}
                       </td>
                       <td className="py-3.5 px-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-900 dark:text-white">
-                            {member.name}
-                          </span>
-                          {isExpanded ? (
-                            <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                        <div className="flex items-center gap-2.5">
+                          {member.photoUrl ? (
+                            <img
+                              src={member.photoUrl}
+                              alt={member.name}
+                              className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-2xs"
+                            />
                           ) : (
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-700 text-[11px]">
+                              {member.name
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')
+                                .slice(0, 2)}
+                            </div>
                           )}
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          {member.grade}th Grade · {member.skillLevel}
-                          {member.duprRating ? ` · ${member.duprRating} DUPR` : ''}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-900 dark:text-white truncate">
+                                {member.name}
+                              </span>
+                              {isExpanded ? (
+                                <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                              {member.grade}th Grade · {member.skillLevel}
+                              {member.duprRating ? ` · ${member.duprRating} DUPR` : ''}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono-num font-bold text-base text-slate-900 dark:text-white">

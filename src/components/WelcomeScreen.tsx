@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Award,
   Calendar,
+  Camera,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -27,7 +28,7 @@ import {
   NavTab,
   SkillLevel,
 } from '../types';
-import { getNextUpcomingEvent } from '../utils/clubUtils';
+import { getNextUpcomingEvent, processImageFileToDataUrl } from '../utils/clubUtils';
 
 export const BOBCATS_LOGO_URL = '/assets/aistudio/images_25669a2b.png';
 
@@ -45,6 +46,7 @@ interface WelcomeScreenProps {
     grade: GradeLevel;
     skillLevel: SkillLevel;
     paddleNotes?: string;
+    photoUrl?: string;
   }) => Member;
   onSignOutMember: () => void;
 }
@@ -124,6 +126,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const [regGrade, setRegGrade] = useState<GradeLevel>(10);
   const [regSkill, setRegSkill] = useState<SkillLevel>('Intermediate');
   const [regNotes, setRegNotes] = useState('');
+  const [regPhoto, setRegPhoto] = useState('');
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [regFeedback, setRegFeedback] = useState<{
     type: 'success' | 'error';
     text: string;
@@ -211,6 +215,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       grade: regGrade,
       skillLevel: regSkill,
       paddleNotes: regNotes.trim(),
+      photoUrl: regPhoto,
     });
     setRegFeedback({
       type: 'success',
@@ -219,6 +224,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     setRegSchoolId('');
     setRegName('');
     setRegNotes('');
+    setRegPhoto('');
     onEnterAsMember('activity');
   };
 
@@ -403,14 +409,31 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <div className="space-y-2.5">
                 {activeMember ? (
                   <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {activeMember.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          School ID: {activeMember.schoolId || 'Linked'} ·{' '}
-                          {activeMember.grade} Grade · {activeMember.elo} Elo
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {activeMember.photoUrl ? (
+                          <img
+                            src={activeMember.photoUrl}
+                            alt={activeMember.name}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-blue-500 shadow-2xs shrink-0"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-700 text-xs">
+                            {activeMember.name
+                              .split(' ')
+                              .map((n) => n[0])
+                              .join('')
+                              .slice(0, 2)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {activeMember.name}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            School ID: {activeMember.schoolId || 'Linked'} ·{' '}
+                            {activeMember.grade} Grade · {activeMember.elo} Elo
+                          </div>
                         </div>
                       </div>
                       <button
@@ -535,6 +558,61 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   placeholder="Paddle / Preferred Partner (Optional)"
                   className="w-full h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                 />
+
+                {/* Profile Photo Upload Option */}
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-600">
+                    {regPhoto ? (
+                      <img
+                        src={regPhoto}
+                        alt="Profile Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Camera className="w-5 h-5 text-slate-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                      {regPhoto ? 'Photo Added' : 'Member Profile Photo'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {photoUploading ? 'Processing image...' : 'Upload photo (Optional)'}
+                    </div>
+                  </div>
+                  <label className="min-h-[34px] px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors hover:bg-blue-100">
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{regPhoto ? 'Change' : 'Upload'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            setPhotoUploading(true);
+                            const dataUrl = await processImageFileToDataUrl(file);
+                            setRegPhoto(dataUrl);
+                          } catch (err) {
+                            console.error('Error processing image:', err);
+                          } finally {
+                            setPhotoUploading(false);
+                          }
+                        }
+                      }}
+                    />
+                  </label>
+                  {regPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => setRegPhoto('')}
+                      className="text-[11px] text-slate-400 hover:text-red-500 font-semibold cursor-pointer shrink-0"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
                 <button
                   type="submit"
                   className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"

@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Award,
   Calendar,
+  Camera,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
@@ -37,6 +38,7 @@ import {
   MemberAchievement,
   computeMemberAchievements,
   getNextUpcomingEvent,
+  processImageFileToDataUrl,
 } from '../utils/clubUtils';
 import { BOBCATS_LOGO_URL } from './WelcomeScreen';
 import { LadderStatsView } from './LadderStatsView';
@@ -56,6 +58,7 @@ interface MemberPortalViewProps {
     grade: GradeLevel;
     skillLevel: SkillLevel;
     paddleNotes?: string;
+    photoUrl?: string;
   }) => Member;
   onSignOutMember: () => void;
   onOfficerSignIn: (pin: string) => boolean;
@@ -160,6 +163,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   const [regGrade, setRegGrade] = useState<GradeLevel>(10);
   const [regSkill, setRegSkill] = useState<SkillLevel>('Intermediate');
   const [regPaddle, setRegPaddle] = useState('');
+  const [regPhoto, setRegPhoto] = useState('');
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [regError, setRegError] = useState('');
 
   // Officer Sign-In inside Menu state
@@ -360,11 +365,13 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       grade: regGrade,
       skillLevel: regSkill,
       paddleNotes: regPaddle.trim() || 'Personal Paddle',
+      photoUrl: regPhoto,
     });
 
     setRegSchoolId('');
     setRegName('');
     setRegPaddle('');
+    setRegPhoto('');
     setRegError('');
     setMenuAccountTab('signin');
     setMenuOpen(false);
@@ -570,20 +577,37 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             <div className="space-y-2.5">
                               {activeMember ? (
                                 <div className="space-y-2.5">
-                                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                        Signed In · School ID:{' '}
-                                        {activeMember.schoolId ||
-                                          activeMember.id}
-                                      </div>
-                                      <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                                        {activeMember.name}
-                                      </div>
-                                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                        Grade {activeMember.grade} ·{' '}
-                                        {activeMember.skillLevel} ·{' '}
-                                        {activeMember.elo} Elo
+                                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-2.5">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      {activeMember.photoUrl ? (
+                                        <img
+                                          src={activeMember.photoUrl}
+                                          alt={activeMember.name}
+                                          className="w-10 h-10 rounded-full object-cover border-2 border-blue-500 shadow-2xs shrink-0"
+                                        />
+                                      ) : (
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-700 text-xs">
+                                          {activeMember.name
+                                            .split(' ')
+                                            .map((n) => n[0])
+                                            .join('')
+                                            .slice(0, 2)}
+                                        </div>
+                                      )}
+                                      <div className="min-w-0">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                          Signed In · School ID:{' '}
+                                          {activeMember.schoolId ||
+                                            activeMember.id}
+                                        </div>
+                                        <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                          {activeMember.name}
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                          Grade {activeMember.grade} ·{' '}
+                                          {activeMember.skillLevel} ·{' '}
+                                          {activeMember.elo} Elo
+                                        </div>
                                       </div>
                                     </div>
                                     <button
@@ -781,6 +805,61 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                                   placeholder="e.g. Personal Paddle or Loaner"
                                   className="w-full min-h-[36px] px-2.5 py-1 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                                 />
+                              </div>
+
+                              {/* Profile Photo Upload in Menu Form */}
+                              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700">
+                                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-600">
+                                  {regPhoto ? (
+                                    <img
+                                      src={regPhoto}
+                                      alt="Preview"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Camera className="w-4 h-4 text-slate-400" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">
+                                    {regPhoto ? 'Photo Attached' : 'Profile Picture'}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                    {photoUploading ? 'Optimizing image...' : 'Optional member photo'}
+                                  </div>
+                                </div>
+                                <label className="min-h-[32px] px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-colors hover:bg-blue-100">
+                                  <Camera className="w-3 h-3" />
+                                  <span>{regPhoto ? 'Change' : 'Upload'}</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        try {
+                                          setPhotoUploading(true);
+                                          const dataUrl = await processImageFileToDataUrl(file);
+                                          setRegPhoto(dataUrl);
+                                        } catch (err) {
+                                          console.error('Error processing image:', err);
+                                        } finally {
+                                          setPhotoUploading(false);
+                                        }
+                                      }
+                                    }}
+                                  />
+                                </label>
+                                {regPhoto && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setRegPhoto('')}
+                                    className="text-[10px] text-slate-400 hover:text-red-500 font-semibold cursor-pointer shrink-0"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
 
                               {regError && (
@@ -1345,6 +1424,76 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           </div>
                         </div>
 
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                            Paddle / Gear Notes (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={regPaddle}
+                            onChange={(e) => setRegPaddle(e.target.value)}
+                            placeholder="e.g. Selkirk Vanguard or club loaner"
+                            className="w-full min-h-[40px] px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                          />
+                        </div>
+
+                        {/* Profile Photo Upload Option */}
+                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
+                          <div className="relative w-12 h-12 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-600">
+                            {regPhoto ? (
+                              <img
+                                src={regPhoto}
+                                alt="Profile Preview"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Camera className="w-5 h-5 text-slate-400" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                              {regPhoto ? 'Photo Added' : 'Member Profile Photo'}
+                            </div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                              {photoUploading
+                                ? 'Processing image...'
+                                : 'Upload a profile photo (Optional)'}
+                            </div>
+                          </div>
+                          <label className="min-h-[36px] px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors hover:bg-blue-100">
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>{regPhoto ? 'Change' : 'Upload'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    setPhotoUploading(true);
+                                    const dataUrl = await processImageFileToDataUrl(file);
+                                    setRegPhoto(dataUrl);
+                                  } catch (err) {
+                                    console.error('Error processing image:', err);
+                                  } finally {
+                                    setPhotoUploading(false);
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
+                          {regPhoto && (
+                            <button
+                              type="button"
+                              onClick={() => setRegPhoto('')}
+                              className="text-xs text-slate-400 hover:text-red-500 font-semibold cursor-pointer shrink-0"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+
                         {regError && (
                           <div className="text-xs font-semibold text-red-600 dark:text-red-400">
                             {regError}
@@ -1366,16 +1515,36 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* Personal Metrics & Season Performance Card */}
                     <div>
                       <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 shadow-2xs flex flex-col justify-between gap-5">
-                        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-                          <div>
-                            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                              Personal Athlete Account · School ID:{' '}
-                              {activeMember.schoolId || activeMember.id}
+                        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            {activeMember.photoUrl ? (
+                              <img
+                                src={activeMember.photoUrl}
+                                alt={activeMember.name}
+                                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-blue-500 shadow-md shrink-0"
+                              />
+                            ) : (
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-display text-xl sm:text-2xl font-bold flex items-center justify-center shrink-0 shadow-md">
+                                {activeMember.name
+                                  .split(' ')
+                                  .map((n) => n[0])
+                                  .join('')
+                                  .slice(0, 2)}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                Personal Athlete Account · School ID:{' '}
+                                {activeMember.schoolId || activeMember.id}
+                              </div>
+                              <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white truncate">
+                                {activeMember.name} — Season Performance &
+                                Milestones
+                              </h2>
+                              <div className="text-xs text-slate-500 dark:text-slate-400">
+                                Grade {activeMember.grade} · {activeMember.skillLevel} · {activeMember.elo} Elo
+                              </div>
                             </div>
-                            <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
-                              {activeMember.name} — Season Performance &
-                              Milestones
-                            </h2>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">

@@ -313,19 +313,21 @@ export default function App() {
     return found;
   };
 
-  // Let a member add themselves directly into the club database with their School ID
+  // Let a member add themselves directly into the club database with their School ID and photo
   const handleRegisterMember = ({
     schoolId,
     name,
     grade,
     skillLevel,
     paddleNotes,
+    photoUrl,
   }: {
     schoolId: string;
     name: string;
     grade: GradeLevel;
     skillLevel: SkillLevel;
     paddleNotes?: string;
+    photoUrl?: string;
   }): Member => {
     const cleanSchoolId = schoolId.trim();
     const cleanName = name.trim();
@@ -346,6 +348,7 @@ export default function App() {
         skillLevel,
         paddleNotes:
           paddleNotes !== undefined ? paddleNotes : existingById.paddleNotes,
+        photoUrl: photoUrl || existingById.photoUrl,
       };
       setData((prev) => ({
         ...prev,
@@ -370,6 +373,7 @@ export default function App() {
         grade,
         skillLevel,
         paddleNotes: paddleNotes || existingByName.paddleNotes,
+        photoUrl: photoUrl || existingByName.photoUrl,
       };
       setData((prev) => ({
         ...prev,
@@ -401,6 +405,7 @@ export default function App() {
       duesPaid: false,
       duesAmount: data.settings.duesAmount,
       paddleNotes: paddleNotes || '',
+      photoUrl: photoUrl || '',
       joinDate: new Date().toISOString().slice(0, 10),
     };
 

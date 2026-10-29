@@ -49,6 +49,7 @@ export interface OfficerTask {
 export interface Member {
   id: string;
   schoolId?: string;
+  photoUrl?: string;
   name: string;
   grade: GradeLevel;
   skillLevel: SkillLevel;
