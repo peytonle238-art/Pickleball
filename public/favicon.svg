@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Varsity Shield / Square Base -->
+  <rect x="2" y="2" width="60" height="60" rx="10" fill="#0F172A" stroke="#1E3A8A" stroke-width="2"/>
+  <rect x="6" y="6" width="52" height="52" rx="7" stroke="#EAB308" stroke-width="1.5" stroke-opacity="0.6"/>
+  
+  <!-- Perforated Pickleball Accent (Top Right) -->
+  <circle cx="46" cy="18" r="10" fill="#EAB308"/>
+  <circle cx="43" cy="15" r="1.5" fill="#0F172A"/>
+  <circle cx="49" cy="15" r="1.5" fill="#0F172A"/>
+  <circle cx="46" cy="19" r="1.6" fill="#0F172A"/>
+  <circle cx="42" cy="21" r="1.4" fill="#0F172A"/>
+  <circle cx="50" cy="21" r="1.4" fill="#0F172A"/>
+
+  <!-- Varsity BN Monogram -->
+  <path d="M12 18H23.5C27.2 18 29.8 20.1 29.8 23.6C29.8 26 28.4 27.9 26.2 28.6C28.9 29.3 30.6 31.4 30.6 34.4C30.6 38.4 27.7 41 23.4 41H12V18ZM17.6 26.8H22.2C23.7 26.8 24.6 25.9 24.6 24.5C24.6 23.1 23.7 22.3 22.2 22.3H17.6V26.8ZM17.6 36.6H22.6C24.3 36.6 25.3 35.7 25.3 34.1C25.3 32.5 24.3 31.6 22.6 31.6H17.6V36.6Z" fill="#FFFFFF"/>
+  <path d="M33 27H38.2L45.4 39.2V27H50.6V49H45.6L38.2 36.5V49H33V27Z" fill="#3B82F6"/>
+  <path d="M12 45H29V49H12V45Z" fill="#EAB308"/>
+</svg>

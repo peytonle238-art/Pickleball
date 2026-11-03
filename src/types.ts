@@ -225,6 +225,20 @@ export interface SeasonArchive {
   totalMatches: number;
 }
 
+export interface LadderChallenge {
+  id: string;
+  challengerId: string;
+  opponentId: string;
+  format: 'singles' | 'doubles';
+  targetScore: 11 | 15 | 21;
+  message: string;
+  createdAt: string;
+  status: 'open' | 'accepted' | 'completed' | 'declined';
+  completedMatchId?: string;
+  winnerMemberId?: string;
+  scoreSummary?: string;
+}
+
 export interface ClubDataState {
   settings: ClubSettings;
   officers: Officer[];
@@ -232,6 +246,7 @@ export interface ClubDataState {
   members: Member[];
   attendance: AttendanceSession[];
   matches: MatchRecord[];
+  challenges?: LadderChallenge[];
   clubTournaments: ClubTournament[];
   outsideTournaments: OutsideTournament[];
   events: CalendarEvent[];

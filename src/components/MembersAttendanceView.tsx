@@ -1,18 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import {
-  Camera,
-  Check,
-  Edit3,
-  FileSpreadsheet,
-  Play,
-  Plus,
-  Search,
-  Trash2,
-  Upload,
-  UserCheck,
-  UserPlus,
-  X,
-} from 'lucide-react';
+import { Camera, Edit3, Search, Trash2, X } from 'lucide-react';
 import {
   AttendanceSession,
   GradeLevel,
@@ -279,7 +266,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     onUpdateMembers(members.filter((m) => m.id !== id));
   };
 
-  // Parse CSV / Spreadsheet text into preview rows
   const parsedCsvRows = useMemo<ParsedCsvMemberRow[]>(() => {
     if (!csvText.trim()) return [];
     const existingNames = new Set(
@@ -296,12 +282,11 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const cols = (line.includes('\t') ? line.split('\t') : line.split(',')).map(
-        (c) => c.replace(/^["']|["']$/g, '').trim()
-      );
+      const cols = (
+        line.includes('\t') ? line.split('\t') : line.split(',')
+      ).map((c) => c.replace(/^["']|["']$/g, '').trim());
       if (cols.length === 0 || !cols[0]) continue;
 
-      // Skip header row if first cell looks like "Name" or "Full Name" or "Member"
       if (
         i === 0 &&
         /^(name|full\s*name|student|member|player)$/i.test(cols[0])
@@ -417,7 +402,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Practice Attendance & Member Roster Control Header */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -434,9 +419,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToMultiCourt}
-                className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-amber-400 hover:bg-amber-300 text-slate-950 whitespace-nowrap cursor-pointer"
               >
-                <Play className="w-4 h-4 fill-current" />
                 Smart Court Generator
               </button>
             )}
@@ -444,19 +428,17 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             <button
               type="button"
               onClick={() => setShowNewSessionForm(!showNewSessionForm)}
-              className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white whitespace-nowrap cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              New Practice Date
+              + New Practice Date
             </button>
 
             {isOfficer && (
               <button
                 type="button"
                 onClick={() => setShowBulkImport(!showBulkImport)}
-                className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white whitespace-nowrap cursor-pointer"
               >
-                <FileSpreadsheet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 Bulk CSV Import
               </button>
             )}
@@ -464,11 +446,9 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             <button
               type="button"
               onClick={openAddMember}
-              className="min-h-[42px] px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-              style={{ backgroundColor: 'var(--club-primary)' }}
+              className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap cursor-pointer"
             >
-              <UserPlus className="w-4 h-4" />
-              Add Member
+              + Add Member
             </button>
           </div>
         </div>
@@ -477,10 +457,10 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
         {showNewSessionForm && (
           <form
             onSubmit={handleCreateSession}
-            className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end"
+            className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-12 gap-3 items-end"
           >
             <div className="sm:col-span-3">
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Practice Date
               </label>
               <input
@@ -488,11 +468,11 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 value={newSessionDate}
                 onChange={(e) => setNewSessionDate(e.target.value)}
                 required
-                className="w-full min-h-[40px] px-3 py-1.5 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
             <div className="sm:col-span-6">
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Session Title
               </label>
               <input
@@ -501,21 +481,20 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 onChange={(e) => setNewSessionTitle(e.target.value)}
                 placeholder="e.g. Thursday Ladder & Drills"
                 required
-                className="w-full min-h-[40px] px-3 py-1.5 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
             <div className="sm:col-span-3 flex items-center gap-2">
               <button
                 type="submit"
-                className="w-full min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-bold text-white cursor-pointer"
-                style={{ backgroundColor: 'var(--club-primary)' }}
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
               >
                 Create Session
               </button>
               <button
                 type="button"
                 onClick={() => setShowNewSessionForm(false)}
-                className="min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-pointer"
+                className="min-h-[38px] px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-pointer"
               >
                 Cancel
               </button>
@@ -523,11 +502,10 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
           </form>
         )}
 
-        {/* Active Practice Session Selector + Quick Member Digital ID Scanner */}
-        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        {/* Active Practice Session Selector */}
+        <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
               Active Check-In Date:
             </span>
             {sortedSessions.length > 0 ? (
@@ -535,7 +513,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 value={activeSession?.id || ''}
                 onChange={(e) => setSelectedSessionId(e.target.value)}
                 aria-label="Select Practice Session"
-                className="min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="min-h-[36px] px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               >
                 {sortedSessions.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -546,18 +524,18 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               </select>
             ) : (
               <span className="text-xs text-slate-500">
-                No session yet (Checking in a player will auto-create today's
+                No session yet (Checking in a player will auto-create today&apos;s
                 session)
               </span>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             {members.length > 0 && (
               <button
                 type="button"
                 onClick={handleMarkAllPresent}
-                className="min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 cursor-pointer"
+                className="min-h-[34px] px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
               >
                 Mark All Present
               </button>
@@ -567,7 +545,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               <button
                 type="button"
                 onClick={() => handleDeleteSession(activeSession.id)}
-                className="p-2 rounded-lg text-slate-400 hover:text-red-600 cursor-pointer"
+                className="p-2 rounded text-slate-400 hover:text-red-600 cursor-pointer"
                 title="Delete this attendance session"
               >
                 <Trash2 className="w-4 h-4" />
@@ -577,16 +555,13 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
         </div>
       </div>
 
-      {/* ================================================================= */}
-      {/* BULK CSV / SPREADSHEET ROSTER IMPORT DRAWER                       */}
-      {/* ================================================================= */}
+      {/* BULK CSV / SPREADSHEET ROSTER IMPORT DRAWER */}
       {showBulkImport && (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span>Bulk CSV & Spreadsheet Roster Import</span>
+              <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
+                Bulk CSV & Spreadsheet Roster Import
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Paste rows from Google Sheets or Excel, or upload a CSV file.
@@ -596,9 +571,9 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             <button
               type="button"
               onClick={() => setShowBulkImport(false)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+              className="p-1.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -613,15 +588,14 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             <button
               type="button"
               onClick={() => csvFileInputRef.current?.click()}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 cursor-pointer"
             >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Upload .CSV File</span>
+              Upload .CSV File
             </button>
             <button
               type="button"
               onClick={handleLoadSampleCsv}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 cursor-pointer"
             >
               Load Sample 6-Player Roster
             </button>
@@ -629,7 +603,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               <button
                 type="button"
                 onClick={() => setCsvText('')}
-                className="px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
+                className="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-800 cursor-pointer"
               >
                 Clear
               </button>
@@ -641,7 +615,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
             placeholder={`Name, Grade, Skill Level, DUPR, Paddle\nEthan Carter, 12, Advanced, 4.15, JOOLA Perseus 16mm\nMaya Lin, 11, Intermediate, 3.50, Vatic Pro Prism Flash`}
-            className="w-full p-3.5 rounded-xl text-xs font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+            className="w-full p-3 rounded-md text-xs font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
           />
 
           {parsedCsvRows.length > 0 && (
@@ -658,7 +632,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 </span>
               </div>
 
-              <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+              <div className="max-h-48 overflow-y-auto rounded-md border border-slate-200 dark:border-slate-800 divide-y divide-slate-200 dark:divide-slate-800 text-xs">
                 {parsedCsvRows.map((row, idx) => (
                   <div
                     key={`${row.name}-${idx}`}
@@ -689,7 +663,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowBulkImport(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -697,8 +671,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                   type="button"
                   disabled={validNewCsvRows.length === 0}
                   onClick={handleCommitBulkImport}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 cursor-pointer"
-                  style={{ backgroundColor: 'var(--club-primary)' }}
+                  className="px-4 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 cursor-pointer"
                 >
                   Import {validNewCsvRows.length} Member
                   {validNewCsvRows.length === 1 ? '' : 's'}
@@ -711,8 +684,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
 
       {/* Add / Edit Member Modal Drawer */}
       {isAddingMember && (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-          <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white mb-4">
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+          <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white mb-4">
             {editingMember
               ? `Edit Member: ${editingMember.name}`
               : 'Add New Club Member'}
@@ -722,7 +695,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           >
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 School ID
               </label>
               <input
@@ -730,12 +703,12 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 value={formSchoolId}
                 onChange={(e) => setFormSchoolId(e.target.value)}
                 placeholder="e.g. 204819"
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Full Name
               </label>
               <input
@@ -744,12 +717,12 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="e.g. Jordan Alvarez"
                 required
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Grade Level
               </label>
               <select
@@ -757,7 +730,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 onChange={(e) =>
                   setFormGrade(Number(e.target.value) as GradeLevel)
                 }
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               >
                 <option value={9}>Grade 9 (Freshman)</option>
                 <option value={10}>Grade 10 (Sophomore)</option>
@@ -767,13 +740,13 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Skill Tier
               </label>
               <select
                 value={formSkill}
                 onChange={(e) => setFormSkill(e.target.value as SkillLevel)}
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               >
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
@@ -782,7 +755,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 DUPR Rating (Optional)
               </label>
               <input
@@ -790,12 +763,12 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 value={formDupr}
                 onChange={(e) => setFormDupr(e.target.value)}
                 placeholder="e.g. 3.65"
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Paddle & Equipment Notes
               </label>
               <input
@@ -803,26 +776,26 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 value={formPaddle}
                 onChange={(e) => setFormPaddle(e.target.value)}
                 placeholder="e.g. Vatic Pro Prism Flash 16mm"
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Join Date
               </label>
               <input
                 type="date"
                 value={formJoinDate}
                 onChange={(e) => setFormJoinDate(e.target.value)}
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
 
             {/* Profile Photo Uploader */}
-            <div className="sm:col-span-2 lg:col-span-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+            <div className="sm:col-span-2 lg:col-span-3 p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-600">
+                <div className="relative w-11 h-11 rounded-md overflow-hidden bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700">
                   {formPhoto ? (
                     <img
                       src={formPhoto}
@@ -830,7 +803,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <Camera className="w-5 h-5 text-slate-400" />
+                    <Camera className="w-4 h-4 text-slate-400" />
                   )}
                 </div>
                 <div>
@@ -838,14 +811,15 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                     {formPhoto ? 'Photo Attached' : 'Member Profile Photo'}
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {formPhotoUploading ? 'Processing...' : 'Upload player avatar photo (Optional)'}
+                    {formPhotoUploading
+                      ? 'Processing...'
+                      : 'Upload player avatar photo (Optional)'}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <label className="min-h-[36px] px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-blue-100 transition-colors">
-                  <Camera className="w-3.5 h-3.5" />
+                <label className="min-h-[34px] px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center cursor-pointer hover:bg-slate-100 transition-colors">
                   <span>{formPhoto ? 'Change Photo' : 'Upload Photo'}</span>
                   <input
                     type="file"
@@ -879,21 +853,20 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
               </div>
             </div>
 
-            <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-end gap-3 pt-2">
+            <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => {
                   setIsAddingMember(false);
                   setEditingMember(null);
                 }}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-lg text-xs font-bold text-white cursor-pointer"
-                style={{ backgroundColor: 'var(--club-primary)' }}
+                className="px-4 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
               >
                 {editingMember ? 'Save Changes' : 'Add Member to Roster'}
               </button>
@@ -903,31 +876,31 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
       )}
 
       {/* Search & Filter Bar + Roster Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200 dark:border-slate-800">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search member name, paddle, or DUPR..."
-              className="w-full min-h-[42px] pl-10 pr-4 py-2 rounded-xl text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+              className="w-full min-h-[38px] pl-9 pr-4 py-1.5 rounded-md text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
           </div>
 
           {/* Interactive Grade & Skill Filter Controls */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Grade Filter */}
-            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-md">
               {(['all', 9, 10, 11, 12] as const).map((g) => (
                 <button
                   key={String(g)}
                   onClick={() => setGradeFilter(g)}
-                  className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors whitespace-nowrap cursor-pointer ${
                     gradeFilter === g
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white'
                       : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
@@ -937,15 +910,15 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
             </div>
 
             {/* Skill Filter */}
-            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-md">
               {(['all', 'Beginner', 'Intermediate', 'Advanced'] as const).map(
                 (sk) => (
                   <button
                     key={sk}
                     onClick={() => setSkillFilter(sk)}
-                    className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap cursor-pointer ${
+                    className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors whitespace-nowrap cursor-pointer ${
                       skillFilter === sk
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white'
                         : 'text-slate-600 dark:text-slate-400'
                     }`}
                   >
@@ -961,9 +934,9 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
         <div className="overflow-x-auto touch-scroll mt-4">
           <table className="w-full min-w-[720px] text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-mono-num uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <th className="py-3 pr-3">
-                  1-Tap Check-In ({activeSession?.date || 'Today'})
+                  Check-In ({activeSession?.date || 'Today'})
                 </th>
                 <th className="py-3 px-3">Member & Join Date</th>
                 <th className="py-3 px-3">Grade</th>
@@ -973,7 +946,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 {isOfficer && <th className="py-3 pl-3 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-sm">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
               {filteredMembers.map((member) => {
                 const isPresent =
                   activeSession?.presentMemberIds.includes(member.id) ?? false;
@@ -987,14 +960,13 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                     <td className="py-3 pr-3">
                       <button
                         onClick={() => handleToggleAttendance(member.id)}
-                        className={`min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-colors whitespace-nowrap cursor-pointer ${
+                        className={`min-h-[34px] px-3 py-1.5 rounded-md text-xs font-mono-num font-bold transition-colors whitespace-nowrap cursor-pointer ${
                           isPresent
                             ? 'bg-emerald-600 text-white'
                             : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
                         }`}
                       >
-                        <Check className="w-4 h-4" />
-                        {isPresent ? 'Present' : 'Check In'}
+                        {isPresent ? 'PRESENT' : 'Check In'}
                       </button>
                     </td>
 
@@ -1004,10 +976,10 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                           <img
                             src={member.photoUrl}
                             alt={member.name}
-                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-2xs"
+                            className="w-8 h-8 rounded object-cover shrink-0 border border-slate-200 dark:border-slate-700"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-700 text-[11px]">
+                          <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 text-[11px]">
                             {member.name
                               .split(' ')
                               .map((n) => n[0])
@@ -1019,12 +991,12 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                           <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
                             <span>{member.name}</span>
                             {member.schoolId && (
-                              <span className="font-mono-num text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.2 rounded">
-                                ID: {member.schoolId}
+                              <span className="font-mono-num text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                ({member.schoolId})
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                          <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num tabular-nums">
                             Joined {member.joinDate} · {member.elo} Elo
                           </div>
                         </div>
@@ -1051,11 +1023,11 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                       {member.paddleNotes}
                     </td>
 
-                    <td className="py-3 px-3 text-right">
-                      <div className="font-mono-num font-bold text-slate-900 dark:text-white">
+                    <td className="py-3 px-3 text-right font-mono-num tabular-nums">
+                      <div className="font-bold text-slate-900 dark:text-white">
                         {att.pct}%
                       </div>
-                      <div className="text-[11px] text-slate-500 tabular-nums">
+                      <div className="text-[11px] text-slate-500">
                         {att.attended}/{att.total} practices
                       </div>
                     </td>
@@ -1065,14 +1037,14 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                         <div className="inline-flex items-center gap-1">
                           <button
                             onClick={() => openEditMember(member)}
-                            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                            className="p-2 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                             title="Edit member"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteMember(member.id)}
-                            className="p-2 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                            className="p-2 rounded text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
                             title="Delete member"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1097,7 +1069,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                     </div>
                     <div className="text-xs text-slate-500">
                       {members.length === 0
-                        ? 'Click "Add Member" or "Bulk CSV Import" above to add your club players in seconds.'
+                        ? 'Click "+ Add Member" or "Bulk CSV Import" above to add your club players in seconds.'
                         : 'Try clearing the grade or skill filter.'}
                     </div>
                   </td>

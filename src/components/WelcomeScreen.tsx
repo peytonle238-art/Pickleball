@@ -1,25 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import {
-  Activity,
   ArrowRight,
-  Award,
-  Calendar,
-  Camera,
-  CheckCircle2,
   ChevronDown,
-  Clock,
-  Eye,
-  Hash,
-  Home,
-  Lock,
-  LogOut,
   Moon,
-  ShieldCheck,
   Sun,
-  Trophy,
-  UserCheck,
-  UserPlus,
 } from 'lucide-react';
 import {
   ClubDataState,
@@ -57,43 +42,36 @@ const MEMBER_DESTINATIONS: {
   id: NavTab;
   label: string;
   description: string;
-  icon: React.ReactNode;
 }[] = [
   {
     id: 'home',
     label: 'Member Overview',
     description: 'Welcome to BNHS Pickleball Club',
-    icon: <Home className="w-4 h-4" />,
   },
   {
     id: 'activity',
     label: 'My Activity',
     description: 'Your personal match history, attendance log & club tasks',
-    icon: <Activity className="w-4 h-4" />,
   },
   {
     id: 'ladder',
     label: 'Standings & Stats',
     description: 'Live Elo rankings, win streaks & match history',
-    icon: <Award className="w-4 h-4" />,
   },
   {
     id: 'tournaments',
     label: 'Club Tournaments',
     description: 'In-club brackets, round robins & court schedules',
-    icon: <Trophy className="w-4 h-4" />,
   },
   {
     id: 'watch',
     label: 'Outside Watch',
     description: 'Regional tournaments, deadlines & club pairs',
-    icon: <Eye className="w-4 h-4" />,
   },
   {
     id: 'calendar',
     label: 'Practice Calendar',
     description: 'Monthly practice schedule & club event dates',
-    icon: <Calendar className="w-4 h-4" />,
   },
 ];
 
@@ -240,139 +218,143 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-start relative overflow-x-hidden overflow-y-auto transition-colors duration-300">
-      {/* Subtle Minimalist Ambient Glow */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-10 dark:opacity-20"
-        style={{
-          backgroundImage: `radial-gradient(circle at 50% 0%, var(--club-primary) 0%, transparent 55%)`,
-        }}
-      />
-
-      {/* Minimalist Top Bar */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="relative z-20 max-w-5xl w-full mx-auto px-6 py-5 flex items-center justify-between shrink-0"
-      >
-        <div className="flex items-center gap-3">
-          <div className="bg-white px-2.5 py-1 rounded-xl shadow-xs border border-slate-200/80 flex items-center justify-center">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-between overflow-x-hidden overflow-y-auto transition-colors duration-200">
+      {/* Top Varsity Masthead Bar */}
+      <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <img
               src={BOBCATS_LOGO_URL}
               alt="Byron Nelson Bobcats"
-              className="h-7 w-auto object-contain"
+              className="h-8 w-auto object-contain"
             />
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+            <span className="font-display text-lg font-bold tracking-tight uppercase">
+              {data.settings.clubName}
+            </span>
           </div>
-          <span className="font-display text-lg font-bold tracking-tight">
-            {data.settings.clubName}
-          </span>
-        </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setAccountTab('officer')}
-            className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
-              accountTab === 'officer'
-                ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white'
-                : 'bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <Lock className="w-3.5 h-3.5" />
-            <span>Officer Sign In</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAccountTab('officer')}
+              className={`min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer ${
+                accountTab === 'officer'
+                  ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+              }`}
+            >
+              Officer Sign In
+            </button>
 
-          <button
-            type="button"
-            onClick={onToggleDarkMode}
-            className="min-h-[38px] w-9 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            aria-label="Toggle theme"
-          >
-            {darkMode ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-      </motion.header>
-
-      {/* Center Minimalist Hub */}
-      <main className="relative z-20 max-w-xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 flex-1 flex flex-col items-center text-center space-y-6">
-        {/* Official Bobcats Emblem Showcase */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="bg-white px-6 py-4 rounded-3xl shadow-md border border-slate-200/80 flex items-center justify-center"
-        >
-          <img
-            src={BOBCATS_LOGO_URL}
-            alt="Byron Nelson Bobcats Northwest ISD"
-            className="h-20 sm:h-24 w-auto object-contain"
-          />
-        </motion.div>
-
-        {/* Minimalist Title & Subtitle */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.06, ease: 'easeOut' }}
-          className="space-y-2.5"
-        >
-          <div className="text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400">
-            {data.settings.schoolName}
+            <button
+              type="button"
+              onClick={onToggleDarkMode}
+              className="min-h-[36px] w-9 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              aria-label="Toggle theme"
+            >
+              {darkMode ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </button>
           </div>
-          <h1
-            className="font-display font-bold tracking-tight text-slate-900 dark:text-white leading-none"
-            style={{ fontSize: 'clamp(2.25rem, 5vw, 3.5rem)' }}
-          >
-            {data.settings.clubName}
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            Continue with your School ID or add yourself to the club database to
-            track your personal activity, matches, and standings.
-          </p>
-        </motion.div>
+        </div>
+      </header>
 
-        {/* Unified Menu & Account Hub Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.12, ease: 'easeOut' }}
-          className="w-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-5 shadow-lg text-left space-y-4"
-        >
-          {/* Member & Officer Account Access Section */}
-          <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 p-3.5 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Member & Officer Sign In
+      {/* Main Varsity Editorial Split Layout */}
+      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-14 flex-1 flex flex-col justify-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          {/* Left Column: Editorial Masthead & Identity */}
+          <div className="lg:col-span-6 space-y-6 pt-2">
+            <div className="inline-flex items-center gap-3">
+              <div className="bg-white p-2.5 rounded-md border border-slate-200 dark:border-slate-800">
+                <img
+                  src={BOBCATS_LOGO_URL}
+                  alt="Byron Nelson Bobcats Northwest ISD"
+                  className="h-14 sm:h-16 w-auto object-contain"
+                />
+              </div>
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <div>{data.settings.schoolName}</div>
+                <div className="font-mono-num text-slate-900 dark:text-white font-bold mt-0.5">
+                  {data.members.length} Active Roster Athletes · {data.matches.length} Matches Logged
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-5">
+              <h1
+                className="font-display font-bold tracking-tight text-slate-900 dark:text-white uppercase leading-[0.95]"
+                style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)' }}
+              >
+                {data.settings.clubName}
+              </h1>
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-md">
+                Official varsity & club athlete portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.
+              </p>
+            </div>
+
+            {/* Quick Navigation Links */}
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                Direct Portal Sections
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onEnterAsMember('activity')}
+                  className="py-2.5 px-3 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 text-left transition-colors cursor-pointer"
+                >
+                  My Activity
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEnterAsMember('ladder')}
+                  className="py-2.5 px-3 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 text-left transition-colors cursor-pointer"
+                >
+                  Elo Standings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEnterAsMember('calendar')}
+                  className="py-2.5 px-3 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 text-left transition-colors cursor-pointer"
+                >
+                  Calendar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Flat Single-Elevation Roster Access & Portal Entry */}
+          <div className="lg:col-span-6 w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 text-left space-y-5">
+            <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="font-display text-lg font-bold uppercase tracking-tight text-slate-900 dark:text-white">
+                Athlete & Officer Access
               </div>
               {activeMember && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
-                  <CheckCircle2 className="w-3 h-3" />
-                  ID: {activeMember.schoolId || activeMember.id}
+                <span className="font-mono-num text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  ID {activeMember.schoolId || activeMember.id}
                 </span>
               )}
             </div>
 
-            {/* 3-Tab Switcher: School ID Sign-In | Add Yourself | Officer Sign In */}
-            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-200/70 dark:bg-slate-900">
+            {/* 3-Tab Switcher: School ID | Add Yourself | Officer */}
+            <div className="grid grid-cols-3 border-b border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => {
                   setAccountTab('signin');
                   setSignInFeedback(null);
                 }}
-                className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+                className={`py-2.5 px-2 text-xs font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
                   accountTab === 'signin'
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <UserCheck className="w-3.5 h-3.5" />
-                <span>School ID</span>
+                School ID
               </button>
               <button
                 type="button"
@@ -380,14 +362,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   setAccountTab('register');
                   setRegFeedback(null);
                 }}
-                className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+                className={`py-2.5 px-2 text-xs font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
                   accountTab === 'register'
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Add Yourself</span>
+                Add Yourself
               </button>
               <button
                 type="button"
@@ -395,32 +376,31 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   setAccountTab('officer');
                   setPinError('');
                 }}
-                className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+                className={`py-2.5 px-2 text-xs font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
                   accountTab === 'officer'
-                    ? 'bg-slate-900 text-amber-400 dark:bg-white dark:text-slate-900 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'border-slate-900 text-slate-900 dark:border-amber-400 dark:text-amber-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Officer</span>
+                Officer
               </button>
             </div>
 
             {/* TAB 1: SCHOOL ID SIGN IN */}
             {accountTab === 'signin' && (
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {activeMember ? (
-                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                  <div className="p-3.5 rounded-md bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-3">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0">
                         {activeMember.photoUrl ? (
                           <img
                             src={activeMember.photoUrl}
                             alt={activeMember.name}
-                            className="w-10 h-10 rounded-full object-cover border-2 border-blue-500 shadow-2xs shrink-0"
+                            className="w-10 h-10 rounded-md object-cover border border-slate-300 dark:border-slate-700 shrink-0"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-700 text-xs">
+                          <div className="w-10 h-10 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 text-xs">
                             {activeMember.name
                               .split(' ')
                               .map((n) => n[0])
@@ -429,57 +409,51 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                           </div>
                         )}
                         <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
                             {activeMember.name}
                           </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                            School ID: {activeMember.schoolId || 'Linked'} ·{' '}
-                            {activeMember.grade} Grade · {activeMember.elo} Elo
+                          <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num">
+                            ID {activeMember.schoolId || 'Linked'} · Grade {activeMember.grade} · {activeMember.elo} Elo
                           </div>
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={onSignOutMember}
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-300 inline-flex items-center gap-1 cursor-pointer shrink-0"
+                        className="px-2.5 py-1.5 rounded-md bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer shrink-0"
                       >
-                        <LogOut className="w-3 h-3" />
-                        <span>Switch</span>
+                        Switch
                       </button>
                     </div>
                     <button
                       type="button"
                       onClick={() => onEnterAsMember('activity')}
-                      className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                      className="w-full py-2.5 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition-colors"
                     >
-                      <Activity className="w-3.5 h-3.5" />
-                      <span>Continue to My Activity & Stats</span>
+                      Continue to My Activity & Stats
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={handleSchoolIdSubmit} className="space-y-2">
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Enter your School ID to sign in to your member account:
-                    </p>
+                  <form onSubmit={handleSchoolIdSubmit} className="space-y-2.5">
+                    <label className="block text-xs text-slate-600 dark:text-slate-400">
+                      Enter your School ID to load your member profile:
+                    </label>
                     <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <Hash className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <input
-                          type="text"
-                          value={schoolIdInput}
-                          onChange={(e) => {
-                            setSignInFeedback(null);
-                            setSchoolIdInput(e.target.value);
-                          }}
-                          placeholder="Enter School ID (e.g. 204819)"
-                          className="w-full h-10 pl-8 pr-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        value={schoolIdInput}
+                        onChange={(e) => {
+                          setSignInFeedback(null);
+                          setSchoolIdInput(e.target.value);
+                        }}
+                        placeholder="School ID (e.g. 204819)"
+                        className="flex-1 h-10 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-mono-num text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                      />
                       <button
                         type="submit"
-                        className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer shrink-0 transition-colors"
+                        className="h-10 px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer shrink-0 transition-colors"
                       >
-                        Continue
+                        Sign In
                       </button>
                     </div>
                   </form>
@@ -487,10 +461,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
                 {signInFeedback && (
                   <div
-                    className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${
+                    className={`text-xs font-medium px-3 py-2 rounded-md border ${
                       signInFeedback.type === 'success'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
-                        : 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                        : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
                     }`}
                   >
                     {signInFeedback.text}
@@ -501,12 +475,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
             {/* TAB 2: ADD YOURSELF TO CLUB DATABASE */}
             {accountTab === 'register' && (
-              <form onSubmit={handleRegisterSubmit} className="space-y-2.5">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Add yourself to the club database with your School ID to
-                  create your personal account:
+              <form onSubmit={handleRegisterSubmit} className="space-y-3">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  Register your School ID on the club roster to track matches and standings across all devices:
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <input
                     type="text"
                     required
@@ -516,7 +489,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       setRegSchoolId(e.target.value);
                     }}
                     placeholder="School ID (Required)"
-                    className="w-full h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                    className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-mono-num text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                   />
                   <input
                     type="text"
@@ -527,16 +500,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       setRegName(e.target.value);
                     }}
                     placeholder="Full Name (First & Last)"
-                    className="w-full h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                    className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <select
                     value={regGrade}
                     onChange={(e) =>
                       setRegGrade(Number(e.target.value) as GradeLevel)
                     }
-                    className="h-9 px-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                    className="h-9 px-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                   >
                     <option value={9}>9th Grade</option>
                     <option value={10}>10th Grade</option>
@@ -546,7 +519,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   <select
                     value={regSkill}
                     onChange={(e) => setRegSkill(e.target.value as SkillLevel)}
-                    className="h-9 px-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                    className="h-9 px-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                   >
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
@@ -558,12 +531,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   value={regNotes}
                   onChange={(e) => setRegNotes(e.target.value)}
                   placeholder="Paddle / Preferred Partner (Optional)"
-                  className="w-full h-9 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                 />
 
                 {/* Profile Photo Upload Option */}
-                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-600">
+                <div className="flex items-center gap-3 p-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <div className="relative w-10 h-10 rounded-md overflow-hidden bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 text-[10px] font-bold text-slate-500">
                     {regPhoto ? (
                       <img
                         src={regPhoto}
@@ -571,19 +544,18 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <Camera className="w-5 h-5 text-slate-400" />
+                      <span>IMG</span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                      {regPhoto ? 'Photo Added' : 'Member Profile Photo'}
+                      {regPhoto ? 'Photo Added' : 'Athlete Photo'}
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {photoUploading ? 'Processing image...' : 'Upload photo (Optional)'}
+                      {photoUploading ? 'Processing image...' : 'Optional roster picture'}
                     </div>
                   </div>
-                  <label className="min-h-[34px] px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors hover:bg-blue-100">
-                    <Camera className="w-3.5 h-3.5" />
+                  <label className="min-h-[32px] px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center cursor-pointer shrink-0 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
                     <span>{regPhoto ? 'Change' : 'Upload'}</span>
                     <input
                       type="file"
@@ -609,7 +581,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <button
                       type="button"
                       onClick={() => setRegPhoto('')}
-                      className="text-[11px] text-slate-400 hover:text-red-500 font-semibold cursor-pointer shrink-0"
+                      className="text-xs text-slate-400 hover:text-red-600 font-semibold cursor-pointer shrink-0"
                     >
                       Remove
                     </button>
@@ -617,17 +589,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 </div>
                 <button
                   type="submit"
-                  className="w-full h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                  className="w-full h-10 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition-colors"
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Add Myself & Continue</span>
+                  Add Myself & Continue
                 </button>
                 {regFeedback && (
                   <div
-                    className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${
+                    className={`text-xs font-medium px-3 py-2 rounded-md border ${
                       regFeedback.type === 'success'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
-                        : 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                        : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
                     }`}
                   >
                     {regFeedback.text}
@@ -638,10 +609,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
             {/* TAB 3: OFFICER SIGN IN */}
             {accountTab === 'officer' && (
-              <form onSubmit={handleOfficerPinSubmit} className="space-y-2.5">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Enter the 4-digit Officer access code to unlock the Officer
-                  Console:
+              <form onSubmit={handleOfficerPinSubmit} className="space-y-3">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  Enter your 4-digit Officer PIN or President Password:
                 </p>
                 <div className="flex items-center gap-2">
                   <input
@@ -656,125 +626,81 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                       );
                     }}
                     placeholder="••••"
-                    className="flex-1 h-10 text-center font-mono-num text-lg tracking-[0.4em] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                    className="flex-1 h-10 text-center font-mono-num text-lg tracking-[0.4em] rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-slate-900 dark:focus:border-amber-400"
                   />
                   <button
                     type="submit"
-                    className="h-10 px-4 rounded-xl bg-slate-900 dark:bg-amber-400 text-white dark:text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                    className="h-10 px-4 rounded-md bg-slate-900 dark:bg-amber-400 text-white dark:text-slate-950 text-xs font-bold cursor-pointer shrink-0"
                   >
-                    <Lock className="w-3.5 h-3.5" />
-                    <span>Sign In</span>
+                    Unlock
                   </button>
                 </div>
                 {pinError && (
-                  <div className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                  <div className="text-xs font-semibold text-red-600 dark:text-red-400">
                     {pinError}
                   </div>
                 )}
               </form>
             )}
-          </div>
 
-          <div className="flex items-center justify-between text-xs pt-1">
-            <span className="font-semibold text-slate-500 dark:text-slate-400">
-              Select Destination
-            </span>
-            <span className="text-slate-400 dark:text-slate-500 font-mono-num">
-              {hasScheduledEvents
-                ? `Next Event: ${days}d ${hours}h ${minutes}m`
-                : `${data.members.length} Members`}
-            </span>
-          </div>
-
-          {/* Interactive Everything Dropdown with Bobcats Image */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="w-full min-h-[56px] px-4 py-3 rounded-2xl bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-800/70 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3 transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                  {activeDestObj.icon}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                    {activeDestObj.label}
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {activeDestObj.description}
-                  </div>
-                </div>
+            {/* Destination Selector */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-600 dark:text-slate-400">
+                  Portal Destination
+                </span>
+                <span className="text-slate-500 font-mono-num">
+                  {hasScheduledEvents
+                    ? `Next Session: ${days}d ${hours}h ${minutes}m`
+                    : `${data.members.length} Members`}
+                </span>
               </div>
-              <ChevronDown
-                className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200 ${
-                  dropdownOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
 
-            <AnimatePresence>
-              {dropdownOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setDropdownOpen(false)}
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="absolute left-0 right-0 mt-2 z-40 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden p-2 space-y-1.5"
-                  >
-                    {/* Dropdown Menu Header with Bobcats Image */}
-                    <div className="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2.5">
-                        <div className="bg-white px-2 py-1 rounded-lg border border-slate-200/80">
-                          <img
-                            src={BOBCATS_LOGO_URL}
-                            alt="Bobcats Logo"
-                            className="h-5 w-auto object-contain"
-                          />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-900 dark:text-white">
-                            Club Navigation Menu
-                          </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Activity, Standings, Tournaments & Calendar
-                          </div>
-                        </div>
-                      </div>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="w-full px-3.5 py-2.5 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 transition-colors cursor-pointer"
+                >
+                  <div className="min-w-0 text-left">
+                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {activeDestObj.label}
                     </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {activeDestObj.description}
+                    </div>
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-150 ${
+                      dropdownOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
 
-                    <div className="max-h-64 overflow-y-auto space-y-1 pt-1">
-                      {MEMBER_DESTINATIONS.map((opt) => {
-                        const isSelected = opt.id === selectedDestination;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedDestination(opt.id);
-                              setDropdownOpen(false);
-                            }}
-                            className={`w-full px-3 py-2.5 rounded-xl text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
-                              isSelected
-                                ? 'bg-blue-600 text-white'
-                                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span
-                                className={
-                                  isSelected
-                                    ? 'text-white'
-                                    : 'text-blue-600 dark:text-blue-400'
-                                }
-                              >
-                                {opt.icon}
-                              </span>
+                <AnimatePresence>
+                  {dropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setDropdownOpen(false)}
+                      />
+                      <div className="absolute left-0 right-0 mt-1 z-40 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                        {MEMBER_DESTINATIONS.map((opt) => {
+                          const isSelected = opt.id === selectedDestination;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDestination(opt.id);
+                                setDropdownOpen(false);
+                              }}
+                              className={`w-full px-3.5 py-2.5 text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                              }`}
+                            >
                               <div className="min-w-0">
                                 <div className="text-xs font-bold truncate">
                                   {opt.label}
@@ -782,79 +708,49 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 <div
                                   className={`text-[11px] truncate ${
                                     isSelected
-                                      ? 'text-blue-100'
+                                      ? 'text-slate-300 dark:text-slate-600'
                                       : 'text-slate-500 dark:text-slate-400'
                                   }`}
                                 >
                                   {opt.description}
                                 </div>
                               </div>
-                            </div>
-                            <ArrowRight
-                              className={`w-3.5 h-3.5 shrink-0 ${
-                                isSelected ? 'text-white' : 'text-slate-400'
-                              }`}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
+                              <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-60" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
 
-          {/* Primary Launch Button */}
-          <motion.button
-            whileTap={{ scale: 0.985 }}
-            type="button"
-            onClick={() => onEnterAsMember(selectedDestination)}
-            className="w-full min-h-[48px] px-5 py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-opacity hover:opacity-95"
-            style={{ backgroundColor: 'var(--club-primary)' }}
-          >
-            <span>Open {activeDestObj.label}</span>
-            <ArrowRight className="w-4 h-4" />
-          </motion.button>
-
-          {/* Minimalist 1-Tap Quick Pills for My Activity, Stats, Tournaments */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => onEnterAsMember('activity')}
-              className="py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Activity className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>My Activity</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onEnterAsMember('ladder')}
-              className="py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Award className="w-3.5 h-3.5 text-amber-500" />
-              <span>Stats</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onEnterAsMember('calendar')}
-              className="py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Calendar</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => onEnterAsMember(selectedDestination)}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-md font-bold text-xs uppercase tracking-wider text-white flex items-center justify-center gap-2 cursor-pointer transition-opacity hover:opacity-95"
+                style={{ backgroundColor: 'var(--club-primary)' }}
+              >
+                <span>Enter {activeDestObj.label}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </motion.div>
+        </div>
       </main>
 
-      {/* Minimalist Footer */}
-      <footer className="relative z-20 max-w-5xl w-full mx-auto px-6 py-4 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400 dark:text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5" />
-          {hasScheduledEvents
-            ? `Next: ${nextEvent.title} (${nextEvent.date})`
-            : `${data.settings.schoolName} · ${data.settings.clubName}`}
-        </span>
+      {/* Bottom Hairline Footer */}
+      <footer className="w-full border-t border-slate-200 dark:border-slate-800 py-4 px-4 sm:px-6 text-xs text-slate-500 dark:text-slate-400">
+        <div className="max-w-5xl w-full mx-auto flex flex-wrap items-center justify-between gap-2">
+          <span>
+            {data.settings.schoolName} · {data.settings.clubName}
+          </span>
+          <span className="font-mono-num">
+            {hasScheduledEvents
+              ? `Next Session: ${nextEvent.title} · ${nextEvent.date}`
+              : 'Official Club Standings & Operations'}
+          </span>
+        </div>
       </footer>
     </div>
   );

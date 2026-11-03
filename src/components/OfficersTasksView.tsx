@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import {
-  ArrowRight,
-  Calendar,
-  Edit3,
-  Mail,
-  Plus,
-  Shield,
-  Trash2,
-  User,
-} from 'lucide-react';
+import { Edit3, Trash2 } from 'lucide-react';
 import {
   GradeLevel,
   Officer,
@@ -218,11 +209,9 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
 
           <button
             onClick={openAddOfficer}
-            className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
-            style={{ backgroundColor: 'var(--club-primary)' }}
+            className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            Add Officer
+            + Add Officer
           </button>
         </div>
 
@@ -230,16 +219,16 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
         {showOfficerForm && (
           <form
             onSubmit={handleSaveOfficer}
-            className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+            className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
           >
-            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+            <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
               {editingOfficer
                 ? `Edit Officer: ${editingOfficer.name}`
                 : 'Add Club Officer'}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Officer Name
                 </label>
                 <input
@@ -247,18 +236,18 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
                   value={offName}
                   onChange={(e) => setOffName(e.target.value)}
                   required
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Executive Role
                 </label>
                 <select
                   value={offRole}
                   onChange={(e) => setOffRole(e.target.value as OfficerRole)}
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 >
                   {OFFICER_ROLES.map((r) => (
                     <option key={r} value={r}>
@@ -269,7 +258,7 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Grade
                 </label>
                 <select
@@ -277,7 +266,7 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
                   onChange={(e) =>
                     setOffGrade(Number(e.target.value) as GradeLevel)
                   }
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 >
                   <option value={9}>Grade 9</option>
                   <option value={10}>Grade 10</option>
@@ -287,7 +276,7 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Contact (Email / Social)
                 </label>
                 <input
@@ -295,13 +284,13 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
                   value={offContact}
                   onChange={(e) => setOffContact(e.target.value)}
                   placeholder="name@bnhs.edu · @handle"
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Responsibilities Note
               </label>
               <input
@@ -309,7 +298,7 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
                 value={offBio}
                 onChange={(e) => setOffBio(e.target.value)}
                 placeholder="Brief summary of club responsibilities"
-                className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
               />
             </div>
 
@@ -317,14 +306,13 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowOfficerForm(false)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800"
+                className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-lg text-xs font-bold text-white cursor-pointer"
-                style={{ backgroundColor: 'var(--club-primary)' }}
+                className="px-4 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
               >
                 Save Officer
               </button>
@@ -333,15 +321,15 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
         )}
 
         {/* Officer Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {officers.map((officer) => (
             <div
               key={officer.id}
-              className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between"
+              className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
-                  <div className="text-xs font-bold tracking-wide text-blue-600 dark:text-blue-400">
+                  <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
                     {officer.role} · Grade {officer.grade}
                   </div>
                   {isOfficer && (
@@ -379,9 +367,8 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
                 )}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <Mail className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{officer.contact}</span>
+              <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 font-mono-num truncate">
+                {officer.contact}
               </div>
             </div>
           ))}
@@ -403,11 +390,9 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
 
           <button
             onClick={openAddTask}
-            className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
-            style={{ backgroundColor: 'var(--club-primary)' }}
+            className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            New Officer Task
+            + New Officer Task
           </button>
         </div>
 
@@ -415,14 +400,14 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
         {showTaskForm && (
           <form
             onSubmit={handleSaveTask}
-            className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+            className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
           >
-            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+            <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
               {editingTask ? 'Edit Officer Task' : 'Create Officer Task'}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Task Description
                 </label>
                 <input
@@ -431,18 +416,18 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
                   onChange={(e) => setTaskTitle(e.target.value)}
                   placeholder="e.g. Confirm court reservation for regional warmup"
                   required
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Assignee
                 </label>
                 <select
                   value={taskAssignee}
                   onChange={(e) => setTaskAssignee(e.target.value)}
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 >
                   {officers.map((o) => (
                     <option key={o.id} value={o.name}>
@@ -453,25 +438,25 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Due Date
                 </label>
                 <input
                   type="date"
                   value={taskDueDate}
                   onChange={(e) => setTaskDueDate(e.target.value)}
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Column Status
                 </label>
                 <select
                   value={taskStatus}
                   onChange={(e) => setTaskStatus(e.target.value as TaskStatus)}
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 >
                   {TASK_COLUMNS.map((st) => (
                     <option key={st} value={st}>
@@ -482,14 +467,14 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Category
                 </label>
                 <input
                   type="text"
                   value={taskCategory}
                   onChange={(e) => setTaskCategory(e.target.value)}
-                  className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 />
               </div>
             </div>
@@ -498,14 +483,13 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowTaskForm(false)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800"
+                className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-lg text-xs font-bold text-white cursor-pointer"
-                style={{ backgroundColor: 'var(--club-primary)' }}
+                className="px-4 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
               >
                 Save Task
               </button>
@@ -514,17 +498,17 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
         )}
 
         {/* 3-Column Task Board */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {TASK_COLUMNS.map((columnStatus) => {
             const columnTasks = tasks.filter((t) => t.status === columnStatus);
 
             return (
               <div
                 key={columnStatus}
-                className="rounded-2xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-4 space-y-3"
+                className="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 space-y-3"
               >
-                <div className="flex items-center justify-between px-1">
-                  <span className="font-display text-lg font-bold text-slate-900 dark:text-white">
+                <div className="flex items-center justify-between px-1 pb-2 border-b border-slate-200 dark:border-slate-800">
+                  <span className="font-display text-base font-bold text-slate-900 dark:text-white">
                     {columnStatus}
                   </span>
                   <span className="font-mono-num text-xs font-semibold text-slate-500">
@@ -532,14 +516,14 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {columnTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 space-y-2.5"
+                      className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2.5"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="text-[11px] font-medium text-slate-500">
+                        <span className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
                           {task.category}
                         </span>
                         <div className="flex items-center gap-1">
@@ -572,30 +556,24 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
                         {task.title}
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500">
-                        <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
-                          <User className="w-3.5 h-3.5" />
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-500 font-mono-num">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">
                           {task.assignee.split(' ')[0]}
                         </span>
-                        <span className="inline-flex items-center gap-1 tabular-nums">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {task.dueDate}
-                        </span>
+                        <span className="tabular-nums">{task.dueDate}</span>
                       </div>
 
                       <button
                         onClick={() => advanceTaskStatus(task)}
-                        className="w-full py-1.5 px-2.5 rounded-lg text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1 cursor-pointer"
+                        className="w-full py-1.5 px-2.5 rounded text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
                       >
-                        <span>
-                          Move to{' '}
-                          {task.status === 'To Do'
-                            ? 'In Progress'
-                            : task.status === 'In Progress'
-                            ? 'Done'
-                            : 'To Do'}
-                        </span>
-                        <ArrowRight className="w-3 h-3" />
+                        Move to{' '}
+                        {task.status === 'To Do'
+                          ? 'In Progress'
+                          : task.status === 'In Progress'
+                          ? 'Done'
+                          : 'To Do'}{' '}
+                        →
                       </button>
                     </div>
                   ))}

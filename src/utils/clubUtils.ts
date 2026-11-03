@@ -5,6 +5,7 @@ import {
   ClubTournamentMatch,
   ClubTournamentParticipant,
   GameScore,
+  LadderChallenge,
   MatchRecord,
   Member,
 } from '../types';
@@ -13,13 +14,27 @@ export interface MemberAchievement {
   id: string;
   title: string;
   description: string;
-  category: 'Attendance' | 'Matches' | 'Streak' | 'Rating';
+  category: 'Attendance' | 'Matches' | 'Streak' | 'Rating' | 'Rivalry';
   current: number;
   target: number;
   pct: number;
   unlocked: boolean;
   progressLabel: string;
   accent: 'blue' | 'emerald' | 'amber' | 'indigo';
+}
+
+export interface HeadToHeadSummary {
+  winProbabilityA: number;
+  winProbabilityB: number;
+  eloStakeIfAWins: number;
+  eloStakeIfBWins: number;
+  aWins: number;
+  bWins: number;
+  totalMatches: number;
+  aPoints: number;
+  bPoints: number;
+  pointDiffA: number;
+  sharedMatches: MatchRecord[];
 }
 
 export function buildMemberPersonalQrToken(member: {
@@ -45,7 +60,8 @@ export function parseMemberPersonalQrToken(
 export function computeMemberAchievements(
   member: Member | null,
   matches: MatchRecord[],
-  attendance: AttendanceSession[]
+  attendance: AttendanceSession[],
+  challenges: LadderChallenge[] = []
 ): MemberAchievement[] {
   if (!member) return [];
 
@@ -75,6 +91,14 @@ export function computeMemberAchievements(
       }
     }
   }
+
+  const memberChallengesCount = challenges.filter(
+    (c) =>
+      (c.challengerId === member.id || c.opponentId === member.id) &&
+      c.status !== 'declined'
+  ).length;
+
+  const careerPointsScored = Math.max(0, member.pointsFor || 0);
 
   const eloProgress = Math.max(0, member.elo - 1150);
   const eloTarget = 100; // 1150 -> 1250
@@ -141,6 +165,31 @@ export function computeMemberAchievements(
       accent: 'amber',
     },
     {
+      id: 'rivalry-challenger',
+      title: 'Rivalry Callout',
+      description:
+        'Issue or accept an official ladder challenge on the Club Challenge Board',
+      category: 'Rivalry',
+      current: Math.min(1, memberChallengesCount),
+      target: 1,
+      pct: memberChallengesCount >= 1 ? 100 : 0,
+      unlocked: memberChallengesCount >= 1,
+      progressLabel: `${Math.min(1, memberChallengesCount)} / 1 challenge`,
+      accent: 'blue',
+    },
+    {
+      id: 'century-scorer',
+      title: 'Century Point Club',
+      description: 'Score 100+ total points across official club matches',
+      category: 'Matches',
+      current: Math.min(100, careerPointsScored),
+      target: 100,
+      pct: Math.min(100, Math.round((careerPointsScored / 100) * 100)),
+      unlocked: careerPointsScored >= 100,
+      progressLabel: `${careerPointsScored} / 100 pts`,
+      accent: 'indigo',
+    },
+    {
       id: 'club-veteran',
       title: 'Club Court Veteran',
       description: 'Compete in 10 official recorded club matches',
@@ -185,7 +234,6 @@ export function computeMemberAchievements(
   ];
 }
 
-
 /**
  * Calculates the Elo rating delta using standard K=32 formula
  * based on average team Elo ratings.
@@ -204,6 +252,71 @@ export function calculateEloDelta(
   const kFactor = 32;
   const delta = Math.round(kFactor * (actual1 - expected1));
   return Math.max(4, Math.abs(delta));
+}
+
+/**
+ * Computes head-to-head rivalry statistics, logistic Elo win probability,
+ * and K=32 Elo rating stakes between two club members.
+ */
+export function computeHeadToHeadSummary(
+  playerA: Member,
+  playerB: Member,
+  matches: MatchRecord[]
+): HeadToHeadSummary {
+  const expectedA = 1 / (1 + Math.pow(10, (playerB.elo - playerA.elo) / 400));
+  const winProbabilityA = Math.min(99, Math.max(1, Math.round(expectedA * 100)));
+  const winProbabilityB = 100 - winProbabilityA;
+
+  const eloStakeIfAWins = calculateEloDelta([playerA.elo], [playerB.elo], 1);
+  const eloStakeIfBWins = calculateEloDelta([playerA.elo], [playerB.elo], 2);
+
+  let aWins = 0;
+  let bWins = 0;
+  let aPoints = 0;
+  let bPoints = 0;
+  const sharedMatches: MatchRecord[] = [];
+
+  for (const m of matches) {
+    const aInT1 = m.team1Ids.includes(playerA.id);
+    const aInT2 = m.team2Ids.includes(playerA.id);
+    const bInT1 = m.team1Ids.includes(playerB.id);
+    const bInT2 = m.team2Ids.includes(playerB.id);
+
+    const opposed = (aInT1 && bInT2) || (aInT2 && bInT1);
+    if (!opposed) continue;
+
+    sharedMatches.push(m);
+    const aWon = (aInT1 && m.winnerTeam === 1) || (aInT2 && m.winnerTeam === 2);
+    if (aWon) {
+      aWins += 1;
+    } else {
+      bWins += 1;
+    }
+
+    for (const g of m.games) {
+      if (aInT1) {
+        aPoints += g.team1Score;
+        bPoints += g.team2Score;
+      } else {
+        aPoints += g.team2Score;
+        bPoints += g.team1Score;
+      }
+    }
+  }
+
+  return {
+    winProbabilityA,
+    winProbabilityB,
+    eloStakeIfAWins,
+    eloStakeIfBWins,
+    aWins,
+    bWins,
+    totalMatches: sharedMatches.length,
+    aPoints,
+    bPoints,
+    pointDiffA: aPoints - bPoints,
+    sharedMatches,
+  };
 }
 
 /**

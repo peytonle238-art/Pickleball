@@ -158,6 +158,9 @@ export function sanitizeAndStripTemplateData(
     matches: (state.matches || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),
+    challenges: (state.challenges || []).filter(
+      (x) => !TEMPLATE_RECORD_IDS.has(x.id)
+    ),
     clubTournaments: (state.clubTournaments || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),

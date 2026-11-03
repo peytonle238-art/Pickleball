@@ -227,6 +227,7 @@ export function mergeClubDataStates(
     members: Array.from(memberMap.values()),
     attendance: mergeById(primary.attendance, secondary.attendance),
     matches: mergeById(primary.matches, secondary.matches),
+    challenges: mergeById(primary.challenges || [], secondary.challenges || []),
     clubTournaments: mergeById(
       primary.clubTournaments,
       secondary.clubTournaments

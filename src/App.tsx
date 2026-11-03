@@ -5,19 +5,14 @@ import {
   Calendar,
   ChevronDown,
   Crown,
-  Download,
   Eye,
   Home,
   Moon,
   Play,
   Settings,
-  Shield,
   ShieldCheck,
-  Sparkles,
   Sun,
   Trophy,
-  Unlock,
-  Upload,
   Users,
   Wallet,
   X,
@@ -25,6 +20,7 @@ import {
 import {
   ClubDataState,
   GradeLevel,
+  LadderChallenge,
   MatchRecord,
   Member,
   NavTab,
@@ -38,6 +34,7 @@ import {
 } from './data/initialData';
 import {
   applyMatchToMembers,
+  calculateEloDelta,
   updateTournamentMatchList,
 } from './utils/clubUtils';
 import {
@@ -801,6 +798,151 @@ export default function App() {
     showToast('Match removed from history.');
   };
 
+  const handleCreateChallenge = ({
+    challengerId,
+    opponentId,
+    format,
+    targetScore,
+    message,
+  }: {
+    challengerId: string;
+    opponentId: string;
+    format: 'singles' | 'doubles';
+    targetScore: 11 | 15 | 21;
+    message: string;
+  }) => {
+    const newChallenge: LadderChallenge = {
+      id: `chal-${Date.now()}`,
+      challengerId,
+      opponentId,
+      format,
+      targetScore,
+      message,
+      createdAt: new Date().toISOString().slice(0, 10),
+      status: 'open',
+    };
+    const nextState: ClubDataState = {
+      ...latestLocalDataRef.current,
+      challenges: [
+        newChallenge,
+        ...(latestLocalDataRef.current.challenges || []),
+      ],
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+    const oppName =
+      latestLocalDataRef.current.members.find((m) => m.id === opponentId)
+        ?.name || 'Rival';
+    showToast(`Official challenge posted calling out ${oppName}!`);
+  };
+
+  const handleUpdateChallengeStatus = (
+    challengeId: string,
+    status: 'open' | 'accepted' | 'declined',
+    remove = false
+  ) => {
+    const currentChallenges = latestLocalDataRef.current.challenges || [];
+    const nextChallenges = remove
+      ? currentChallenges.filter((c) => c.id !== challengeId)
+      : currentChallenges.map((c) =>
+          c.id === challengeId ? { ...c, status } : c
+        );
+
+    const nextState: ClubDataState = {
+      ...latestLocalDataRef.current,
+      challenges: nextChallenges,
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+
+    if (remove) {
+      showToast('Challenge withdrawn from board.');
+    } else if (status === 'accepted') {
+      showToast('Challenge accepted! Match is on deck.');
+    } else if (status === 'declined') {
+      showToast('Challenge declined.');
+    }
+  };
+
+  const handleResolveChallengeMatch = (
+    challengeId: string,
+    challengerScore: number,
+    opponentScore: number
+  ) => {
+    if (!isOfficer) return;
+    const currentSnapshot = latestLocalDataRef.current;
+    const challenge = (currentSnapshot.challenges || []).find(
+      (c) => c.id === challengeId
+    );
+    if (!challenge) return;
+
+    const challenger = currentSnapshot.members.find(
+      (m) => m.id === challenge.challengerId
+    );
+    const opponent = currentSnapshot.members.find(
+      (m) => m.id === challenge.opponentId
+    );
+    const winnerTeam: 1 | 2 = challengerScore >= opponentScore ? 1 : 2;
+    const eloDelta = calculateEloDelta(
+      [challenger?.elo || 1200],
+      [opponent?.elo || 1200],
+      winnerTeam
+    );
+
+    const matchRecord: MatchRecord = {
+      id: `match-${Date.now()}`,
+      date: new Date().toISOString().slice(0, 10),
+      format: challenge.format,
+      scoringType: 'sideout',
+      targetScore: challenge.targetScore,
+      bestOf: 1,
+      team1Ids: [challenge.challengerId],
+      team2Ids: [challenge.opponentId],
+      games: [{ team1Score: challengerScore, team2Score: opponentScore }],
+      winnerTeam,
+      eloDelta,
+    };
+
+    const updatedMembers = applyMatchToMembers(
+      currentSnapshot.members,
+      matchRecord.team1Ids,
+      matchRecord.team2Ids,
+      matchRecord.games,
+      matchRecord.winnerTeam,
+      matchRecord.eloDelta
+    );
+
+    const winnerMember = winnerTeam === 1 ? challenger : opponent;
+    const loserMember = winnerTeam === 1 ? opponent : challenger;
+    const winningScore = Math.max(challengerScore, opponentScore);
+    const losingScore = Math.min(challengerScore, opponentScore);
+    const scoreSummary = `${
+      winnerMember?.name || 'Winner'
+    } def. ${loserMember?.name || 'Opponent'} ${winningScore}–${losingScore} (±${eloDelta} Elo)`;
+
+    const updatedChallenges = (currentSnapshot.challenges || []).map((c) =>
+      c.id === challengeId
+        ? {
+            ...c,
+            status: 'completed' as const,
+            completedMatchId: matchRecord.id,
+            winnerMemberId: winnerMember?.id,
+            scoreSummary,
+          }
+        : c
+    );
+
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
+      members: updatedMembers,
+      matches: [matchRecord, ...currentSnapshot.matches],
+      challenges: updatedChallenges,
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+    showToast(`Challenge settled! ${scoreSummary}`);
+  };
+
   const handleExportJSON = () => {
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -1021,6 +1163,8 @@ export default function App() {
           onSelectLinkedMember={handleSelectLinkedMember}
           onSignInBySchoolId={handleSignInBySchoolId}
           onRegisterMember={handleRegisterMember}
+          onCreateChallenge={handleCreateChallenge}
+          onUpdateChallengeStatus={handleUpdateChallengeStatus}
           onSignOutMember={handleSignOutMember}
           onOfficerSignIn={handleOfficerSignIn}
           onNavigate={handleNavigate}
@@ -1037,27 +1181,27 @@ export default function App() {
         /* =============================================================== */
         /* VIEW 2: FULL-FEATURED OFFICER EXECUTIVE COMMAND CONSOLE         */
         /* =============================================================== */
-        <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 overflow-y-auto overflow-x-hidden transition-colors duration-300">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 overflow-y-auto overflow-x-hidden transition-colors duration-200">
           {/* President Broadcast Notice Alert Banner if active */}
           {data.settings.broadcastNotice?.enabled && data.settings.broadcastNotice.text && (
             <aside
               role="alert"
-              className={`sticky top-0 z-40 px-4 py-2 text-xs font-bold shadow-md ${
+              className={`sticky top-0 z-40 px-4 py-2 text-xs font-bold border-b ${
                 data.settings.broadcastNotice.level === 'urgent'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-blue-600 text-white'
+                  ? 'bg-red-600 text-white border-red-700'
+                  : 'bg-blue-600 text-white border-blue-700'
               }`}
             >
               <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="shrink-0">
-                    {data.settings.broadcastNotice.level === 'urgent' ? '⚠️' : '📢'}
+                  <span className="uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded bg-black/20 shrink-0">
+                    {data.settings.broadcastNotice.level === 'urgent' ? 'URGENT' : 'NOTICE'}
                   </span>
                   <span className="truncate">
                     {data.settings.broadcastNotice.text}
                   </span>
                 </div>
-                <span className="text-[10px] uppercase tracking-wider opacity-85 shrink-0">
+                <span className="text-[10px] uppercase tracking-wider opacity-85 shrink-0 font-mono-num">
                   President Broadcast
                 </span>
               </div>
@@ -1073,34 +1217,32 @@ export default function App() {
                 onClick={() => handleNavigate('home')}
                 className="flex items-center gap-3 text-left cursor-pointer shrink-0"
               >
-                <div className="bg-white px-2 py-1 rounded-xl border border-white/20 flex items-center justify-center">
+                <div className="bg-white px-2 py-1 rounded-md border border-white/20 flex items-center justify-center">
                   <img
                     src={BOBCATS_LOGO_URL}
                     alt="Byron Nelson Bobcats"
                     className="h-6 sm:h-7 w-auto object-contain"
                   />
                 </div>
-                <span className="font-display text-lg sm:text-xl font-bold tracking-tight text-white whitespace-nowrap shrink-0">
+                <span className="font-display text-lg sm:text-xl font-bold uppercase tracking-tight text-white whitespace-nowrap shrink-0">
                   {data.settings.clubName} · Officer Console
                 </span>
               </button>
 
-              {/* Zone 2: Unified "Everything" Dropdown Menu with Bobcats Logo */}
+              {/* Zone 2: Unified Dropdown Menu */}
               <div className="relative">
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
+                <button
                   type="button"
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="min-h-[40px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-bold text-white inline-flex items-center gap-2.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                  className="min-h-[38px] px-3.5 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-white inline-flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0"
                 >
-                  <span className="text-amber-400">{activeNavItem.icon}</span>
                   <span>{activeNavItem.label}</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                    className={`w-4 h-4 text-slate-400 transition-transform duration-150 ${
                       menuOpen ? 'rotate-180' : ''
                     }`}
                   />
-                </motion.button>
+                </button>
 
                 <AnimatePresence>
                   {menuOpen && (
@@ -1110,19 +1252,19 @@ export default function App() {
                         onClick={() => setMenuOpen(false)}
                       />
                       <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                        transition={{ duration: 0.2, ease: SMOOTH_EASE }}
-                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 top-16 sm:top-auto sm:mt-2.5 w-auto sm:w-96 max-w-md z-40 rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-2xl p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.15 }}
+                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-xl p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
                       >
-                        <div className="p-3 rounded-2xl bg-slate-900 text-white flex items-center justify-between gap-3">
+                        <div className="p-3 rounded-md bg-slate-900 text-white flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="bg-white px-2.5 py-1.5 rounded-xl shrink-0">
+                            <div className="bg-white px-2 py-1 rounded shrink-0">
                               <img
                                 src={BOBCATS_LOGO_URL}
                                 alt="Byron Nelson Bobcats"
-                                className="h-6 w-auto object-contain"
+                                className="h-5 w-auto object-contain"
                               />
                             </div>
                             <div className="min-w-0">
@@ -1137,7 +1279,7 @@ export default function App() {
                         </div>
 
                         <div className="space-y-1">
-                          <div className="px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase text-slate-400">
+                          <div className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-slate-400">
                             Match & Competition Ops
                           </div>
                           <div className="grid grid-cols-2 gap-1">
@@ -1148,13 +1290,12 @@ export default function App() {
                                   key={item.id}
                                   type="button"
                                   onClick={() => handleNavigate(item.id)}
-                                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
+                                  className={`px-3 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
                                     isSelected
                                       ? 'bg-blue-600 text-white'
                                       : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                                   }`}
                                 >
-                                  {item.icon}
                                   <span className="truncate">{item.label}</span>
                                 </button>
                               );
@@ -1163,7 +1304,7 @@ export default function App() {
                         </div>
 
                         <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
-                          <div className="px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase text-amber-500">
+                          <div className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-amber-500">
                             Officer Administration
                           </div>
                           <div className="grid grid-cols-2 gap-1">
@@ -1174,13 +1315,12 @@ export default function App() {
                                   key={item.id}
                                   type="button"
                                   onClick={() => handleNavigate(item.id)}
-                                  className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
+                                  className={`px-3 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
                                     isSelected
                                       ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                                   }`}
                                 >
-                                  {item.icon}
                                   <span className="truncate">{item.label}</span>
                                 </button>
                               );
@@ -1192,7 +1332,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setDarkMode(!darkMode)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="w-full px-3 py-2 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
                           >
                             {darkMode ? (
                               <>
@@ -1214,14 +1354,12 @@ export default function App() {
                                 setMenuOpen(false);
                                 handleExportJSON();
                               }}
-                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                              className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
                             >
-                              <Download className="w-3.5 h-3.5" />
                               <span>Export JSON</span>
                             </button>
 
-                            <label className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
-                              <Upload className="w-3.5 h-3.5" />
+                            <label className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
                               <span>Import JSON</span>
                               <input
                                 type="file"
@@ -1245,10 +1383,9 @@ export default function App() {
                                 setMenuOpen(false);
                                 setShowWelcomeScreen(true);
                               }}
-                              className="font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                              className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                             >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Welcome Screen</span>
+                              Welcome Screen
                             </button>
                           </div>
                         </div>
@@ -1258,12 +1395,11 @@ export default function App() {
                 </AnimatePresence>
               </div>
 
-              {/* Zone 3: Officer Mode Switch & President Badge */}
+              {/* Zone 3: Officer Mode Switch & President Status */}
               <div className="flex items-center gap-2 shrink-0">
                 {isPresident ? (
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-bold">
-                    <Crown className="w-3.5 h-3.5 text-amber-400" />
-                    <span>President Admin</span>
+                  <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-md bg-amber-400/15 text-amber-300 border border-amber-400/30 text-xs font-bold">
+                    President Admin
                   </span>
                 ) : (
                   <button
@@ -1274,18 +1410,16 @@ export default function App() {
                       setPinError('');
                       setShowPinModal(true);
                     }}
-                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 cursor-pointer"
+                    className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 cursor-pointer"
                   >
-                    <Crown className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Unlock President</span>
+                    Unlock President
                   </button>
                 )}
                 <button
                   onClick={handleToggleMode}
-                  className="min-h-[38px] px-3.5 py-1.5 text-xs font-bold rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 inline-flex items-center gap-1.5 cursor-pointer"
+                  className="min-h-[36px] px-3 py-1.5 text-xs font-bold rounded-md bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                  <Unlock className="w-3.5 h-3.5" />
-                  <span>Exit Officer Mode</span>
+                  Exit Officer Mode
                 </button>
               </div>
             </div>
@@ -1294,7 +1428,7 @@ export default function App() {
           {/* Officer Executive Workspace: Left Command Sidebar + Main Viewport */}
           <div className="flex-1 max-w-[1440px] w-full mx-auto flex">
             {/* Desktop Command Sidebar */}
-            <aside className="hidden lg:flex w-64 shrink-0 flex-col justify-between border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 no-print">
+            <aside className="hidden lg:flex w-60 shrink-0 flex-col justify-between border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 no-print">
               <div className="space-y-6">
                 <div className="space-y-1">
                   <div className="px-3 py-1 text-[11px] font-bold tracking-wider uppercase text-slate-400">
@@ -1307,24 +1441,13 @@ export default function App() {
                         key={item.id}
                         type="button"
                         onClick={() => handleNavigate(item.id)}
-                        className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`w-full px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
                             ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                             : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <span className="flex items-center gap-2.5">
-                          <span
-                            className={
-                              isSelected
-                                ? 'text-amber-400 dark:text-blue-600'
-                                : 'text-slate-400'
-                            }
-                          >
-                            {item.icon}
-                          </span>
-                          <span>{item.label}</span>
-                        </span>
+                        <span>{item.label}</span>
                       </button>
                     );
                   })}
@@ -1341,24 +1464,13 @@ export default function App() {
                         key={item.id}
                         type="button"
                         onClick={() => handleNavigate(item.id)}
-                        className={`w-full px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`w-full px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
                             ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                             : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <span className="flex items-center gap-2.5">
-                          <span
-                            className={
-                              isSelected
-                                ? 'text-amber-400 dark:text-blue-600'
-                                : 'text-amber-500'
-                            }
-                          >
-                            {item.icon}
-                          </span>
-                          <span>{item.label}</span>
-                        </span>
+                        <span>{item.label}</span>
                       </button>
                     );
                   })}
@@ -1370,14 +1482,12 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleExportJSON}
-                    className="py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200"
+                    className="py-2 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-200"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Export</span>
+                    Export JSON
                   </button>
-                  <label className="py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1 cursor-pointer hover:bg-slate-200">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Import</span>
+                  <label className="py-2 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-200">
+                    <span>Import JSON</span>
                     <input
                       type="file"
                       accept=".json,application/json"
@@ -1397,10 +1507,10 @@ export default function App() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.28, ease: SMOOTH_EASE }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2, ease: SMOOTH_EASE }}
                 >
                   {activeTab === 'home' && (
                     <HomeDashboard
@@ -1430,9 +1540,14 @@ export default function App() {
                     <LadderStatsView
                       members={data.members}
                       matches={data.matches}
+                      attendance={data.attendance}
+                      challenges={data.challenges || []}
                       isOfficer={true}
                       onSaveManualMatch={handleSaveCompletedMatch}
                       onDeleteMatch={handleDeleteMatch}
+                      onCreateChallenge={handleCreateChallenge}
+                      onUpdateChallengeStatus={handleUpdateChallengeStatus}
+                      onResolveChallengeMatch={handleResolveChallengeMatch}
                       onNavigate={handleNavigate}
                     />
                   )}
@@ -1584,8 +1699,8 @@ export default function App() {
             </main>
           </div>
 
-          {/* Officer Mobile Thumb-Friendly Bottom Navigation Dock */}
-          <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 text-white backdrop-blur-xl border-t border-slate-800 px-1 pt-1.5 pb-safe grid grid-cols-6 gap-0.5 no-print shadow-2xl">
+          {/* Officer Mobile Bottom Navigation Dock */}
+          <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-slate-900 text-white border-t border-slate-800 px-1 pt-1.5 pb-safe grid grid-cols-6 gap-0.5 no-print">
             {[
               { id: 'home', label: 'Home', icon: <Home className="w-4 h-4" /> },
               { id: 'scorekeeper', label: 'Live Score', icon: <Play className="w-4 h-4" /> },
@@ -1602,9 +1717,9 @@ export default function App() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleNavigate(tab.id as NavTab)}
-                  className={`py-1.5 px-0.5 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-colors cursor-pointer min-h-[44px] ${
+                  className={`py-1.5 px-0.5 rounded-md flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-colors cursor-pointer min-h-[44px] ${
                     isActive
-                      ? 'text-amber-400 bg-slate-800/90'
+                      ? 'text-amber-400 bg-slate-800'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -1623,11 +1738,11 @@ export default function App() {
       <AnimatePresence>
         {toastMessage && (
           <motion.div
-            initial={{ opacity: 0, y: 16, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.96 }}
-            transition={{ duration: 0.22, ease: SMOOTH_EASE }}
-            className="fixed bottom-5 right-5 z-50 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 text-xs font-semibold flex items-center gap-3 shadow-xl border border-slate-800/40"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18 }}
+            className="fixed bottom-5 right-5 z-50 rounded-md bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 text-xs font-semibold flex items-center gap-3 shadow-lg border border-slate-800"
           >
             <span>{toastMessage}</span>
             <button
@@ -1649,32 +1764,27 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              transition={{ duration: 0.24, ease: SMOOTH_EASE }}
-              className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-sm rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-xl"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                    <Shield className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                    Administration Sign In
-                  </h3>
-                </div>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-display text-xl font-bold uppercase text-slate-900 dark:text-white">
+                  Administration Sign In
+                </h3>
                 <button
                   onClick={() => {
                     setShowPinModal(false);
                     setPendingOfficerTab(null);
                   }}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -1694,7 +1804,7 @@ export default function App() {
                     setPinInput(e.target.value.trim());
                   }}
                   placeholder="••••"
-                  className="w-full h-14 text-center font-mono-num text-2xl tracking-[0.4em] rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                  className="w-full h-12 text-center font-mono-num text-2xl tracking-[0.4em] rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-slate-900 dark:focus:border-amber-400"
                 />
 
                 {pinError && (
@@ -1710,13 +1820,13 @@ export default function App() {
                       setShowPinModal(false);
                       setPendingOfficerTab(null);
                     }}
-                    className="flex-1 min-h-[44px] rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                    className="flex-1 min-h-[40px] rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 min-h-[44px] rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-black dark:bg-amber-500 dark:hover:bg-amber-400 dark:text-slate-950 cursor-pointer transition-colors"
+                    className="flex-1 min-h-[40px] rounded-md text-xs font-bold text-white bg-slate-900 hover:bg-black dark:bg-amber-400 dark:hover:bg-amber-300 dark:text-slate-950 cursor-pointer transition-colors"
                   >
                     Unlock
                   </button>

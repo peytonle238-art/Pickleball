@@ -1,20 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import {
-  AlertTriangle,
-  ArrowRight,
-  ArrowUpRight,
-  Award,
-  Calendar,
-  Clock,
-  Crown,
-  MapPin,
-  Play,
-  ShieldCheck,
-  Trophy,
-  Users,
-  Wallet,
-} from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { ClubDataState, NavTab } from '../types';
 import { getDaysUntil, getNextUpcomingEvent } from '../utils/clubUtils';
 
@@ -70,184 +55,160 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Minimalist 4-Tile Quick Navigation Row (Stats, Tournaments, Calendar, Score Keeper) */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-        className="grid grid-cols-2 lg:grid-cols-4 gap-3.5"
-      >
-        <motion.button
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.985 }}
+      {/* 4-Column Flat Editorial Index Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 overflow-hidden">
+        <button
           onClick={() => onNavigate('ladder')}
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-blue-500/50 text-left flex flex-col justify-between gap-3 transition-colors cursor-pointer shadow-2xs"
+          className="p-4 text-left flex flex-col justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
         >
-          <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Award className="w-4 h-4" />
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>01 · STANDINGS</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold text-slate-900 dark:text-white">
-              Ladder & Stats
+            <div className="font-display text-lg font-bold uppercase text-slate-900 dark:text-white">
+              Ladder & Challenges
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              {data.members.length} ranked players · Elo
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num">
+              {data.members.length} players ·{' '}
+              {
+                (data.challenges || []).filter(
+                  (c) => c.status === 'open' || c.status === 'accepted'
+                ).length
+              }{' '}
+              callouts
             </div>
           </div>
-        </motion.button>
+        </button>
 
-        <motion.button
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.985 }}
+        <button
           onClick={() => onNavigate('tournaments')}
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-amber-500/50 text-left flex flex-col justify-between gap-3 transition-colors cursor-pointer shadow-2xs"
+          className="p-4 text-left flex flex-col justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
         >
-          <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Trophy className="w-4 h-4" />
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>02 · BRACKETS</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold text-slate-900 dark:text-white">
+            <div className="font-display text-lg font-bold uppercase text-slate-900 dark:text-white">
               Tournaments
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Club brackets & outside watch
+              In-club pools & regional watch
             </div>
           </div>
-        </motion.button>
+        </button>
 
-        <motion.button
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.985 }}
+        <button
           onClick={() => onNavigate('calendar')}
-          className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500/50 text-left flex flex-col justify-between gap-3 transition-colors cursor-pointer shadow-2xs"
+          className="p-4 text-left flex flex-col justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
         >
-          <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <Calendar className="w-4 h-4" />
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>03 · SCHEDULE</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold text-slate-900 dark:text-white">
+            <div className="font-display text-lg font-bold uppercase text-slate-900 dark:text-white">
               Club Calendar
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Practices, dates & events
+              Practices, dates & courts
             </div>
           </div>
-        </motion.button>
+        </button>
 
-        <motion.button
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.985 }}
+        <button
           onClick={() => onNavigate('scorekeeper')}
-          className="p-4 rounded-2xl text-white text-left flex flex-col justify-between gap-3 transition-opacity hover:opacity-95 cursor-pointer shadow-xs"
+          className="p-4 text-left flex flex-col justify-between gap-2 text-white transition-opacity hover:opacity-95 cursor-pointer"
           style={{ backgroundColor: 'var(--club-primary)' }}
         >
-          <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-xl bg-white/15 text-white flex items-center justify-center">
-              <Play className="w-4 h-4 fill-current" />
-            </div>
-            <ArrowRight className="w-4 h-4 text-white/80" />
+          <div className="flex items-center justify-between text-xs font-semibold text-white/80">
+            <span>04 · COURTSIDE</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold text-white">
+            <div className="font-display text-lg font-bold uppercase text-white">
               Score a Match
             </div>
-            <div className="text-xs text-white/80">
-              Live side-out or rally scorer
+            <div className="text-xs text-white/85">
+              Side-out referee & court rotation
             </div>
           </div>
-        </motion.button>
-      </motion.div>
+        </button>
+      </div>
 
-      {/* Next Scheduled Session Banner + QR Check-in */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.05, ease: 'easeOut' }}
-        className="rounded-3xl p-6 text-white relative overflow-hidden border border-slate-800/20 flex flex-col lg:flex-row lg:items-center justify-between gap-6"
-        style={{
-          background: `linear-gradient(135deg, var(--club-primary) 0%, #0f172a 100%)`,
-        }}
-      >
+      {/* Next Scheduled Session Flat Scoreboard Banner */}
+      <div className="rounded-lg bg-slate-900 text-white p-6 border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         {hasScheduledEvents ? (
           <>
-            <div className="space-y-2.5 max-w-2xl">
-              <div className="flex items-center gap-2 text-xs font-medium text-white/80">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 uppercase tracking-wider">
                 <span>Next {nextEvent.type}</span>
                 <span aria-hidden="true">·</span>
                 <span className="font-mono-num">{nextEvent.date}</span>
               </div>
 
-              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold uppercase tracking-tight text-white">
                 {nextEvent.title}
               </h2>
 
-              <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs sm:text-sm text-white/85">
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 shrink-0 text-amber-300" />
-                  {nextEvent.time}
-                </span>
-                <span aria-hidden="true" className="text-white/40">
+              <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-xs sm:text-sm text-slate-300">
+                <span className="font-mono-num">{nextEvent.time}</span>
+                <span aria-hidden="true" className="text-slate-600">
                   ·
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 shrink-0 text-amber-300" />
-                  {nextEvent.location}
-                </span>
+                <span>{nextEvent.location}</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-5">
-              {/* Minimalist Countdown */}
-              <div className="grid grid-cols-4 gap-3 bg-white/10 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/10 text-center">
-                <div>
-                  <div className="font-mono-num text-xl sm:text-2xl font-bold text-white">
-                    {String(days).padStart(2, '0')}
-                  </div>
-                  <div className="text-[10px] text-white/70">Days</div>
+            <div className="grid grid-cols-4 divide-x divide-slate-800 bg-slate-950 border border-slate-800 rounded-md text-center shrink-0">
+              <div className="px-4 py-2.5">
+                <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
+                  {String(days).padStart(2, '0')}
                 </div>
-                <div>
-                  <div className="font-mono-num text-xl sm:text-2xl font-bold text-white">
-                    {String(hours).padStart(2, '0')}
-                  </div>
-                  <div className="text-[10px] text-white/70">Hrs</div>
+                <div className="text-[10px] font-semibold uppercase text-slate-400">
+                  Days
                 </div>
-                <div>
-                  <div className="font-mono-num text-xl sm:text-2xl font-bold text-white">
-                    {String(minutes).padStart(2, '0')}
-                  </div>
-                  <div className="text-[10px] text-white/70">Min</div>
+              </div>
+              <div className="px-4 py-2.5">
+                <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
+                  {String(hours).padStart(2, '0')}
                 </div>
-                <div>
-                  <div
-                    className="font-mono-num text-xl sm:text-2xl font-bold"
-                    style={{ color: 'var(--club-secondary)' }}
-                  >
-                    {String(seconds).padStart(2, '0')}
-                  </div>
-                  <div className="text-[10px] text-white/70">Sec</div>
+                <div className="text-[10px] font-semibold uppercase text-slate-400">
+                  Hrs
+                </div>
+              </div>
+              <div className="px-4 py-2.5">
+                <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
+                  {String(minutes).padStart(2, '0')}
+                </div>
+                <div className="text-[10px] font-semibold uppercase text-slate-400">
+                  Min
+                </div>
+              </div>
+              <div className="px-4 py-2.5">
+                <div
+                  className="font-mono-num text-xl sm:text-2xl font-bold tabular-nums"
+                  style={{ color: 'var(--club-secondary)' }}
+                >
+                  {String(seconds).padStart(2, '0')}
+                </div>
+                <div className="text-[10px] font-semibold uppercase text-slate-400">
+                  Sec
                 </div>
               </div>
             </div>
           </>
         ) : (
           <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="text-xs font-medium text-white/80">
+            <div className="space-y-1">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Schedule & Events
               </div>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold uppercase tracking-tight text-white">
                 No Upcoming Practices or Events Scheduled
               </h2>
-              <p className="text-xs sm:text-sm text-white/80">
+              <p className="text-xs sm:text-sm text-slate-300">
                 {isOfficer
                   ? 'Open the Club Calendar to schedule your first practice or enable recurring practice days.'
                   : 'Check the Club Calendar for upcoming practice and tournament dates.'}
@@ -255,28 +216,22 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
             <button
               onClick={() => onNavigate('calendar')}
-              className="min-h-[44px] px-4 py-2.5 rounded-2xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-bold inline-flex items-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0 self-start sm:self-center"
+              className="min-h-[40px] px-4 py-2 rounded-md bg-white text-slate-950 hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer shrink-0 self-start sm:self-center"
             >
-              <Calendar className="w-4 h-4 text-blue-600" />
-              <span>Open Calendar</span>
+              Open Calendar
             </button>
           </div>
         )}
-      </motion.div>
+      </div>
 
-      {/* Main Split: Top 5 Ladder Standings + Tournament Watch & Announcements */}
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, delay: 0.1, ease: 'easeOut' }}
-        className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch"
-      >
+      {/* Main Split: Top 5 Ladder Standings + Tournament Watch */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Top 5 Club Ladder (7 cols) */}
-        <div className="lg:col-span-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 flex flex-col justify-between">
+        <div className="lg:col-span-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
                   Top 5 Club Ladder
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -285,14 +240,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </div>
               <button
                 onClick={() => onNavigate('ladder')}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+                className="px-3 py-1.5 rounded-md text-xs font-semibold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white whitespace-nowrap shrink-0 cursor-pointer transition-colors"
               >
                 View All ({data.members.length})
               </button>
             </div>
 
             {top5Members.length > 0 ? (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/70">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {top5Members.map((member, index) => (
                   <div
                     key={member.id}
@@ -300,7 +255,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="w-6 font-mono-num font-bold text-sm text-slate-400">
-                        #{index + 1}
+                        {String(index + 1).padStart(2, '0')}
                       </span>
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
@@ -327,37 +282,36 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="py-10 text-center space-y-2">
+              <div className="py-10 text-center space-y-1.5">
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                   No members added to the ladder yet.
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isOfficer
                     ? 'Go to Roster & Attendance to add your first club members.'
-                    : 'Members will appear here once added by club officers.'}
+                    : 'Members will appear here once added to the roster.'}
                 </p>
               </div>
             )}
           </div>
 
-          <div className="pt-3 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-            <span>{data.matches.length} club matches recorded</span>
+          <div className="pt-3 mt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+            <span className="font-mono-num">{data.matches.length} club matches recorded</span>
             <button
               onClick={() => onNavigate('ladder')}
               className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
             >
-              Full Stats & Leaderboards →
+              Full Standings & Leaderboards →
             </button>
           </div>
         </div>
 
-        {/* Right 5 cols: Tournament Spotlight + Latest Bulletin */}
+        {/* Right 5 cols: Tournament Watch & Active Brackets */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* Tournament Watch Card */}
-          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 flex-1 flex flex-col justify-between space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Upcoming Tournament Watch
+          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex-1 flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Regional Tournament Watch
               </span>
               <button
                 onClick={() => onNavigate('watch')}
@@ -371,7 +325,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+                    <h3 className="font-display text-xl font-bold uppercase text-slate-900 dark:text-white">
                       {featuredOutsideTournament.name}
                     </h3>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -387,13 +341,12 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     const isUrgent = daysLeft <= 7;
                     return (
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums shrink-0 ${
+                        className={`px-2 py-0.5 rounded text-[11px] font-mono-num font-bold shrink-0 ${
                           isUrgent
                             ? 'bg-red-600 text-white'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {isUrgent && <AlertTriangle className="w-3 h-3" />}
                         {daysLeft}d left
                       </span>
                     );
@@ -414,8 +367,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             )}
 
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-              <span>
-                {data.clubTournaments.length} in-club brackets created
+              <span className="font-mono-num">
+                {data.clubTournaments.length} in-club brackets
               </span>
               <button
                 onClick={() => onNavigate('tournaments')}
@@ -426,11 +379,9 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
           </div>
 
-          {/* Active In-Club Brackets Card */}
-          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 flex-1 flex flex-col justify-between space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 inline-flex items-center gap-1.5">
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex-1 flex flex-col justify-between space-y-2.5">
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 In-Club Tournament Brackets
               </span>
               <button
@@ -458,64 +409,53 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             )}
 
             {data.clubTournaments[0] && (
-              <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+              <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 font-mono-num">
                 <span>{data.clubTournaments[0].matches.length} matches</span>
-                <span className="font-mono-num">
-                  {data.clubTournaments[0].date}
-                </span>
+                <span>{data.clubTournaments[0].date}</span>
               </div>
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Officer-Only Executive Management Strip (Hidden in Member Mode) */}
+      {/* Officer-Only Executive Management Strip */}
       {isOfficer && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.28 }}
-          className="rounded-3xl bg-slate-900 text-white p-6 border border-slate-800 space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-400">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Officer Management Modules (Unlocked)</span>
-            </div>
+        <div className="rounded-lg bg-slate-900 text-white p-6 border border-slate-800 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              Officer Administration Modules
+            </span>
             <span className="text-xs text-slate-400">
-              Hidden from Member View
+              Executive Access
             </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
               onClick={() => onNavigate('members')}
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer"
+              className="p-3.5 rounded-md bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left space-y-1 transition-colors cursor-pointer"
             >
-              <Users className="w-4 h-4 text-blue-400" />
-              <div className="text-xs font-bold">Roster & Attendance</div>
-              <div className="text-[11px] text-slate-400">
+              <div className="text-xs font-bold text-white">Roster & Attendance</div>
+              <div className="text-[11px] text-slate-400 font-mono-num">
                 {data.members.length} members
               </div>
             </button>
 
             <button
               onClick={() => onNavigate('officers')}
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer"
+              className="p-3.5 rounded-md bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left space-y-1 transition-colors cursor-pointer"
             >
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <div className="text-xs font-bold">Officers & Tasks</div>
-              <div className="text-[11px] text-slate-400">
+              <div className="text-xs font-bold text-white">Officers & Tasks</div>
+              <div className="text-[11px] text-slate-400 font-mono-num">
                 {data.tasks.filter((t) => t.status !== 'Done').length} open tasks
               </div>
             </button>
 
             <button
               onClick={() => onNavigate('treasury')}
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer"
+              className="p-3.5 rounded-md bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left space-y-1 transition-colors cursor-pointer"
             >
-              <Wallet className="w-4 h-4 text-emerald-400" />
-              <div className="text-xs font-bold">Treasury & Dues</div>
+              <div className="text-xs font-bold text-white">Treasury & Dues</div>
               <div className="text-[11px] text-slate-400 font-mono-num">
                 $
                 {data.transactions.reduce(
@@ -529,16 +469,15 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
             <button
               onClick={() => onNavigate('admin')}
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-left space-y-1 transition-colors cursor-pointer group"
+              className="p-3.5 rounded-md bg-slate-950 hover:bg-slate-800 border border-amber-500/40 text-left space-y-1 transition-colors cursor-pointer"
             >
-              <Crown className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-              <div className="text-xs font-bold text-amber-300">President Admin</div>
+              <div className="text-xs font-bold text-amber-400">President Admin</div>
               <div className="text-[11px] text-slate-400">
                 Full Club Command
               </div>
             </button>
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );

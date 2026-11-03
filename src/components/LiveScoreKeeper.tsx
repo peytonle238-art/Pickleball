@@ -1,20 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowRightLeft,
-  CheckCircle2,
-  Grid,
-  Lock,
-  Minus,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Shuffle,
-  Sparkles,
-  Trophy,
-  Undo2,
-  Users,
-  Volume2,
-} from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 import {
   AttendanceSession,
   GameScore,
@@ -738,9 +723,9 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Mode Switcher: Single Court Referee vs Multi-Court Practice Night */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
             Live Courtside Scorekeeper & Court Rotation
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -749,30 +734,28 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+        <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
           <button
             type="button"
             onClick={() => setScoreMode('single')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
               scoreMode === 'single'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            <Trophy className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Single Court Referee</span>
+            Single Court Referee
           </button>
           <button
             type="button"
             onClick={() => setScoreMode('multicourt')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
               scoreMode === 'multicourt'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
-            <Grid className="w-3.5 h-3.5 text-amber-500" />
-            <span>Multi-Court Practice Night (Courts 1–6)</span>
+            Multi-Court Practice Night (Courts 1–6)
           </button>
         </div>
       </div>
@@ -783,12 +766,11 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
       {scoreMode === 'multicourt' && (
         <div className="space-y-6">
           {/* Smart Court Generator Control Panel */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500" />
-                  <span>Smart Practice Court Generator</span>
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
+                  Smart Practice Court Generator
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Auto-assign balanced matchups across Courts 1–6 from checked-in
@@ -801,21 +783,19 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                   type="button"
                   onClick={handleAutoGenerateCourts}
                   disabled={members.length < 2}
-                  className="min-h-[42px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-2 shadow-xs disabled:opacity-40 cursor-pointer"
+                  className="min-h-[42px] px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider text-white disabled:opacity-40 cursor-pointer"
                   style={{ backgroundColor: 'var(--club-primary)' }}
                 >
-                  <Shuffle className="w-4 h-4" />
-                  <span>Auto-Assign Courts</span>
+                  Auto-Assign Courts
                 </button>
 
                 <button
                   type="button"
                   onClick={handleAddEmptyCourt}
                   disabled={courts.length >= 6 || members.length < 2}
-                  className="min-h-[42px] px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 disabled:opacity-40 cursor-pointer"
+                  className="min-h-[42px] px-3.5 py-2 rounded-md text-xs font-bold uppercase tracking-wider bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 disabled:opacity-40 cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Court</span>
+                  + Add Court
                 </button>
 
                 {courts.length > 0 && (
@@ -825,7 +805,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                       setCourts([]);
                       setWaitingQueueIds([]);
                     }}
-                    className="min-h-[42px] px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-red-600 cursor-pointer"
+                    className="min-h-[42px] px-3 py-2 rounded-md text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-red-600 cursor-pointer"
                   >
                     Clear Courts
                   </button>
@@ -940,9 +920,8 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
             {/* Next-Up Waiting Queue if any players are waiting for a court */}
             {waitingQueueIds.length > 0 && (
-              <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/25 border border-amber-200/80 dark:border-amber-800/50 flex flex-wrap items-center justify-between gap-3">
+              <div className="p-4 rounded-md bg-amber-50 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-800/50 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs">
-                  <Users className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                   <span className="font-bold text-slate-900 dark:text-white">
                     Next Up Waiting Queue ({waitingQueueIds.length}):
                   </span>
@@ -951,7 +930,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                   </span>
                 </div>
                 <span className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
-                  Click "Rotate Players" on any finished court to sub them in
+                  Click "Rotate / Next Game" on any finished court to sub them in
                 </span>
               </div>
             )}
@@ -959,9 +938,8 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
           {/* Active Multi-Court Scoreboard Grid */}
           {courts.length === 0 ? (
-            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 p-12 text-center space-y-3">
-              <Grid className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto" />
-              <div className="font-display text-2xl font-bold text-slate-900 dark:text-white">
+            <div className="rounded-lg bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 p-12 text-center space-y-3">
+              <div className="font-display text-2xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
                 {members.length < 2
                   ? 'Add Club Members to Generate Practice Courts'
                   : 'Ready to Launch Multi-Court Practice Night'}
@@ -975,11 +953,10 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                 <button
                   type="button"
                   onClick={handleAutoGenerateCourts}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white inline-flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 rounded-md text-xs font-bold uppercase tracking-wider text-white cursor-pointer"
                   style={{ backgroundColor: 'var(--club-primary)' }}
                 >
-                  <Shuffle className="w-4 h-4" />
-                  <span>Auto-Assign Courts Now</span>
+                  Auto-Assign Courts Now
                 </button>
               )}
             </div>
@@ -1161,10 +1138,9 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                       <button
                         type="button"
                         onClick={() => handleRotateCourtPlayers(court)}
-                        className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 inline-flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-2 rounded-md text-xs font-bold uppercase tracking-wider bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer"
                       >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Rotate / Next Game</span>
+                        Rotate / Next Game
                       </button>
 
                       <button
@@ -1174,18 +1150,15 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                           !!court.savedDelta
                         }
                         onClick={() => handleFinishAndRecordCourtMatch(court)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+                        className={`px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-40 ${
                           court.savedDelta
                             ? 'bg-emerald-600 text-white'
                             : 'bg-blue-600 hover:bg-blue-500 text-white'
                         }`}
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>
-                          {court.savedDelta
-                            ? 'Match Saved ✓'
-                            : 'Finish & Record Match'}
-                        </span>
+                        {court.savedDelta
+                          ? 'Match Saved ✓'
+                          : 'Finish & Record Match'}
                       </button>
                     </div>
                   </div>
@@ -1203,7 +1176,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         <>
           {/* Tournament Match Context Banner if launched from Club Tournaments */}
           {pendingTournamentMatch && (
-            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="text-xs text-amber-900 dark:text-amber-200">
                 <span className="font-bold">Official Tournament Match:</span>{' '}
                 {pendingTournamentMatch.label} — Final score will automatically
@@ -1220,18 +1193,15 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
           {/* Member View-Only Banner */}
           {!isOfficer && (
-            <div className="rounded-2xl bg-slate-900 dark:bg-slate-900/90 text-white px-5 py-3.5 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 text-xs">
-                <Lock className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>
-                  <strong>View-Only Scoreboard:</strong> Only Club Officers can
-                  score official matches or save results to the Ladder.
-                </span>
+            <div className="rounded-lg bg-slate-900 text-white px-5 py-3.5 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-xs">
+                <strong>View-Only Scoreboard:</strong> Only Club Officers can
+                score official matches or save results to the Ladder.
               </div>
               <button
                 type="button"
                 onClick={onRequestOfficerUnlock}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-400 text-slate-950 text-xs font-bold hover:bg-amber-300 cursor-pointer shrink-0"
+                className="px-3.5 py-1.5 rounded-md bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider hover:bg-amber-300 cursor-pointer shrink-0"
               >
                 Unlock Officer Mode
               </button>
@@ -1239,10 +1209,10 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
           )}
 
           {/* Match Settings & Player Selection Bar */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
-                <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
                   Single-Court Referee Setup
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -1461,13 +1431,12 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
           {/* Match Saved Banner if Match Complete */}
           {savedMatchSummary && (
-            <div className="rounded-2xl bg-emerald-950 text-white p-6 border border-emerald-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="rounded-lg bg-emerald-950 text-white p-6 border border-emerald-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-emerald-300 text-xs font-semibold">
-                  <CheckCircle2 className="w-4 h-4" />
+                <div className="text-emerald-300 text-xs font-bold uppercase tracking-wider">
                   Match Automatically Saved to Match History & Club Ladder
                 </div>
-                <h3 className="font-display text-2xl font-bold">
+                <h3 className="font-display text-2xl font-bold uppercase">
                   Team {savedMatchSummary.winnerTeam} Wins (
                   {savedMatchSummary.games
                     .map((g) => `${g.team1Score}–${g.team2Score}`)
@@ -1482,13 +1451,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
               <div className="flex items-center gap-3 shrink-0">
                 <button
                   onClick={() => resetScoreboard(format)}
-                  className="px-4 py-2.5 rounded-xl bg-white text-slate-900 text-xs font-bold hover:bg-emerald-50 cursor-pointer"
+                  className="px-4 py-2.5 rounded-md bg-white text-slate-900 text-xs font-bold uppercase tracking-wider hover:bg-emerald-50 cursor-pointer"
                 >
                   Play Rematch
                 </button>
                 <button
                   onClick={onNavigateToLadder}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-600 cursor-pointer"
+                  className="px-4 py-2.5 rounded-md bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-600 cursor-pointer"
                 >
                   View Updated Ladder
                 </button>
@@ -1498,19 +1467,19 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
           {/* Main Scoreboard & Interactive Court Diagram */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
+            <div className="lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
               <div>
-                <div className="rounded-xl bg-slate-900 dark:bg-slate-950 text-white p-5">
+                <div className="rounded-md bg-slate-900 dark:bg-slate-950 text-white p-5 border border-slate-800">
                   <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
                     <span>
                       Official Score Callout (Win by 2 · Target {targetScore})
                     </span>
                     <button
                       onClick={speakScoreCallout}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold uppercase tracking-wider cursor-pointer"
                       title="Announce score out loud"
                     >
-                      <Volume2 className="w-3.5 h-3.5" /> Call Score
+                      Call Score
                     </button>
                   </div>
 
@@ -1543,7 +1512,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
                 <div className="grid grid-cols-2 gap-4 my-5">
                   <div
-                    className={`rounded-xl p-4 border transition-colors ${
+                    className={`rounded-md p-4 border transition-colors ${
                       state.servingTeam === 1
                         ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/20'
                         : 'border-slate-200 dark:border-slate-800'
@@ -1568,7 +1537,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                   </div>
 
                   <div
-                    className={`rounded-xl p-4 border transition-colors ${
+                    className={`rounded-md p-4 border transition-colors ${
                       state.servingTeam === 2
                         ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/20'
                         : 'border-slate-200 dark:border-slate-800'
@@ -1612,7 +1581,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                       <button
                         onClick={handleServerPoint}
                         disabled={!!savedMatchSummary}
-                        className="min-h-[60px] px-5 py-4 rounded-xl font-bold text-base text-white flex flex-col items-center justify-center shadow-sm transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                        className="min-h-[60px] px-5 py-4 rounded-md font-bold text-base text-white flex flex-col items-center justify-center disabled:opacity-50 cursor-pointer"
                         style={{ backgroundColor: 'var(--club-primary)' }}
                       >
                         <span>+1 Point (Team {state.servingTeam})</span>
@@ -1624,10 +1593,9 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                       <button
                         onClick={handleSideOutOrSecondServer}
                         disabled={!!savedMatchSummary}
-                        className="min-h-[60px] px-5 py-4 rounded-xl font-bold text-base bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white flex flex-col items-center justify-center transition-transform active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                        className="min-h-[60px] px-5 py-4 rounded-md font-bold text-base bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white flex flex-col items-center justify-center disabled:opacity-50 cursor-pointer"
                       >
-                        <span className="flex items-center gap-2">
-                          <ArrowRightLeft className="w-4 h-4" />
+                        <span>
                           {format === 'doubles' && state.serverNumber === 1
                             ? '2nd Server (Partner)'
                             : 'Side Out'}
@@ -1646,7 +1614,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                       <button
                         onClick={() => handleRallyPoint(1)}
                         disabled={!!savedMatchSummary}
-                        className="min-h-[60px] px-4 py-4 rounded-xl font-bold text-base text-white flex flex-col items-center justify-center cursor-pointer disabled:opacity-50"
+                        className="min-h-[60px] px-4 py-4 rounded-md font-bold text-base text-white flex flex-col items-center justify-center cursor-pointer disabled:opacity-50"
                         style={{ backgroundColor: 'var(--club-primary)' }}
                       >
                         <span>+1 Point Team 1</span>
@@ -1657,7 +1625,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                       <button
                         onClick={() => handleRallyPoint(2)}
                         disabled={!!savedMatchSummary}
-                        className="min-h-[60px] px-4 py-4 rounded-xl font-bold text-base bg-slate-900 dark:bg-slate-800 text-white flex flex-col items-center justify-center cursor-pointer disabled:opacity-50"
+                        className="min-h-[60px] px-4 py-4 rounded-md font-bold text-base bg-slate-900 dark:bg-slate-800 text-white flex flex-col items-center justify-center cursor-pointer disabled:opacity-50"
                       >
                         <span>+1 Point Team 2</span>
                         <span className="text-[11px] font-normal text-slate-300">
@@ -1671,40 +1639,37 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                     <button
                       onClick={handleUndo}
                       disabled={history.length === 0 || !!savedMatchSummary}
-                      className="min-h-[48px] px-4 py-2.5 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer"
+                      className="min-h-[48px] px-4 py-2.5 rounded-md font-bold uppercase tracking-wider text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center disabled:opacity-40 cursor-pointer"
                     >
-                      <Undo2 className="w-4 h-4" />
                       Undo Last Rally ({history.length})
                     </button>
 
                     <button
                       onClick={() => resetScoreboard(format)}
-                      className="min-h-[48px] px-4 py-2.5 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer"
+                      className="min-h-[48px] px-4 py-2.5 rounded-md font-bold uppercase tracking-wider text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center cursor-pointer"
                     >
-                      <RotateCcw className="w-4 h-4" />
                       Reset Match
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div className="p-4 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
                   <div className="text-xs text-slate-600 dark:text-slate-400">
                     Match scoring buttons are locked in Member Mode.
                   </div>
                   <button
                     type="button"
                     onClick={onRequestOfficerUnlock}
-                    className="px-3.5 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+                    className="px-3.5 py-2 rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-xs font-bold uppercase tracking-wider cursor-pointer shrink-0"
                   >
-                    <Lock className="w-3.5 h-3.5" />
-                    <span>Officer Unlock</span>
+                    Officer Unlock
                   </button>
                 </div>
               )}
             </div>
 
             {/* Right Column: Live Court Diagram */}
-            <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
+            <div className="lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div>
                   <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">

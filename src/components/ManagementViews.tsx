@@ -1,18 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Archive,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Check,
-  Download,
-  Edit3,
-  Pin,
-  Plus,
-  RotateCcw,
-  Shield,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+import { Edit3, Pin, Trash2 } from 'lucide-react';
 import {
   Announcement,
   ClubSettings,
@@ -146,11 +133,9 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
         {isOfficer && (
           <button
             onClick={openNew}
-            className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
-            style={{ backgroundColor: 'var(--club-primary)' }}
+            className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            Post Announcement
+            + Post Announcement
           </button>
         )}
       </div>
@@ -158,14 +143,14 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
       {isOfficer && showForm && (
         <form
           onSubmit={handleSave}
-          className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+          className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
         >
-          <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+          <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
             {editingAnn ? 'Edit Announcement' : 'New Club Announcement'}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Headline
               </label>
               <input
@@ -174,17 +159,17 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Court 1–4 Resurfacing Update for Thursday"
                 required
-                className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Posted By Officer
               </label>
               <select
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
-                className="w-full min-h-[40px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
               >
                 {officers.map((o) => (
                   <option key={o.id} value={o.name}>
@@ -196,7 +181,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
               Message Body
             </label>
             <textarea
@@ -205,7 +190,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
               onChange={(e) => setBody(e.target.value)}
               placeholder="Write announcement details..."
               required
-              className="w-full p-3 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+              className="w-full p-3 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
             />
           </div>
 
@@ -224,14 +209,13 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800"
+                className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-lg text-xs font-bold text-white cursor-pointer"
-                style={{ backgroundColor: 'var(--club-primary)' }}
+                className="px-4 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
               >
                 Publish Announcement
               </button>
@@ -240,18 +224,18 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
         </form>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {sorted.map((ann) => (
           <div
             key={ann.id}
-            className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-3"
+            className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 space-y-3"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   {ann.pinned && (
-                    <span className="inline-flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400">
-                      <Pin className="w-3.5 h-3.5" /> Pinned to Top ·
+                    <span className="font-mono-num font-bold text-amber-600 dark:text-amber-400">
+                      PINNED ·
                     </span>
                   )}
                   <span>
@@ -262,7 +246,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
                     ({ann.authorRole})
                   </span>
                   <span aria-hidden="true">·</span>
-                  <span className="tabular-nums">{ann.date}</span>
+                  <span className="font-mono-num tabular-nums">{ann.date}</span>
                 </div>
                 <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
                   {ann.title}
@@ -273,7 +257,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => togglePin(ann)}
-                    className={`p-2 rounded-lg cursor-pointer ${
+                    className={`p-2 rounded cursor-pointer ${
                       ann.pinned
                         ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/50'
                         : 'text-slate-400 hover:text-slate-800'
@@ -284,7 +268,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
                   </button>
                   <button
                     onClick={() => openEdit(ann)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                    className="p-2 rounded text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                     title="Edit"
                   >
                     <Edit3 className="w-4 h-4" />
@@ -295,7 +279,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
                         announcements.filter((a) => a.id !== ann.id)
                       )
                     }
-                    className="p-2 rounded-lg text-slate-400 hover:text-red-600 cursor-pointer"
+                    className="p-2 rounded text-slate-400 hover:text-red-600 cursor-pointer"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -351,7 +335,6 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
     .reduce((acc, t) => acc + t.amount, 0);
   const runningBalance = totalIncome - totalExpenses;
 
-  // Compute running balance chronologically
   const chronologicalAsc = [...transactions].sort((a, b) =>
     a.date.localeCompare(b.date)
   );
@@ -404,10 +387,12 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Summary KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-          <div className="text-xs text-slate-500">Running Club Balance</div>
-          <div className="font-mono-num text-3xl font-bold text-slate-900 dark:text-white mt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+          <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
+            Running Club Balance
+          </div>
+          <div className="font-mono-num text-3xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
             ${runningBalance.toLocaleString()}
           </div>
           <div className="text-xs text-slate-500 mt-1">
@@ -415,20 +400,24 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-          <div className="text-xs text-slate-500">Total Income & Fundraisers</div>
-          <div className="font-mono-num text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+          <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
+            Total Income & Fundraisers
+          </div>
+          <div className="font-mono-num text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
             +${totalIncome.toLocaleString()}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
-            {members.filter((m) => m.duesPaid).length} of {members.length} members
-            paid dues
+          <div className="text-xs text-slate-500 mt-1 font-mono-num">
+            {members.filter((m) => m.duesPaid).length} of {members.length}{' '}
+            members paid dues
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-          <div className="text-xs text-slate-500">Total Equipment & Gear Expenses</div>
-          <div className="font-mono-num text-3xl font-bold text-red-600 dark:text-red-400 mt-1">
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+          <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
+            Total Equipment & Gear Expenses
+          </div>
+          <div className="font-mono-num text-3xl font-bold text-red-600 dark:text-red-400 mt-1 tabular-nums">
             -${totalExpenses.toLocaleString()}
           </div>
           <div className="text-xs text-slate-500 mt-1">
@@ -440,19 +429,17 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
       {/* Two Columns: Member Dues Tracker + Income/Expense Ledger */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Member Dues Tracker (5 cols) */}
-        <div className="lg:col-span-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                Member Dues Tracker (${defaultDuesAmount})
-              </h3>
-              <p className="text-xs text-slate-500">
-                Shows who has paid, amount, and payment date
-              </p>
-            </div>
+        <div className="lg:col-span-5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+          <div className="mb-4">
+            <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
+              Member Dues Tracker (${defaultDuesAmount})
+            </h3>
+            <p className="text-xs text-slate-500">
+              Shows who has paid, amount, and payment date
+            </p>
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="divide-y divide-slate-200 dark:divide-slate-800">
             {members.map((m) => (
               <div
                 key={m.id}
@@ -462,23 +449,24 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                   <div className="font-semibold text-slate-900 dark:text-white">
                     {m.name}
                   </div>
-                  <div className="text-xs text-slate-500 tabular-nums">
+                  <div className="text-xs text-slate-500 font-mono-num tabular-nums">
                     {m.duesPaid
-                      ? `Paid $${m.duesAmount} on ${m.duesPaidDate || '2026-09-01'}`
+                      ? `Paid $${m.duesAmount} on ${
+                          m.duesPaidDate || '2026-09-01'
+                        }`
                       : `Unpaid ($${m.duesAmount} due)`}
                   </div>
                 </div>
 
                 <button
                   onClick={() => toggleMemberDues(m)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1 rounded text-xs font-mono-num font-bold cursor-pointer ${
                     m.duesPaid
                       ? 'bg-emerald-600 text-white'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  {m.duesPaid && <Check className="w-3.5 h-3.5" />}
-                  {m.duesPaid ? 'Paid' : 'Mark Paid'}
+                  {m.duesPaid ? 'PAID' : 'Mark Paid'}
                 </button>
               </div>
             ))}
@@ -486,10 +474,10 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
         </div>
 
         {/* Income & Expense Ledger (7 cols) */}
-        <div className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+        <div className="lg:col-span-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <div>
-              <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+              <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
                 Income & Expense Log
               </h3>
               <p className="text-xs text-slate-500">
@@ -505,22 +493,20 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                 }
                 setShowTxForm(!showTxForm);
               }}
-              className="min-h-[38px] px-3.5 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer"
-              style={{ backgroundColor: 'var(--club-primary)' }}
+              className="min-h-[34px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              Add Entry
+              + Add Entry
             </button>
           </div>
 
           {showTxForm && (
             <form
               onSubmit={handleAddTransaction}
-              className="mb-5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3"
+              className="mb-5 p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                     Description
                   </label>
                   <input
@@ -529,11 +515,11 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                     onChange={(e) => setTxDesc(e.target.value)}
                     placeholder="e.g. Franklin X-40 Balls Restock"
                     required
-                    className="w-full px-3 py-1.5 rounded text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
+                    className="w-full px-3 py-1.5 rounded-md text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                     Category
                   </label>
                   <select
@@ -541,7 +527,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                     onChange={(e) =>
                       setTxCategory(e.target.value as TreasuryCategory)
                     }
-                    className="w-full px-3 py-1.5 rounded text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
+                    className="w-full px-3 py-1.5 rounded-md text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
                   >
                     <option value="Fundraiser">Fundraiser</option>
                     <option value="Dues">Dues</option>
@@ -553,7 +539,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                     Type
                   </label>
                   <select
@@ -561,14 +547,14 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                     onChange={(e) =>
                       setTxType(e.target.value as 'income' | 'expense')
                     }
-                    className="w-full px-3 py-1.5 rounded text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
+                    className="w-full px-3 py-1.5 rounded-md text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
                   >
                     <option value="income">Income (+)</option>
                     <option value="expense">Expense (–)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                     Amount ($)
                   </label>
                   <input
@@ -576,18 +562,18 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                     min={1}
                     value={txAmount}
                     onChange={(e) => setTxAmount(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 rounded text-xs font-mono-num bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
+                    className="w-full px-3 py-1.5 rounded-md text-xs font-mono-num bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                     Date
                   </label>
                   <input
                     type="date"
                     value={txDate}
                     onChange={(e) => setTxDate(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
+                    className="w-full px-3 py-1.5 rounded-md text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700"
                   />
                 </div>
               </div>
@@ -595,14 +581,13 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowTxForm(false)}
-                  className="px-3 py-1.5 rounded text-xs text-slate-500"
+                  className="px-3 py-1.5 rounded-md text-xs text-slate-500"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded text-xs font-bold text-white cursor-pointer"
-                  style={{ backgroundColor: 'var(--club-primary)' }}
+                  className="px-4 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                 >
                   Save Transaction
                 </button>
@@ -613,7 +598,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-mono-num uppercase tracking-wider text-slate-500">
                   <th className="py-2.5 pr-2">Date</th>
                   <th className="py-2.5 px-2">Description & Category</th>
                   <th className="py-2.5 px-2 text-right">Amount</th>
@@ -621,19 +606,21 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                   {isOfficer && <th className="py-2.5 pl-2 text-right"></th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
                 {ledgerWithRunning.map((tx) => (
                   <tr key={tx.id}>
-                    <td className="py-3 pr-2 font-mono-num text-xs text-slate-500 whitespace-nowrap">
+                    <td className="py-3 pr-2 font-mono-num text-xs text-slate-500 whitespace-nowrap tabular-nums">
                       {tx.date}
                     </td>
                     <td className="py-3 px-2">
                       <div className="font-semibold text-slate-900 dark:text-white">
                         {tx.description}
                       </div>
-                      <div className="text-xs text-slate-500">{tx.category}</div>
+                      <div className="text-xs text-slate-500">
+                        {tx.category}
+                      </div>
                     </td>
-                    <td className="py-3 px-2 text-right font-mono-num font-bold whitespace-nowrap">
+                    <td className="py-3 px-2 text-right font-mono-num font-bold whitespace-nowrap tabular-nums">
                       <span
                         className={
                           tx.type === 'income'
@@ -644,7 +631,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
                         {tx.type === 'income' ? '+' : '–'}${tx.amount}
                       </span>
                     </td>
-                    <td className="py-3 pl-2 text-right font-mono-num font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                    <td className="py-3 pl-2 text-right font-mono-num font-semibold text-slate-900 dark:text-white whitespace-nowrap tabular-nums">
                       ${tx.runningBalance}
                     </td>
                     {isOfficer && (
@@ -673,8 +660,6 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
   );
 };
 
-
-
 /* ========================================================================= */
 /* 4. SETTINGS & SEASON ARCHIVE VIEW                                         */
 /* ========================================================================= */
@@ -692,10 +677,26 @@ interface SettingsViewProps {
 
 const SCHOOL_COLOR_PRESETS = [
   { name: 'Bobcat Royal & Gold', primary: '#1d4ed8', secondary: '#eab308' },
-  { name: 'Varsity Navy & Electric Lime', primary: '#1e3a8a', secondary: '#84cc16' },
-  { name: 'Crimson & Championship Gold', primary: '#b91c1c', secondary: '#f59e0b' },
-  { name: 'Forest Green & Crisp Gold', primary: '#15803d', secondary: '#eab308' },
-  { name: 'Midnight Slate & Court Teal', primary: '#0f172a', secondary: '#14b8a6' },
+  {
+    name: 'Varsity Navy & Electric Lime',
+    primary: '#1e3a8a',
+    secondary: '#84cc16',
+  },
+  {
+    name: 'Crimson & Championship Gold',
+    primary: '#b91c1c',
+    secondary: '#f59e0b',
+  },
+  {
+    name: 'Forest Green & Crisp Gold',
+    primary: '#15803d',
+    secondary: '#eab308',
+  },
+  {
+    name: 'Midnight Slate & Court Teal',
+    primary: '#0f172a',
+    secondary: '#14b8a6',
+  },
 ];
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -749,7 +750,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Club Configuration & School Colors (7 cols) */}
         <form
           onSubmit={handleSaveSettings}
-          className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5"
+          className="lg:col-span-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -765,7 +766,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="button"
                 onClick={onRequestOfficerUnlock}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 cursor-pointer"
+                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-500 text-slate-950 cursor-pointer"
               >
                 Unlock Officer Mode to Edit
               </button>
@@ -773,14 +774,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {savedBanner && (
-            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-              Settings saved and applied across BNHS Pickleball Club HQ!
+            <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+              Settings saved and applied across BNHS Pickleball Club HQ.
             </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Club Name
               </label>
               <input
@@ -788,12 +789,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 value={clubName}
                 onChange={(e) => setClubName(e.target.value)}
                 disabled={!isOfficer}
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-60"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 disabled:opacity-60"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 High School Name
               </label>
               <input
@@ -801,12 +802,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 value={schoolName}
                 onChange={(e) => setSchoolName(e.target.value)}
                 disabled={!isOfficer}
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-60"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 disabled:opacity-60"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Primary School Color
               </label>
               <div className="flex items-center gap-2">
@@ -815,20 +816,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
                   disabled={!isOfficer}
-                  className="w-11 h-10 rounded cursor-pointer border border-slate-300"
+                  className="w-10 h-9 rounded cursor-pointer border border-slate-300"
                 />
                 <input
                   type="text"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
                   disabled={!isOfficer}
-                  className="flex-1 min-h-[40px] px-3 py-2 rounded-lg text-xs font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="flex-1 min-h-[38px] px-3 py-1.5 rounded-md text-xs font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Secondary School Color
               </label>
               <div className="flex items-center gap-2">
@@ -837,14 +838,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   value={secondaryColor}
                   onChange={(e) => setSecondaryColor(e.target.value)}
                   disabled={!isOfficer}
-                  className="w-11 h-10 rounded cursor-pointer border border-slate-300"
+                  className="w-10 h-9 rounded cursor-pointer border border-slate-300"
                 />
                 <input
                   type="text"
                   value={secondaryColor}
                   onChange={(e) => setSecondaryColor(e.target.value)}
                   disabled={!isOfficer}
-                  className="flex-1 min-h-[40px] px-3 py-2 rounded-lg text-xs font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  className="flex-1 min-h-[38px] px-3 py-1.5 rounded-md text-xs font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700"
                 />
               </div>
             </div>
@@ -852,7 +853,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {/* Quick School Color Presets */}
           <div>
-            <span className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
+            <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
               Quick School Color Palettes:
             </span>
             <div className="flex flex-wrap gap-2">
@@ -865,14 +866,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     setPrimaryColor(preset.primary);
                     setSecondaryColor(preset.secondary);
                   }}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-xs font-medium flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
                 >
                   <span
-                    className="w-3.5 h-3.5 rounded-full"
+                    className="w-3 h-3 rounded-xs"
                     style={{ backgroundColor: preset.primary }}
                   />
                   <span
-                    className="w-3.5 h-3.5 rounded-full"
+                    className="w-3 h-3 rounded-xs"
                     style={{ backgroundColor: preset.secondary }}
                   />
                   <span>{preset.name}</span>
@@ -883,7 +884,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 4-Digit Officer PIN
               </label>
               <input
@@ -892,12 +893,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 value={isOfficer ? officerPin : '••••'}
                 onChange={(e) => setOfficerPin(e.target.value)}
                 disabled={!isOfficer}
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-60"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 disabled:opacity-60"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Season Start Date
               </label>
               <input
@@ -905,12 +906,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 value={seasonStartDate}
                 onChange={(e) => setSeasonStartDate(e.target.value)}
                 disabled={!isOfficer}
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-60"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 disabled:opacity-60"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Default Semester Dues ($)
               </label>
               <input
@@ -918,7 +919,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 value={duesAmount}
                 onChange={(e) => setDuesAmount(Number(e.target.value))}
                 disabled={!isOfficer}
-                className="w-full min-h-[42px] px-3 py-2 rounded-lg text-sm font-mono-num bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-60"
+                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 disabled:opacity-60"
               />
             </div>
           </div>
@@ -927,8 +928,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <button
               type="submit"
               disabled={!isOfficer}
-              className="min-h-[44px] px-6 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-50 cursor-pointer"
-              style={{ backgroundColor: 'var(--club-primary)' }}
+              className="min-h-[38px] px-5 py-2 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 cursor-pointer"
             >
               Save Club Settings
             </button>
@@ -938,29 +938,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Right 5 Cols: JSON Backup/Restore + Season Reset & Archives */}
         <div className="lg:col-span-5 space-y-6">
           {/* JSON Backup & Restore Card */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
-            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
+          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+            <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
               Browser Storage & JSON Backup
             </h3>
             <p className="text-xs text-slate-500">
-              All club data is automatically saved in browser localStorage.
-              Export a JSON file anytime to back up or transfer devices.
+              All club data is synchronized across devices and backed up locally.
+              Export a JSON file anytime to back up or transfer records.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={onExportJSON}
-                className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 cursor-pointer"
-                style={{ backgroundColor: 'var(--club-primary)' }}
+                className="min-h-[38px] px-4 py-2 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
               >
-                <Download className="w-4 h-4" />
                 Export JSON Backup
               </button>
 
-              <label className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white flex items-center justify-center gap-2 cursor-pointer">
-                <Upload className="w-4 h-4" />
-                Import JSON Backup
+              <label className="min-h-[38px] px-4 py-2 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white flex items-center justify-center cursor-pointer">
+                <span>Import JSON Backup</span>
                 <input
                   type="file"
                   accept=".json,application/json"
@@ -973,33 +970,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </label>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
               <span className="text-slate-500">
                 Wipe all club records and start fresh?
               </span>
               <button
                 type="button"
                 onClick={onResetFactoryData}
-                className="font-semibold text-red-600 dark:text-red-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                className="font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Clear All Club Data
+                Clear All Club Data
               </button>
             </div>
           </div>
 
           {/* Reset Season & Archive Stats Card */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                  Season Archive & Reset
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Archives current season ladder standings and resets W–L & Elo
-                  to 1200 for the new semester.
-                </p>
-              </div>
-              <Archive className="w-5 h-5 text-amber-500" />
+          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+            <div>
+              <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
+                Season Archive & Reset
+              </h3>
+              <p className="text-xs text-slate-500">
+                Archives current season ladder standings and resets W–L & Elo
+                to 1200 for the new semester.
+              </p>
             </div>
 
             {!confirmArchiveOpen ? (
@@ -1012,12 +1006,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   }
                   setConfirmArchiveOpen(true);
                 }}
-                className="w-full min-h-[42px] px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer"
+                className="w-full min-h-[38px] px-4 py-2 rounded-md text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 cursor-pointer"
               >
                 Reset Season & Archive Current Stats
               </button>
             ) : (
-              <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-3">
+              <div className="p-4 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-3">
                 <label className="block text-xs font-bold text-amber-900 dark:text-amber-200">
                   Archive Name for Completed Season:
                 </label>
@@ -1034,14 +1028,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       onResetAndArchiveSeason(archiveLabel);
                       setConfirmArchiveOpen(false);
                     }}
-                    className="flex-1 py-2 rounded-lg text-xs font-bold bg-red-600 text-white cursor-pointer"
+                    className="flex-1 py-2 rounded text-xs font-semibold bg-red-600 text-white cursor-pointer"
                   >
                     Confirm Archive & Reset
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmArchiveOpen(false)}
-                    className="px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800"
+                    className="px-3 py-2 rounded text-xs font-semibold bg-white dark:bg-slate-800"
                   >
                     Cancel
                   </button>
@@ -1051,13 +1045,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Past Archived Seasons List */}
             <div className="space-y-2.5 pt-2">
-              <div className="text-xs font-semibold text-slate-500">
+              <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
                 Archived Seasons ({archives.length})
               </div>
               {archives.map((arch) => (
                 <div
                   key={arch.id}
-                  className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 text-xs space-y-1.5"
+                  className="p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5"
                 >
                   <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
                     <span>{arch.seasonName}</span>
@@ -1065,7 +1059,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {arch.totalMatches} Matches
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500 tabular-nums">
+                  <div className="text-[11px] text-slate-500 font-mono-num tabular-nums">
                     {arch.startDate} to {arch.endDate}
                   </div>
                   <div className="pt-1 space-y-1">
@@ -1077,7 +1071,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <span>
                           #{i + 1} {tp.name}
                         </span>
-                        <span className="font-mono-num font-semibold">
+                        <span className="font-mono-num font-semibold tabular-nums">
                           {tp.elo} Elo ({tp.wins}–{tp.losses})
                         </span>
                       </div>
