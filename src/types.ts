@@ -73,6 +73,8 @@ export interface Member {
   duesPaid: boolean;
   duesAmount: number;
   duesPaidDate?: string;
+  unlockedAchievementIds?: string[];
+  revokedAchievementIds?: string[];
 }
 
 export interface AttendanceSession {
@@ -87,6 +89,8 @@ export interface GameScore {
   team2Score: number;
 }
 
+export type MatchMode = 'ranked' | 'friendly_wl' | 'practice_history';
+
 export interface MatchRecord {
   id: string;
   date: string;
@@ -99,6 +103,8 @@ export interface MatchRecord {
   games: GameScore[];
   winnerTeam: 1 | 2;
   eloDelta: number;
+  isFriendly?: boolean;
+  matchMode?: MatchMode;
   tournamentId?: string;
   tournamentMatchId?: string;
 }

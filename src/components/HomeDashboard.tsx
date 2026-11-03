@@ -54,22 +54,22 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     activeOutsideTournaments[0] || data.outsideTournaments[0] || null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* 4-Column Flat Editorial Index Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-0 sm:border border-slate-200 dark:border-slate-800 rounded-lg sm:bg-white sm:dark:bg-slate-900 sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 overflow-hidden">
         <button
           onClick={() => onNavigate('ladder')}
-          className="p-4 text-left flex flex-col justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+          className="p-3.5 sm:p-4 rounded-lg sm:rounded-none bg-white dark:bg-slate-900 border sm:border-0 border-slate-200 dark:border-slate-800 text-left flex flex-col justify-between gap-1.5 sm:gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
         >
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
             <span>01 · STANDINGS</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold uppercase text-slate-900 dark:text-white">
+            <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
               Ladder & Challenges
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num">
+            <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono-num truncate">
               {data.members.length} players ·{' '}
               {
                 (data.challenges || []).filter(
@@ -83,35 +83,35 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
         <button
           onClick={() => onNavigate('tournaments')}
-          className="p-4 text-left flex flex-col justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+          className="p-3.5 sm:p-4 rounded-lg sm:rounded-none bg-white dark:bg-slate-900 border sm:border-0 border-slate-200 dark:border-slate-800 text-left flex flex-col justify-between gap-1.5 sm:gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
         >
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
             <span>02 · BRACKETS</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold uppercase text-slate-900 dark:text-white">
+            <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
               Tournaments
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              In-club pools & regional watch
+            <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+              In-club pools & watch
             </div>
           </div>
         </button>
 
         <button
           onClick={() => onNavigate('calendar')}
-          className="p-4 text-left flex flex-col justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+          className="p-3.5 sm:p-4 rounded-lg sm:rounded-none bg-white dark:bg-slate-900 border sm:border-0 border-slate-200 dark:border-slate-800 text-left flex flex-col justify-between gap-1.5 sm:gap-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
         >
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
             <span>03 · SCHEDULE</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold uppercase text-slate-900 dark:text-white">
+            <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
               Club Calendar
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
+            <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
               Practices, dates & courts
             </div>
           </div>
@@ -119,36 +119,36 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
         <button
           onClick={() => onNavigate('scorekeeper')}
-          className="p-4 text-left flex flex-col justify-between gap-2 text-white transition-opacity hover:opacity-95 cursor-pointer"
+          className="p-3.5 sm:p-4 rounded-lg sm:rounded-none text-left flex flex-col justify-between gap-1.5 sm:gap-2 text-white transition-opacity hover:opacity-95 cursor-pointer"
           style={{ backgroundColor: 'var(--club-primary)' }}
         >
-          <div className="flex items-center justify-between text-xs font-semibold text-white/80">
+          <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold text-white/80">
             <span>04 · COURTSIDE</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold uppercase text-white">
+            <div className="font-display text-base sm:text-lg font-bold uppercase text-white leading-tight">
               Score a Match
             </div>
-            <div className="text-xs text-white/85">
-              Side-out referee & court rotation
+            <div className="text-[11px] sm:text-xs text-white/85 truncate">
+              Side-out referee & courts
             </div>
           </div>
         </button>
       </div>
 
       {/* Next Scheduled Session Flat Scoreboard Banner */}
-      <div className="rounded-lg bg-slate-900 text-white p-6 border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="rounded-lg bg-slate-900 text-white p-4 sm:p-6 border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
         {hasScheduledEvents ? (
           <>
-            <div className="space-y-2 max-w-2xl">
+            <div className="space-y-1.5 sm:space-y-2 max-w-2xl">
               <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 uppercase tracking-wider">
                 <span>Next {nextEvent.type}</span>
                 <span aria-hidden="true">·</span>
                 <span className="font-mono-num">{nextEvent.date}</span>
               </div>
 
-              <h2 className="font-display text-2xl sm:text-3xl font-bold uppercase tracking-tight text-white">
+              <h2 className="font-display text-xl sm:text-3xl font-bold uppercase tracking-tight text-white">
                 {nextEvent.title}
               </h2>
 
@@ -162,33 +162,33 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
 
             <div className="grid grid-cols-4 divide-x divide-slate-800 bg-slate-950 border border-slate-800 rounded-md text-center shrink-0">
-              <div className="px-4 py-2.5">
-                <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
+              <div className="px-3 sm:px-4 py-2 sm:py-2.5">
+                <div className="font-mono-num text-lg sm:text-2xl font-bold text-white tabular-nums">
                   {String(days).padStart(2, '0')}
                 </div>
                 <div className="text-[10px] font-semibold uppercase text-slate-400">
                   Days
                 </div>
               </div>
-              <div className="px-4 py-2.5">
-                <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
+              <div className="px-3 sm:px-4 py-2 sm:py-2.5">
+                <div className="font-mono-num text-lg sm:text-2xl font-bold text-white tabular-nums">
                   {String(hours).padStart(2, '0')}
                 </div>
                 <div className="text-[10px] font-semibold uppercase text-slate-400">
                   Hrs
                 </div>
               </div>
-              <div className="px-4 py-2.5">
-                <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
+              <div className="px-3 sm:px-4 py-2 sm:py-2.5">
+                <div className="font-mono-num text-lg sm:text-2xl font-bold text-white tabular-nums">
                   {String(minutes).padStart(2, '0')}
                 </div>
                 <div className="text-[10px] font-semibold uppercase text-slate-400">
                   Min
                 </div>
               </div>
-              <div className="px-4 py-2.5">
+              <div className="px-3 sm:px-4 py-2 sm:py-2.5">
                 <div
-                  className="font-mono-num text-xl sm:text-2xl font-bold tabular-nums"
+                  className="font-mono-num text-lg sm:text-2xl font-bold tabular-nums"
                   style={{ color: 'var(--club-secondary)' }}
                 >
                   {String(seconds).padStart(2, '0')}
@@ -205,7 +205,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Schedule & Events
               </div>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold uppercase tracking-tight text-white">
+              <h2 className="font-display text-xl sm:text-3xl font-bold uppercase tracking-tight text-white">
                 No Upcoming Practices or Events Scheduled
               </h2>
               <p className="text-xs sm:text-sm text-slate-300">
@@ -225,9 +225,9 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       </div>
 
       {/* Main Split: Top 5 Ladder Standings + Tournament Watch */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
         {/* Top 5 Club Ladder (7 cols) */}
-        <div className="lg:col-span-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
+        <div className="lg:col-span-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>

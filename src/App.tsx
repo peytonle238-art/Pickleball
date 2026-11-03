@@ -35,6 +35,8 @@ import {
 import {
   applyMatchToMembers,
   calculateEloDelta,
+  getEffectiveMatchMode,
+  revertMatchFromMembers,
   updateTournamentMatchList,
 } from './utils/clubUtils';
 import {
@@ -214,17 +216,16 @@ export default function App() {
         await loadGlobalClubWorkspaceFromFirestore();
       if (exists && cloudState && cloudState.members && cloudState.settings) {
         const cleanedCloud = sanitizeAndStripTemplateData(cloudState);
-        const merged = mergeClubDataStates(
-          cleanedCloud,
-          latestLocalDataRef.current
-        );
+        const nextData = initialCloudLoadDoneRef.current
+          ? cleanedCloud
+          : mergeClubDataStates(cleanedCloud, latestLocalDataRef.current);
         workspaceDocExistsRef.current = true;
         initialCloudLoadDoneRef.current = true;
-        const mergedStr = JSON.stringify(merged);
-        if (mergedStr !== JSON.stringify(latestLocalDataRef.current)) {
-          lastSavedSerializedRef.current = mergedStr;
+        const nextStr = JSON.stringify(nextData);
+        if (nextStr !== JSON.stringify(latestLocalDataRef.current)) {
+          lastSavedSerializedRef.current = nextStr;
           isApplyingRemoteSnapshotRef.current = true;
-          setData(merged);
+          setData(nextData);
         }
       }
     } catch (err) {
@@ -693,52 +694,66 @@ export default function App() {
     }
   };
 
-  const handleVoidMatch = (matchId: string) => {
-    const match = data.matches.find((m) => m.id === matchId);
+  const removeMatchAndRevertStats = (matchId: string) => {
+    const currentSnapshot = latestLocalDataRef.current;
+    const match = currentSnapshot.matches.find((m) => m.id === matchId);
     if (!match) return;
 
-    const delta1 = match.winnerTeam === 1 ? -match.eloDelta : match.eloDelta;
-    const delta2 = match.winnerTeam === 2 ? -match.eloDelta : match.eloDelta;
+    const remainingMatches = currentSnapshot.matches.filter(
+      (m) => m.id !== matchId
+    );
+    const revertedMembers = revertMatchFromMembers(
+      currentSnapshot.members,
+      match,
+      remainingMatches
+    );
 
-    const revertedMembers = data.members.map((m) => {
-      if (match.team1Ids.includes(m.id)) {
-        const wasWinner = match.winnerTeam === 1;
-        return {
-          ...m,
-          elo: Math.max(100, m.elo + delta1),
-          wins: Math.max(0, m.wins - (wasWinner ? 1 : 0)),
-          losses: Math.max(0, m.losses - (wasWinner ? 0 : 1)),
-        };
-      }
-      if (match.team2Ids.includes(m.id)) {
-        const wasWinner = match.winnerTeam === 2;
-        return {
-          ...m,
-          elo: Math.max(100, m.elo + delta2),
-          wins: Math.max(0, m.wins - (wasWinner ? 1 : 0)),
-          losses: Math.max(0, m.losses - (wasWinner ? 0 : 1)),
-        };
-      }
-      return m;
-    });
+    const updatedChallenges = (currentSnapshot.challenges || []).map((c) =>
+      c.completedMatchId === matchId
+        ? {
+            ...c,
+            status: 'accepted' as const,
+            completedMatchId: undefined,
+            winnerMemberId: undefined,
+            scoreSummary: undefined,
+          }
+        : c
+    );
 
-    setData((prev) => ({
-      ...prev,
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
       members: revertedMembers,
-      matches: prev.matches.filter((m) => m.id !== matchId),
-    }));
-    showToast('Match voided & player Elo reverted.');
+      matches: remainingMatches,
+      challenges: updatedChallenges,
+    };
+
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+    const mode = getEffectiveMatchMode(match);
+    showToast(
+      mode === 'practice_history'
+        ? 'Practice match removed from history.'
+        : mode === 'friendly_wl'
+        ? 'Friendly match removed & W/L record reverted.'
+        : 'Match removed & player Elo, W/L, and points reverted.'
+    );
+  };
+
+  const handleVoidMatch = (matchId: string) => {
+    removeMatchAndRevertStats(matchId);
   };
 
   const handleResetAllElo = () => {
-    setData((prev) => ({
-      ...prev,
-      members: prev.members.map((m) => ({
+    const nextState: ClubDataState = {
+      ...latestLocalDataRef.current,
+      members: latestLocalDataRef.current.members.map((m) => ({
         ...m,
         elo: 1200,
         monthStartElo: 1200,
       })),
-    }));
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
     showToast('All member Elo ratings reset to 1200.');
   };
 
@@ -747,22 +762,25 @@ export default function App() {
       setShowPinModal(true);
       return;
     }
+    const currentSnapshot = latestLocalDataRef.current;
+    const mode = getEffectiveMatchMode(newMatch);
     const updatedMembers = applyMatchToMembers(
-      data.members,
+      currentSnapshot.members,
       newMatch.team1Ids,
       newMatch.team2Ids,
       newMatch.games,
       newMatch.winnerTeam,
-      newMatch.eloDelta
+      newMatch.eloDelta,
+      mode
     );
 
-    let updatedClubTournaments = data.clubTournaments;
+    let updatedClubTournaments = currentSnapshot.clubTournaments;
     if (newMatch.tournamentId && newMatch.tournamentMatchId) {
       const lastGame = newMatch.games[newMatch.games.length - 1] || {
         team1Score: 11,
         team2Score: 0,
       };
-      updatedClubTournaments = data.clubTournaments.map((t) => {
+      updatedClubTournaments = currentSnapshot.clubTournaments.map((t) => {
         if (t.id !== newMatch.tournamentId) return t;
         const nextMatches = updateTournamentMatchList(
           t.matches,
@@ -780,22 +798,42 @@ export default function App() {
       });
     }
 
-    setData((prev) => ({
-      ...prev,
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
       members: updatedMembers,
-      matches: [newMatch, ...prev.matches],
+      matches: [newMatch, ...currentSnapshot.matches],
       clubTournaments: updatedClubTournaments,
-    }));
-    showToast('Match saved! Club Ladder & Elo ratings updated.');
+    };
+
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+
+    if (mode === 'practice_history') {
+      showToast('Practice match logged to Match History (No Elo or W/L change).');
+    } else if (mode === 'friendly_wl') {
+      showToast('Friendly match saved! W/L & Points updated (0 Elo change).');
+    } else {
+      showToast('Match saved! Club Ladder & Elo ratings updated.');
+    }
   };
 
   const handleDeleteMatch = (matchId: string) => {
     if (!isOfficer) return;
-    setData((prev) => ({
-      ...prev,
-      matches: prev.matches.filter((m) => m.id !== matchId),
-    }));
-    showToast('Match removed from history.');
+    removeMatchAndRevertStats(matchId);
+  };
+
+  const handleUpdateSingleMember = (updatedMember: Member) => {
+    if (!isOfficer) return;
+    const currentSnapshot = latestLocalDataRef.current;
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
+      members: currentSnapshot.members.map((m) =>
+        m.id === updatedMember.id ? updatedMember : m
+      ),
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+    showToast(`Updated stats & badges for ${updatedMember.name}.`);
   };
 
   const handleCreateChallenge = ({
@@ -1209,23 +1247,24 @@ export default function App() {
           )}
 
           {/* Officer Command Header */}
-          <header className="sticky top-0 z-30 h-16 bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-6 no-print">
-            <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-4">
+          <header className="sticky top-0 z-30 h-14 sm:h-16 bg-slate-900 text-white border-b border-slate-800 px-3.5 sm:px-6 no-print">
+            <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-2 sm:gap-4">
               {/* Zone 1: Bobcats Emblem + Officer Console Brand */}
               <button
                 type="button"
                 onClick={() => handleNavigate('home')}
-                className="flex items-center gap-3 text-left cursor-pointer shrink-0"
+                className="flex items-center gap-2 sm:gap-3 text-left cursor-pointer min-w-0"
               >
-                <div className="bg-white px-2 py-1 rounded-md border border-white/20 flex items-center justify-center">
+                <div className="bg-white px-1.5 sm:px-2 py-1 rounded-md border border-white/20 flex items-center justify-center shrink-0">
                   <img
                     src={BOBCATS_LOGO_URL}
                     alt="Byron Nelson Bobcats"
-                    className="h-6 sm:h-7 w-auto object-contain"
+                    className="h-5 sm:h-7 w-auto object-contain"
                   />
                 </div>
-                <span className="font-display text-lg sm:text-xl font-bold uppercase tracking-tight text-white whitespace-nowrap shrink-0">
-                  {data.settings.clubName} · Officer Console
+                <span className="font-display text-base sm:text-xl font-bold uppercase tracking-tight text-white truncate">
+                  {data.settings.clubName}
+                  <span className="hidden md:inline"> · Officer Console</span>
                 </span>
               </button>
 
@@ -1234,11 +1273,13 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="min-h-[38px] px-3.5 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-white inline-flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                  className="min-h-[36px] sm:min-h-[38px] px-2.5 sm:px-3.5 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-white inline-flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0"
                 >
-                  <span>{activeNavItem.label}</span>
+                  <span className="max-w-[110px] sm:max-w-none truncate">
+                    {activeNavItem.label}
+                  </span>
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-400 transition-transform duration-150 ${
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 transition-transform duration-150 shrink-0 ${
                       menuOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -1417,9 +1458,10 @@ export default function App() {
                 )}
                 <button
                   onClick={handleToggleMode}
-                  className="min-h-[36px] px-3 py-1.5 text-xs font-bold rounded-md bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  className="min-h-[36px] px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                  Exit Officer Mode
+                  <span>Exit</span>
+                  <span className="hidden sm:inline"> Officer Mode</span>
                 </button>
               </div>
             </div>
@@ -1503,7 +1545,7 @@ export default function App() {
             </aside>
 
             {/* Officer Main Content Viewport */}
-            <main className="flex-1 min-w-0 px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+            <main className="flex-1 min-w-0 px-3.5 sm:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
@@ -1545,6 +1587,7 @@ export default function App() {
                       isOfficer={true}
                       onSaveManualMatch={handleSaveCompletedMatch}
                       onDeleteMatch={handleDeleteMatch}
+                      onUpdateMember={handleUpdateSingleMember}
                       onCreateChallenge={handleCreateChallenge}
                       onUpdateChallengeStatus={handleUpdateChallengeStatus}
                       onResolveChallengeMatch={handleResolveChallengeMatch}
@@ -1593,10 +1636,18 @@ export default function App() {
                     <MembersAttendanceView
                       members={data.members}
                       attendance={data.attendance}
+                      matches={data.matches}
+                      challenges={data.challenges || []}
                       isOfficer={true}
-                      onUpdateMembers={(members) =>
-                        setData((prev) => ({ ...prev, members }))
-                      }
+                      onUpdateMembers={(members) => {
+                        const nextState = {
+                          ...latestLocalDataRef.current,
+                          members,
+                        };
+                        setData(nextState);
+                        void persistClubDataImmediately(nextState);
+                        showToast('Member roster & stats saved.');
+                      }}
                       onUpdateAttendance={(attendance) =>
                         setData((prev) => ({ ...prev, attendance }))
                       }

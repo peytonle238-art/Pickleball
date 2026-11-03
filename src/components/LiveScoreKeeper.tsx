@@ -3,6 +3,7 @@ import { Minus, Plus } from 'lucide-react';
 import {
   AttendanceSession,
   GameScore,
+  MatchMode,
   MatchRecord,
   Member,
   PendingTournamentScoreContext,
@@ -42,6 +43,8 @@ export interface PracticeCourtSlot {
   team2Score: number;
   targetScore: 11 | 15 | 21;
   savedDelta?: number | null;
+  isSaved?: boolean;
+  savedMode?: MatchMode;
 }
 
 const MULTICOURT_STORAGE_KEY = 'bnhs_pickleball_multicourt_v1';
@@ -71,6 +74,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
   const [scoringType, setScoringType] = useState<'sideout' | 'rally'>('sideout');
   const [targetScore, setTargetScore] = useState<11 | 15 | 21>(11);
   const [bestOf, setBestOf] = useState<1 | 3>(1);
+  const [matchMode, setMatchMode] = useState<MatchMode>('ranked');
 
   // Roster selections for Single Court
   const [t1P1, setT1P1] = useState<string>(members[0]?.id || '');
@@ -94,6 +98,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
   const [savedMatchSummary, setSavedMatchSummary] = useState<{
     winnerTeam: 1 | 2;
     eloDelta: number;
+    matchMode: MatchMode;
     games: GameScore[];
   } | null>(null);
 
@@ -123,6 +128,8 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
   const [generatorTargetScore, setGeneratorTargetScore] = useState<
     11 | 15 | 21
   >(11);
+  const [practiceMatchMode, setPracticeMatchMode] =
+    useState<MatchMode>('friendly_wl');
 
   const [courts, setCourts] = useState<PracticeCourtSlot[]>(() => {
     try {
@@ -308,6 +315,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
               team1Score: team === 1 ? clamped : c.team1Score,
               team2Score: team === 2 ? clamped : c.team2Score,
               savedDelta: null,
+              isSaved: false,
             }
           : c
       )
@@ -327,11 +335,11 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         if (team === 1) {
           const nextT1 = [...c.team1Ids];
           nextT1[slotIdx] = memberId;
-          return { ...c, team1Ids: nextT1, savedDelta: null };
+          return { ...c, team1Ids: nextT1, savedDelta: null, isSaved: false };
         } else {
           const nextT2 = [...c.team2Ids];
           nextT2[slotIdx] = memberId;
-          return { ...c, team2Ids: nextT2, savedDelta: null };
+          return { ...c, team2Ids: nextT2, savedDelta: null, isSaved: false };
         }
       })
     );
@@ -348,7 +356,10 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
       court.team1Score > court.team2Score ? 1 : 2;
     const t1Elos = court.team1Ids.map(getMemberElo);
     const t2Elos = court.team2Ids.map(getMemberElo);
-    const eloDelta = calculateEloDelta(t1Elos, t2Elos, winnerTeam);
+    const eloDelta =
+      practiceMatchMode === 'ranked'
+        ? calculateEloDelta(t1Elos, t2Elos, winnerTeam)
+        : 0;
 
     const newMatch: MatchRecord = {
       id: `match-${Date.now()}-c${court.courtNumber}`,
@@ -367,13 +378,22 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
       ],
       winnerTeam,
       eloDelta,
+      isFriendly: practiceMatchMode !== 'ranked',
+      matchMode: practiceMatchMode,
     };
 
     onSaveCompletedMatch(newMatch);
 
     setCourts((prev) =>
       prev.map((c) =>
-        c.id === court.id ? { ...c, savedDelta: eloDelta } : c
+        c.id === court.id
+          ? {
+              ...c,
+              savedDelta: eloDelta,
+              isSaved: true,
+              savedMode: practiceMatchMode,
+            }
+          : c
       )
     );
   };
@@ -404,6 +424,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                 team1Score: 0,
                 team2Score: 0,
                 savedDelta: null,
+                isSaved: false,
               }
             : c
         )
@@ -421,6 +442,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                   team1Score: 0,
                   team2Score: 0,
                   savedDelta: null,
+                  isSaved: false,
                 }
               : c
           )
@@ -429,7 +451,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         setCourts((prev) =>
           prev.map((c) =>
             c.id === court.id
-              ? { ...c, team1Score: 0, team2Score: 0, savedDelta: null }
+              ? {
+                  ...c,
+                  team1Score: 0,
+                  team2Score: 0,
+                  savedDelta: null,
+                  isSaved: false,
+                }
               : c
           )
         );
@@ -547,13 +575,19 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
     if (t1Wins >= neededWins || t2Wins >= neededWins) {
       const winnerTeam: 1 | 2 = t1Wins >= neededWins ? 1 : 2;
+      const effectiveMode: MatchMode = pendingTournamentMatch
+        ? 'ranked'
+        : matchMode;
       const t1Elos = team1Ids.map(
         (id) => members.find((m) => m.id === id)?.elo || 1200
       );
       const t2Elos = team2Ids.map(
         (id) => members.find((m) => m.id === id)?.elo || 1200
       );
-      const eloDelta = calculateEloDelta(t1Elos, t2Elos, winnerTeam);
+      const eloDelta =
+        effectiveMode === 'ranked'
+          ? calculateEloDelta(t1Elos, t2Elos, winnerTeam)
+          : 0;
 
       const newMatch: MatchRecord = {
         id: `match-${Date.now()}`,
@@ -567,6 +601,8 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         games: updatedGames,
         winnerTeam,
         eloDelta,
+        isFriendly: effectiveMode !== 'ranked',
+        matchMode: effectiveMode,
         tournamentId: pendingTournamentMatch?.tournamentId,
         tournamentMatchId: pendingTournamentMatch?.matchId,
       };
@@ -578,6 +614,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
       setSavedMatchSummary({
         winnerTeam,
         eloDelta,
+        matchMode: effectiveMode,
         games: updatedGames,
       });
       if (isOfficer) {
@@ -918,6 +955,53 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
               </div>
             </div>
 
+            {/* Practice Day Scoring Mode Selector (Friendly vs Ranked vs Practice Log) */}
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                  Practice Day Match Scoring Mode
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Choose whether court games change Elo or count as friendly practice matches
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-md border border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setPracticeMatchMode('friendly_wl')}
+                  className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer ${
+                    practiceMatchMode === 'friendly_wl'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Friendly (W/L · 0 Elo)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPracticeMatchMode('practice_history')}
+                  className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer ${
+                    practiceMatchMode === 'practice_history'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Practice Log (History Only)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPracticeMatchMode('ranked')}
+                  className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer ${
+                    practiceMatchMode === 'ranked'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  Ranked Ladder (±Elo)
+                </button>
+              </div>
+            </div>
+
             {/* Next-Up Waiting Queue if any players are waiting for a court */}
             {waitingQueueIds.length > 0 && (
               <div className="p-4 rounded-md bg-amber-50 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-800/50 flex flex-wrap items-center justify-between gap-3">
@@ -997,9 +1081,25 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                       </div>
 
                       <div className="text-xs font-mono-num font-bold text-blue-600 dark:text-blue-400">
-                        {court.savedDelta
-                          ? `Saved (±${court.savedDelta} Elo) ✓`
-                          : `Stakes: ±${projectedDelta} Elo`}
+                        {court.isSaved || court.savedDelta ? (
+                          court.savedMode === 'practice_history' ? (
+                            'Saved (Practice Log · 0 Elo) ✓'
+                          ) : court.savedMode === 'friendly_wl' ? (
+                            'Saved (Friendly W/L · 0 Elo) ✓'
+                          ) : (
+                            `Saved (±${court.savedDelta} Elo) ✓`
+                          )
+                        ) : practiceMatchMode === 'practice_history' ? (
+                          <span className="text-slate-500 dark:text-slate-400">
+                            Practice Log · 0 Elo
+                          </span>
+                        ) : practiceMatchMode === 'friendly_wl' ? (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            Friendly W/L · 0 Elo
+                          </span>
+                        ) : (
+                          `Stakes: ±${projectedDelta} Elo`
+                        )}
                       </div>
                     </div>
 
@@ -1147,16 +1247,16 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                         type="button"
                         disabled={
                           court.team1Score === court.team2Score ||
-                          !!court.savedDelta
+                          Boolean(court.isSaved || court.savedDelta)
                         }
                         onClick={() => handleFinishAndRecordCourtMatch(court)}
                         className={`px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-40 ${
-                          court.savedDelta
+                          court.isSaved || court.savedDelta
                             ? 'bg-emerald-600 text-white'
                             : 'bg-blue-600 hover:bg-blue-500 text-white'
                         }`}
                       >
-                        {court.savedDelta
+                        {court.isSaved || court.savedDelta
                           ? 'Match Saved ✓'
                           : 'Finish & Record Match'}
                       </button>
@@ -1343,6 +1443,62 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
               </div>
             </div>
 
+            {/* Match Mode Selector for Single Court Referee (Ranked vs Friendly W/L vs Practice Log) */}
+            {!pendingTournamentMatch && (
+              <div className="py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                    Match Mode:
+                  </span>{' '}
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {matchMode === 'ranked'
+                      ? 'Official Ranked Match — updates Elo rating, Wins/Losses & Match History'
+                      : matchMode === 'friendly_wl'
+                      ? 'Friendly Practice Match — adds Wins/Losses & Match History with 0 Elo change'
+                      : 'Practice Day Log — records score in Match History only (no Elo or W/L change)'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <button
+                    type="button"
+                    disabled={!isOfficer}
+                    onClick={() => setMatchMode('ranked')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer disabled:opacity-60 ${
+                      matchMode === 'ranked'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Ranked (±Elo)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!isOfficer}
+                    onClick={() => setMatchMode('friendly_wl')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer disabled:opacity-60 ${
+                      matchMode === 'friendly_wl'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Friendly (W/L · 0 Elo)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!isOfficer}
+                    onClick={() => setMatchMode('practice_history')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer disabled:opacity-60 ${
+                      matchMode === 'practice_history'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Practice Log (History Only)
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Roster Player Pickers */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
               <div className="space-y-2">
@@ -1444,8 +1600,11 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                   )
                 </h3>
                 <p className="text-xs text-emerald-200/80">
-                  Ladder rating updated: ±{savedMatchSummary.eloDelta} Elo points
-                  applied to participating players.
+                  {savedMatchSummary.matchMode === 'practice_history'
+                    ? 'Practice match logged to Match History (0 Elo change, Wins/Losses unchanged).'
+                    : savedMatchSummary.matchMode === 'friendly_wl'
+                    ? 'Friendly match recorded: Wins & Losses updated with 0 Elo rating change.'
+                    : `Ladder rating updated: ±${savedMatchSummary.eloDelta} Elo points applied to participating players.`}
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">

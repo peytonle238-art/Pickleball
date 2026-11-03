@@ -3,14 +3,23 @@ import { Camera, Edit3, Search, Trash2, X } from 'lucide-react';
 import {
   AttendanceSession,
   GradeLevel,
+  LadderChallenge,
+  MatchRecord,
   Member,
   SkillLevel,
 } from '../types';
-import { processImageFileToDataUrl } from '../utils/clubUtils';
+import {
+  ALL_ACHIEVEMENT_DEFINITIONS,
+  computeMemberAchievements,
+  processImageFileToDataUrl,
+  recalculateMemberStatsFromHistory,
+} from '../utils/clubUtils';
 
 interface MembersAttendanceViewProps {
   members: Member[];
   attendance: AttendanceSession[];
+  matches?: MatchRecord[];
+  challenges?: LadderChallenge[];
   isOfficer: boolean;
   onUpdateMembers: (members: Member[]) => void;
   onUpdateAttendance: (attendance: AttendanceSession[]) => void;
@@ -43,6 +52,8 @@ function normalizeSkill(raw: string): SkillLevel {
 export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   members,
   attendance,
+  matches = [],
+  challenges = [],
   isOfficer,
   onUpdateMembers,
   onUpdateAttendance,
@@ -83,6 +94,21 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   const [formJoinDate, setFormJoinDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+
+  // Officer Stat & Achievement Override state when editing a member
+  const [formElo, setFormElo] = useState<number>(1200);
+  const [formMonthStartElo, setFormMonthStartElo] = useState<number>(1200);
+  const [formWins, setFormWins] = useState<number>(0);
+  const [formLosses, setFormLosses] = useState<number>(0);
+  const [formPointsFor, setFormPointsFor] = useState<number>(0);
+  const [formPointsAgainst, setFormPointsAgainst] = useState<number>(0);
+  const [formStreak, setFormStreak] = useState<number>(0);
+  const [formUnlockedAchievementIds, setFormUnlockedAchievementIds] = useState<
+    string[]
+  >([]);
+  const [formRevokedAchievementIds, setFormRevokedAchievementIds] = useState<
+    string[]
+  >([]);
 
   // Bulk CSV Roster Import state
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -191,6 +217,15 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     setFormDupr('3.25');
     setFormPaddle('');
     setFormJoinDate(new Date().toISOString().slice(0, 10));
+    setFormElo(1200);
+    setFormMonthStartElo(1200);
+    setFormWins(0);
+    setFormLosses(0);
+    setFormPointsFor(0);
+    setFormPointsAgainst(0);
+    setFormStreak(0);
+    setFormUnlockedAchievementIds([]);
+    setFormRevokedAchievementIds([]);
     setIsAddingMember(true);
   };
 
@@ -208,7 +243,49 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     setFormDupr(m.duprRating || '');
     setFormPaddle(m.paddleNotes);
     setFormJoinDate(m.joinDate);
+    setFormElo(m.elo);
+    setFormMonthStartElo(m.monthStartElo ?? m.elo);
+    setFormWins(m.wins);
+    setFormLosses(m.losses);
+    setFormPointsFor(m.pointsFor ?? 0);
+    setFormPointsAgainst(m.pointsAgainst ?? 0);
+    setFormStreak(m.streak);
+    setFormUnlockedAchievementIds(m.unlockedAchievementIds || []);
+    setFormRevokedAchievementIds(m.revokedAchievementIds || []);
     setIsAddingMember(true);
+  };
+
+  const handleRecalculateFormStats = () => {
+    if (!editingMember) return;
+    const recomputed = recalculateMemberStatsFromHistory(
+      editingMember,
+      matches
+    );
+    setFormElo(recomputed.elo);
+    setFormWins(recomputed.wins);
+    setFormLosses(recomputed.losses);
+    setFormPointsFor(recomputed.pointsFor);
+    setFormPointsAgainst(recomputed.pointsAgainst);
+    setFormStreak(recomputed.streak);
+  };
+
+  const handleToggleFormBadgeOverride = (
+    badgeId: string,
+    targetMode: 'granted' | 'revoked' | 'auto'
+  ) => {
+    const nextUnlocked = formUnlockedAchievementIds.filter(
+      (id) => id !== badgeId
+    );
+    const nextRevoked = formRevokedAchievementIds.filter(
+      (id) => id !== badgeId
+    );
+    if (targetMode === 'granted') {
+      nextUnlocked.push(badgeId);
+    } else if (targetMode === 'revoked') {
+      nextRevoked.push(badgeId);
+    }
+    setFormUnlockedAchievementIds(nextUnlocked);
+    setFormRevokedAchievementIds(nextRevoked);
   };
 
   const handleSaveMember = (e: React.FormEvent) => {
@@ -231,6 +308,21 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 duprRating: formDupr.trim() || undefined,
                 paddleNotes: formPaddle.trim() || 'Club Loaner Paddle',
                 joinDate: formJoinDate,
+                elo: Math.max(100, Math.round(Number(formElo) || 1200)),
+                monthStartElo: Math.max(
+                  100,
+                  Math.round(Number(formMonthStartElo) || 1200)
+                ),
+                wins: Math.max(0, Math.round(Number(formWins) || 0)),
+                losses: Math.max(0, Math.round(Number(formLosses) || 0)),
+                pointsFor: Math.max(0, Math.round(Number(formPointsFor) || 0)),
+                pointsAgainst: Math.max(
+                  0,
+                  Math.round(Number(formPointsAgainst) || 0)
+                ),
+                streak: Math.round(Number(formStreak) || 0),
+                unlockedAchievementIds: formUnlockedAchievementIds,
+                revokedAchievementIds: formRevokedAchievementIds,
               }
             : m
         )
@@ -852,6 +944,238 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Officer Stats & Achievement Badges Editor (when editing an existing member) */}
+            {editingMember && isOfficer && (
+              <div className="sm:col-span-2 lg:col-span-3 p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+                  <div>
+                    <div className="font-display text-base font-bold uppercase tracking-tight text-slate-900 dark:text-white">
+                      Officer Stats & Varsity Achievement Overrides
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Adjust Elo, Wins/Losses, Points & Streak, or manually grant/revoke any of the 10 achievement badges
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRecalculateFormStats}
+                    className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Recalculate from Match History
+                  </button>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      Elo Rating
+                    </label>
+                    <input
+                      type="number"
+                      value={formElo}
+                      onChange={(e) => setFormElo(Number(e.target.value))}
+                      className="w-full min-h-[36px] px-2.5 py-1 rounded-md text-xs font-mono-num font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      Month Start Elo
+                    </label>
+                    <input
+                      type="number"
+                      value={formMonthStartElo}
+                      onChange={(e) =>
+                        setFormMonthStartElo(Number(e.target.value))
+                      }
+                      className="w-full min-h-[36px] px-2.5 py-1 rounded-md text-xs font-mono-num font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+                      Wins (W)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formWins}
+                      onChange={(e) => setFormWins(Number(e.target.value))}
+                      className="w-full min-h-[36px] px-2.5 py-1 rounded-md text-xs font-mono-num font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-red-500 mb-1">
+                      Losses (L)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formLosses}
+                      onChange={(e) => setFormLosses(Number(e.target.value))}
+                      className="w-full min-h-[36px] px-2.5 py-1 rounded-md text-xs font-mono-num font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      Points For (PF)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formPointsFor}
+                      onChange={(e) => setFormPointsFor(Number(e.target.value))}
+                      className="w-full min-h-[36px] px-2.5 py-1 rounded-md text-xs font-mono-num font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      Points Against (PA)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formPointsAgainst}
+                      onChange={(e) =>
+                        setFormPointsAgainst(Number(e.target.value))
+                      }
+                      className="w-full min-h-[36px] px-2.5 py-1 rounded-md text-xs font-mono-num font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      Streak (+/-)
+                    </label>
+                    <input
+                      type="number"
+                      value={formStreak}
+                      onChange={(e) => setFormStreak(Number(e.target.value))}
+                      className="w-full min-h-[36px] px-2.5 py-1 rounded-md text-xs font-mono-num font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Achievement Badges Override Grid */}
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                      Varsity Achievement Badges (Grant / Lock / Auto)
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormUnlockedAchievementIds(
+                            ALL_ACHIEVEMENT_DEFINITIONS.map((b) => b.id)
+                          );
+                          setFormRevokedAchievementIds([]);
+                        }}
+                        className="px-2.5 py-1 rounded text-[11px] font-bold bg-emerald-600 text-white cursor-pointer"
+                      >
+                        Unlock All 10
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormUnlockedAchievementIds([]);
+                          setFormRevokedAchievementIds([]);
+                        }}
+                        className="px-2.5 py-1 rounded text-[11px] font-bold bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
+                      >
+                        Reset All to Auto
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                    {computeMemberAchievements(
+                      {
+                        ...editingMember,
+                        elo: formElo,
+                        wins: formWins,
+                        losses: formLosses,
+                        streak: formStreak,
+                        unlockedAchievementIds: formUnlockedAchievementIds,
+                        revokedAchievementIds: formRevokedAchievementIds,
+                      },
+                      matches,
+                      attendance,
+                      challenges
+                    ).map((badge) => (
+                      <div
+                        key={badge.id}
+                        className={`p-2.5 rounded-md border flex flex-col justify-between gap-2 text-xs ${
+                          badge.unlocked
+                            ? 'bg-white dark:bg-slate-900 border-emerald-500/70'
+                            : 'bg-slate-100/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-slate-900 dark:text-white truncate">
+                              {badge.title}
+                            </span>
+                            <span
+                              className={`text-[10px] font-mono-num font-bold uppercase ${
+                                badge.unlocked
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              {badge.unlocked ? 'UNLOCKED' : 'LOCKED'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            {badge.description}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleToggleFormBadgeOverride(badge.id, 'granted')
+                            }
+                            className={`py-1 rounded text-[10px] font-bold uppercase cursor-pointer ${
+                              badge.overrideStatus === 'granted'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            Grant
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleToggleFormBadgeOverride(badge.id, 'revoked')
+                            }
+                            className={`py-1 rounded text-[10px] font-bold uppercase cursor-pointer ${
+                              badge.overrideStatus === 'revoked'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            Lock
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleToggleFormBadgeOverride(badge.id, 'auto')
+                            }
+                            className={`py-1 rounded text-[10px] font-bold uppercase cursor-pointer ${
+                              badge.overrideStatus === 'auto'
+                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            Auto
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-end gap-2 pt-2">
               <button

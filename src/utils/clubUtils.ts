@@ -6,6 +6,7 @@ import {
   ClubTournamentParticipant,
   GameScore,
   LadderChallenge,
+  MatchMode,
   MatchRecord,
   Member,
 } from '../types';
@@ -19,9 +20,80 @@ export interface MemberAchievement {
   target: number;
   pct: number;
   unlocked: boolean;
+  autoUnlocked: boolean;
+  overrideStatus: 'auto' | 'granted' | 'revoked';
   progressLabel: string;
   accent: 'blue' | 'emerald' | 'amber' | 'indigo';
 }
+
+export const ALL_ACHIEVEMENT_DEFINITIONS: {
+  id: string;
+  title: string;
+  category: 'Attendance' | 'Matches' | 'Streak' | 'Rating' | 'Rivalry';
+  description: string;
+}[] = [
+  {
+    id: 'first-checkin',
+    title: 'First Court Check-In',
+    category: 'Attendance',
+    description: 'Check in to your first official BNHS practice session',
+  },
+  {
+    id: 'iron-bobcat',
+    title: 'Iron Bobcat Attendance',
+    category: 'Attendance',
+    description: 'Attend 5 or more official club practice sessions',
+  },
+  {
+    id: 'first-win',
+    title: 'First Club Victory',
+    category: 'Matches',
+    description: 'Win your first official ladder or tournament match',
+  },
+  {
+    id: 'hot-streak-3',
+    title: '3-Match Hot Streak',
+    category: 'Streak',
+    description: 'Build an active winning streak of 3 consecutive matches',
+  },
+  {
+    id: 'unstoppable-5',
+    title: '5-Match Unstoppable',
+    category: 'Streak',
+    description: 'Dominate the ladder with 5 consecutive match victories',
+  },
+  {
+    id: 'rivalry-challenger',
+    title: 'Rivalry Callout',
+    category: 'Rivalry',
+    description:
+      'Issue or accept an official ladder challenge on the Club Challenge Board',
+  },
+  {
+    id: 'century-scorer',
+    title: 'Century Point Club',
+    category: 'Matches',
+    description: 'Score 100+ total points across official club matches',
+  },
+  {
+    id: 'club-veteran',
+    title: 'Club Court Veteran',
+    category: 'Matches',
+    description: 'Compete in 10 official recorded club matches',
+  },
+  {
+    id: 'varsity-contender',
+    title: 'Varsity Contender',
+    category: 'Rating',
+    description: 'Reach a 1,250+ Club Elo rating on the official ladder',
+  },
+  {
+    id: 'golden-pickle',
+    title: 'Dominant Game Win',
+    category: 'Matches',
+    description: 'Win an official game by 7+ points (e.g., 11–4 or 11–0)',
+  },
+];
 
 export interface HeadToHeadSummary {
   winProbabilityA: number;
@@ -103,7 +175,13 @@ export function computeMemberAchievements(
   const eloProgress = Math.max(0, member.elo - 1150);
   const eloTarget = 100; // 1150 -> 1250
 
-  return [
+  const grantedSet = new Set(member.unlockedAchievementIds || []);
+  const revokedSet = new Set(member.revokedAchievementIds || []);
+
+  const rawList: Omit<
+    MemberAchievement,
+    'unlocked' | 'autoUnlocked' | 'overrideStatus'
+  >[] = [
     {
       id: 'first-checkin',
       title: 'First Court Check-In',
@@ -112,7 +190,6 @@ export function computeMemberAchievements(
       current: Math.min(1, attendedCount),
       target: 1,
       pct: attendedCount >= 1 ? 100 : 0,
-      unlocked: attendedCount >= 1,
       progressLabel: `${Math.min(1, attendedCount)} / 1 session`,
       accent: 'emerald',
     },
@@ -124,7 +201,6 @@ export function computeMemberAchievements(
       current: Math.min(5, attendedCount),
       target: 5,
       pct: Math.min(100, Math.round((attendedCount / 5) * 100)),
-      unlocked: attendedCount >= 5,
       progressLabel: `${attendedCount} / 5 sessions`,
       accent: 'emerald',
     },
@@ -136,7 +212,6 @@ export function computeMemberAchievements(
       current: Math.min(1, totalWins),
       target: 1,
       pct: totalWins >= 1 ? 100 : 0,
-      unlocked: totalWins >= 1,
       progressLabel: `${Math.min(1, totalWins)} / 1 win`,
       accent: 'blue',
     },
@@ -148,7 +223,6 @@ export function computeMemberAchievements(
       current: Math.min(3, currentWinStreak),
       target: 3,
       pct: Math.min(100, Math.round((currentWinStreak / 3) * 100)),
-      unlocked: currentWinStreak >= 3,
       progressLabel: `${currentWinStreak} / 3 streak`,
       accent: 'amber',
     },
@@ -160,7 +234,6 @@ export function computeMemberAchievements(
       current: Math.min(5, currentWinStreak),
       target: 5,
       pct: Math.min(100, Math.round((currentWinStreak / 5) * 100)),
-      unlocked: currentWinStreak >= 5,
       progressLabel: `${currentWinStreak} / 5 streak`,
       accent: 'amber',
     },
@@ -173,7 +246,6 @@ export function computeMemberAchievements(
       current: Math.min(1, memberChallengesCount),
       target: 1,
       pct: memberChallengesCount >= 1 ? 100 : 0,
-      unlocked: memberChallengesCount >= 1,
       progressLabel: `${Math.min(1, memberChallengesCount)} / 1 challenge`,
       accent: 'blue',
     },
@@ -185,7 +257,6 @@ export function computeMemberAchievements(
       current: Math.min(100, careerPointsScored),
       target: 100,
       pct: Math.min(100, Math.round((careerPointsScored / 100) * 100)),
-      unlocked: careerPointsScored >= 100,
       progressLabel: `${careerPointsScored} / 100 pts`,
       accent: 'indigo',
     },
@@ -197,7 +268,6 @@ export function computeMemberAchievements(
       current: Math.min(10, totalMatches),
       target: 10,
       pct: Math.min(100, Math.round((totalMatches / 10) * 100)),
-      unlocked: totalMatches >= 10,
       progressLabel: `${totalMatches} / 10 matches`,
       accent: 'indigo',
     },
@@ -212,7 +282,6 @@ export function computeMemberAchievements(
         member.elo >= 1250
           ? 100
           : Math.min(100, Math.round((eloProgress / eloTarget) * 100)),
-      unlocked: member.elo >= 1250,
       progressLabel: `${member.elo} / 1250 Elo`,
       accent: 'blue',
     },
@@ -224,7 +293,6 @@ export function computeMemberAchievements(
       current: Math.min(7, maxWinMargin),
       target: 7,
       pct: Math.min(100, Math.round((maxWinMargin / 7) * 100)),
-      unlocked: maxWinMargin >= 7,
       progressLabel:
         maxWinMargin >= 7
           ? `+${maxWinMargin} pt margin achieved`
@@ -232,6 +300,33 @@ export function computeMemberAchievements(
       accent: 'amber',
     },
   ];
+
+  return rawList.map((item) => {
+    const autoUnlocked = item.pct >= 100;
+    const isRevoked = revokedSet.has(item.id);
+    const isGranted = grantedSet.has(item.id);
+
+    const unlocked = isRevoked ? false : isGranted ? true : autoUnlocked;
+    const overrideStatus: 'auto' | 'granted' | 'revoked' = isRevoked
+      ? 'revoked'
+      : isGranted
+      ? 'granted'
+      : 'auto';
+
+    return {
+      ...item,
+      autoUnlocked,
+      unlocked,
+      overrideStatus,
+      pct: isGranted && !isRevoked ? 100 : item.pct,
+      progressLabel:
+        isGranted && !isRevoked && !autoUnlocked
+          ? 'Awarded by Club Officer'
+          : isRevoked
+          ? 'Locked by Club Officer'
+          : item.progressLabel,
+    };
+  });
 }
 
 /**
@@ -320,7 +415,20 @@ export function computeHeadToHeadSummary(
 }
 
 /**
+ * Resolves the effective MatchMode for a MatchRecord.
+ */
+export function getEffectiveMatchMode(match: MatchRecord): MatchMode {
+  if (match.matchMode) return match.matchMode;
+  if (match.isFriendly || match.eloDelta === 0) return 'friendly_wl';
+  return 'ranked';
+}
+
+/**
  * Applies a finished match to the members array and returns the updated members array.
+ * Supports:
+ * - 'ranked': updates Elo, Wins/Losses, Points For/Against, and Streak
+ * - 'friendly_wl': keeps Elo unchanged (0 Elo delta), updates Wins/Losses, Points For/Against, and Streak
+ * - 'practice_history': records match in history only without altering Elo or W/L record
  */
 export function applyMatchToMembers(
   members: Member[],
@@ -328,10 +436,16 @@ export function applyMatchToMembers(
   team2Ids: string[],
   games: GameScore[],
   winnerTeam: 1 | 2,
-  eloDelta: number
+  eloDelta: number,
+  matchMode: MatchMode = 'ranked'
 ): Member[] {
+  if (matchMode === 'practice_history') {
+    return members;
+  }
+
   const totalT1Points = games.reduce((sum, g) => sum + g.team1Score, 0);
   const totalT2Points = games.reduce((sum, g) => sum + g.team2Score, 0);
+  const effectiveEloDelta = matchMode === 'friendly_wl' ? 0 : eloDelta;
 
   return members.map((m) => {
     const inT1 = team1Ids.includes(m.id);
@@ -352,7 +466,12 @@ export function applyMatchToMembers(
 
     return {
       ...m,
-      elo: won ? m.elo + eloDelta : Math.max(800, m.elo - eloDelta),
+      elo:
+        effectiveEloDelta === 0
+          ? m.elo
+          : won
+          ? m.elo + effectiveEloDelta
+          : Math.max(800, m.elo - effectiveEloDelta),
       wins: won ? m.wins + 1 : m.wins,
       losses: won ? m.losses : m.losses + 1,
       pointsFor: m.pointsFor + pf,
@@ -360,6 +479,142 @@ export function applyMatchToMembers(
       streak: nextStreak,
     };
   });
+}
+
+/**
+ * Computes a member's current streak from an array of remaining MatchRecords.
+ */
+function computeStreakFromMatches(
+  memberId: string,
+  remainingMatches: MatchRecord[]
+): number {
+  const relevant = remainingMatches.filter(
+    (m) =>
+      getEffectiveMatchMode(m) !== 'practice_history' &&
+      (m.team1Ids.includes(memberId) || m.team2Ids.includes(memberId))
+  );
+  // Matches are stored newest-first in state.matches; reverse to process oldest -> newest
+  const chronological = [...relevant].reverse();
+  let streak = 0;
+  for (const m of chronological) {
+    const inT1 = m.team1Ids.includes(memberId);
+    const won = (inT1 && m.winnerTeam === 1) || (!inT1 && m.winnerTeam === 2);
+    if (won) {
+      streak = streak > 0 ? streak + 1 : 1;
+    } else {
+      streak = streak < 0 ? streak - 1 : -1;
+    }
+  }
+  return streak;
+}
+
+/**
+ * Reverts a deleted or voided match from participating members' stats
+ * (Elo, Wins, Losses, Points For, Points Against, and Streak).
+ */
+export function revertMatchFromMembers(
+  members: Member[],
+  matchToRemove: MatchRecord,
+  remainingMatches: MatchRecord[]
+): Member[] {
+  const mode = getEffectiveMatchMode(matchToRemove);
+  if (mode === 'practice_history') {
+    return members;
+  }
+
+  const totalT1Points = matchToRemove.games.reduce(
+    (sum, g) => sum + g.team1Score,
+    0
+  );
+  const totalT2Points = matchToRemove.games.reduce(
+    (sum, g) => sum + g.team2Score,
+    0
+  );
+  const effectiveDelta = mode === 'ranked' ? matchToRemove.eloDelta : 0;
+
+  return members.map((m) => {
+    const inT1 = matchToRemove.team1Ids.includes(m.id);
+    const inT2 = matchToRemove.team2Ids.includes(m.id);
+    if (!inT1 && !inT2) return m;
+
+    const won =
+      (inT1 && matchToRemove.winnerTeam === 1) ||
+      (inT2 && matchToRemove.winnerTeam === 2);
+    const pf = inT1 ? totalT1Points : totalT2Points;
+    const pa = inT1 ? totalT2Points : totalT1Points;
+
+    const revertedElo =
+      effectiveDelta === 0
+        ? m.elo
+        : won
+        ? Math.max(800, m.elo - effectiveDelta)
+        : m.elo + effectiveDelta;
+
+    return {
+      ...m,
+      elo: revertedElo,
+      wins: Math.max(0, m.wins - (won ? 1 : 0)),
+      losses: Math.max(0, m.losses - (won ? 0 : 1)),
+      pointsFor: Math.max(0, (m.pointsFor || 0) - pf),
+      pointsAgainst: Math.max(0, (m.pointsAgainst || 0) - pa),
+      streak: computeStreakFromMatches(m.id, remainingMatches),
+    };
+  });
+}
+
+/**
+ * Recalculates a single member's W-L, PF, PA, Streak, and Elo from scratch
+ * using the club's recorded match history.
+ */
+export function recalculateMemberStatsFromHistory(
+  member: Member,
+  allMatches: MatchRecord[]
+): Member {
+  const chronological = [...allMatches].reverse();
+  let elo = member.monthStartElo || 1200;
+  let wins = 0;
+  let losses = 0;
+  let pointsFor = 0;
+  let pointsAgainst = 0;
+  let streak = 0;
+
+  for (const m of chronological) {
+    const inT1 = m.team1Ids.includes(member.id);
+    const inT2 = m.team2Ids.includes(member.id);
+    if (!inT1 && !inT2) continue;
+
+    const mode = getEffectiveMatchMode(m);
+    if (mode === 'practice_history') continue;
+
+    const won = (inT1 && m.winnerTeam === 1) || (inT2 && m.winnerTeam === 2);
+    const t1Pts = m.games.reduce((s, g) => s + g.team1Score, 0);
+    const t2Pts = m.games.reduce((s, g) => s + g.team2Score, 0);
+    const pf = inT1 ? t1Pts : t2Pts;
+    const pa = inT1 ? t2Pts : t1Pts;
+
+    if (won) {
+      wins += 1;
+      streak = streak > 0 ? streak + 1 : 1;
+      if (mode === 'ranked') elo += m.eloDelta;
+    } else {
+      losses += 1;
+      streak = streak < 0 ? streak - 1 : -1;
+      if (mode === 'ranked') elo = Math.max(800, elo - m.eloDelta);
+    }
+
+    pointsFor += pf;
+    pointsAgainst += pa;
+  }
+
+  return {
+    ...member,
+    elo,
+    wins,
+    losses,
+    pointsFor,
+    pointsAgainst,
+    streak,
+  };
 }
 
 /**

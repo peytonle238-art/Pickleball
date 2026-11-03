@@ -3,7 +3,9 @@ import {
   ArrowLeftRight,
   ChevronDown,
   ChevronUp,
+  Edit3,
   Flame,
+  RotateCcw,
   ShieldCheck,
   Swords,
   Trash2,
@@ -13,6 +15,7 @@ import {
 import {
   AttendanceSession,
   LadderChallenge,
+  MatchMode,
   MatchRecord,
   Member,
   NavTab,
@@ -22,6 +25,8 @@ import {
   calculateEloDelta,
   computeHeadToHeadSummary,
   computeMemberAchievements,
+  getEffectiveMatchMode,
+  recalculateMemberStatsFromHistory,
 } from '../utils/clubUtils';
 
 interface LadderStatsViewProps {
@@ -33,6 +38,7 @@ interface LadderStatsViewProps {
   isOfficer: boolean;
   onSaveManualMatch: (match: MatchRecord) => void;
   onDeleteMatch: (matchId: string) => void;
+  onUpdateMember?: (updatedMember: Member) => void;
   onCreateChallenge?: (payload: {
     challengerId: string;
     opponentId: string;
@@ -77,13 +83,28 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
   isOfficer,
   onSaveManualMatch,
   onDeleteMatch,
+  onUpdateMember,
   onCreateChallenge,
   onUpdateChallengeStatus,
   onResolveChallengeMatch,
   onNavigate,
 }) => {
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+  const [editingStatsMemberId, setEditingStatsMemberId] = useState<
+    string | null
+  >(null);
+  const [editElo, setEditElo] = useState<number>(1200);
+  const [editMonthStartElo, setEditMonthStartElo] = useState<number>(1200);
+  const [editWins, setEditWins] = useState<number>(0);
+  const [editLosses, setEditLosses] = useState<number>(0);
+  const [editPointsFor, setEditPointsFor] = useState<number>(0);
+  const [editPointsAgainst, setEditPointsAgainst] = useState<number>(0);
+  const [editStreak, setEditStreak] = useState<number>(0);
+
   const [showManualMatchForm, setShowManualMatchForm] = useState(false);
+  const [mobileSection, setMobileSection] = useState<
+    'ladder' | 'challenges' | 'h2h' | 'leaders'
+  >('ladder');
 
   // Ranked by Elo rating descending
   const rankedLadder = useMemo(
@@ -93,6 +114,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
 
   // Manual Match form state
   const [mFormat, setMFormat] = useState<'singles' | 'doubles'>('singles');
+  const [mMatchMode, setMMatchMode] = useState<MatchMode>('ranked');
   const [mT1P1, setMT1P1] = useState(rankedLadder[0]?.id || '');
   const [mT1P2, setMT1P2] = useState(rankedLadder[1]?.id || '');
   const [mT2P1, setMT2P1] = useState(rankedLadder[2]?.id || '');
@@ -241,6 +263,75 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
     [challenges]
   );
 
+  const openOfficerStatEditor = (member: Member) => {
+    setExpandedMemberId(member.id);
+    setEditingStatsMemberId(member.id);
+    setEditElo(member.elo);
+    setEditMonthStartElo(member.monthStartElo);
+    setEditWins(member.wins);
+    setEditLosses(member.losses);
+    setEditPointsFor(member.pointsFor || 0);
+    setEditPointsAgainst(member.pointsAgainst || 0);
+    setEditStreak(member.streak || 0);
+  };
+
+  const handleSaveOfficerStatOverride = (member: Member) => {
+    if (!isOfficer || !onUpdateMember) return;
+    onUpdateMember({
+      ...member,
+      elo: Math.max(100, Math.min(3500, Math.round(editElo))),
+      monthStartElo: Math.max(
+        100,
+        Math.min(3500, Math.round(editMonthStartElo))
+      ),
+      wins: Math.max(0, Math.round(editWins)),
+      losses: Math.max(0, Math.round(editLosses)),
+      pointsFor: Math.max(0, Math.round(editPointsFor)),
+      pointsAgainst: Math.max(0, Math.round(editPointsAgainst)),
+      streak: Math.round(editStreak),
+    });
+    setEditingStatsMemberId(null);
+  };
+
+  const handleRecalculateStatsFromMatches = (member: Member) => {
+    if (!isOfficer || !onUpdateMember) return;
+    const recomputed = recalculateMemberStatsFromHistory(member, matches);
+    setEditElo(recomputed.elo);
+    setEditWins(recomputed.wins);
+    setEditLosses(recomputed.losses);
+    setEditPointsFor(recomputed.pointsFor);
+    setEditPointsAgainst(recomputed.pointsAgainst);
+    setEditStreak(recomputed.streak);
+    onUpdateMember(recomputed);
+  };
+
+  const handleSetBadgeOverride = (
+    member: Member,
+    achievementId: string,
+    mode: 'auto' | 'granted' | 'revoked'
+  ) => {
+    if (!isOfficer || !onUpdateMember) return;
+    const currentUnlocked = (member.unlockedAchievementIds || []).filter(
+      (id) => id !== achievementId
+    );
+    const currentRevoked = (member.revokedAchievementIds || []).filter(
+      (id) => id !== achievementId
+    );
+
+    const nextUnlocked =
+      mode === 'granted'
+        ? [...currentUnlocked, achievementId]
+        : currentUnlocked;
+    const nextRevoked =
+      mode === 'revoked' ? [...currentRevoked, achievementId] : currentRevoked;
+
+    onUpdateMember({
+      ...member,
+      unlockedAchievementIds: nextUnlocked,
+      revokedAchievementIds: nextRevoked,
+    });
+  };
+
   const handleManualMatchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOfficer) return;
@@ -253,7 +344,8 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
     const t2Elos = team2Ids.map(
       (id) => members.find((m) => m.id === id)?.elo || 1200
     );
-    const eloDelta = calculateEloDelta(t1Elos, t2Elos, winnerTeam);
+    const calculatedDelta = calculateEloDelta(t1Elos, t2Elos, winnerTeam);
+    const eloDelta = mMatchMode === 'ranked' ? calculatedDelta : 0;
 
     const record: MatchRecord = {
       id: `match-${Date.now()}`,
@@ -267,6 +359,8 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       games: [{ team1Score: mScore1, team2Score: mScore2 }],
       winnerTeam,
       eloDelta,
+      isFriendly: mMatchMode !== 'ranked',
+      matchMode: mMatchMode,
     };
 
     onSaveManualMatch(record);
@@ -318,15 +412,51 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       if (alt) setChallengerId(alt.id);
       setOpponentId(targetOpponentId);
     }
+    setMobileSection('challenges');
     setShowChallengeForm(true);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Mobile & Tablet Segmented View Switcher (Eliminates vertical clutter on phones) */}
+      <div className="lg:hidden grid grid-cols-4 gap-1 p-1 rounded-lg bg-slate-200/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+        {(
+          [
+            { id: 'ladder', label: `Ladder (${rankedLadder.length})` },
+            {
+              id: 'challenges',
+              label: `Callouts (${activeChallengesCount})`,
+            },
+            { id: 'h2h', label: 'H2H Odds' },
+            { id: 'leaders', label: 'Top 3' },
+          ] as const
+        ).map((tab) => {
+          const active = mobileSection === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setMobileSection(tab.id)}
+              className={`min-h-[38px] px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-colors cursor-pointer truncate ${
+                active
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* 3 Leaderboard Cards: Most Wins, Best Win %, Most Improved This Month */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div
+        className={`${
+          mobileSection === 'leaders' ? 'grid' : 'hidden lg:grid'
+        } grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4`}
+      >
         {/* Most Wins */}
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
               01 · Most Wins
@@ -370,7 +500,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         </div>
 
         {/* Best Win Percentage */}
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
               02 · Best Win Percentage
@@ -419,7 +549,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         </div>
 
         {/* Most Improved This Month */}
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
               03 · Most Improved (Month)
@@ -469,9 +599,19 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       {/* ================================================================= */}
       {/* RIVALRY & COMPETITIVE HUB: H2H CALCULATOR + CHALLENGE BOARD       */}
       {/* ================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div
+        className={`${
+          mobileSection === 'h2h' || mobileSection === 'challenges'
+            ? 'grid'
+            : 'hidden lg:grid'
+        } grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start`}
+      >
         {/* LEFT (6 COLS): HEAD-TO-HEAD RIVALRY & WIN PROBABILITY CALCULATOR */}
-        <div className="lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5">
+        <div
+          className={`${
+            mobileSection === 'h2h' ? 'block' : 'hidden lg:block'
+          } lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4 sm:space-y-5`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
             <div>
               <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
@@ -506,7 +646,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
           ) : (
             <div className="space-y-4">
               {/* Dual Player Selectors */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                 <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5">
                   <label className="block text-[10px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
                     Player A{' '}
@@ -576,7 +716,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 h2hSummary && (
                   <div className="space-y-4">
                     {/* Win Probability Split Bar */}
-                    <div className="p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
+                    <div className="p-3.5 sm:p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
                       <div className="flex items-center justify-between text-xs font-mono-num tabular-nums">
                         <div>
                           <span className="font-bold text-blue-600 dark:text-blue-400 text-base">
@@ -586,7 +726,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                             {playerA.name.split(' ')[0]}
                           </span>
                         </div>
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 hidden sm:inline">
                           Expected Win Probability
                         </span>
                         <div className="text-right">
@@ -608,13 +748,13 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
 
                       <div className="flex items-center justify-between text-[11px] font-mono-num text-slate-500 dark:text-slate-400 pt-0.5 tabular-nums">
                         <span>
-                          If {playerA.name.split(' ')[0]} wins:{' '}
+                          {playerA.name.split(' ')[0]} win:{' '}
                           <strong className="text-emerald-600 dark:text-emerald-400">
                             +{h2hSummary.eloStakeIfAWins} Elo
                           </strong>
                         </span>
                         <span>
-                          If {playerB.name.split(' ')[0]} wins:{' '}
+                          {playerB.name.split(' ')[0]} win:{' '}
                           <strong className="text-emerald-600 dark:text-emerald-400">
                             +{h2hSummary.eloStakeIfBWins} Elo
                           </strong>
@@ -623,24 +763,24 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                     </div>
 
                     {/* 3-Column Matchup Telemetry Strip */}
-                    <div className="grid grid-cols-3 gap-2.5">
-                      <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="p-2.5 sm:p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                         <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-500">
-                          All-Time H2H
+                          H2H Record
                         </div>
-                        <div className="font-mono-num text-lg font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
+                        <div className="font-mono-num text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
                           {h2hSummary.aWins}–{h2hSummary.bWins}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono-num tabular-nums">
-                          {h2hSummary.totalMatches} shared matches
+                          {h2hSummary.totalMatches} matches
                         </div>
                       </div>
 
-                      <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                      <div className="p-2.5 sm:p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                         <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-500">
                           H2H Points
                         </div>
-                        <div className="font-mono-num text-lg font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
+                        <div className="font-mono-num text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
                           {h2hSummary.aPoints}–{h2hSummary.bPoints}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono-num tabular-nums">
@@ -651,11 +791,11 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                      <div className="p-2.5 sm:p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                         <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-500">
                           Rating Gap
                         </div>
-                        <div className="font-mono-num text-lg font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
+                        <div className="font-mono-num text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
                           {playerA.elo - playerB.elo >= 0
                             ? `+${playerA.elo - playerB.elo}`
                             : playerA.elo - playerB.elo}
@@ -671,7 +811,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                       <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                         {h2hSummary.sharedMatches.length > 0
                           ? `Last ${Math.min(3, h2hSummary.sharedMatches.length)} Head-to-Head Meetings`
-                          : 'Never faced each other in an official match yet'}
+                          : 'No official head-to-head matches yet'}
                       </span>
                       {onCreateChallenge && (
                         <button
@@ -733,7 +873,11 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         </div>
 
         {/* RIGHT (6 COLS): LIVE CLUB RIVALRY CHALLENGE BOARD */}
-        <div className="lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5">
+        <div
+          className={`${
+            mobileSection === 'challenges' ? 'block' : 'hidden lg:block'
+          } lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4 sm:space-y-5`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
             <div>
               <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
@@ -759,7 +903,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
           {showChallengeForm && onCreateChallenge && (
             <form
               onSubmit={handleIssueChallengeSubmit}
-              className="p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3"
+              className="p-3.5 sm:p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-900 dark:text-white">
@@ -907,7 +1051,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
           )}
 
           {/* Filter Tabs */}
-          <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
+          <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto no-scrollbar">
             {(
               [
                 {
@@ -927,7 +1071,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setChallengeFilter(tab.id)}
-                className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-colors ${
+                className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
                   challengeFilter === tab.id
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
@@ -1172,31 +1316,35 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       </div>
 
       {/* Main Club Ladder Table */}
-      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
+      <div
+        className={`${
+          mobileSection === 'ladder' ? 'block' : 'hidden lg:block'
+        } rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5">
           <div>
-            <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
               Official BNHS Elo Club Ladder
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Click any player row to inspect their unlocked varsity badges,
+              Tap any player row to inspect their unlocked varsity badges,
               streak milestones & recent matches
             </p>
           </div>
 
           {isOfficer && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => onNavigate('scorekeeper')}
-                className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                className="flex-1 sm:flex-initial min-h-[36px] px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
               >
                 Score Live Match
               </button>
               <button
                 onClick={() => setShowManualMatchForm(!showManualMatchForm)}
-                className="min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white cursor-pointer"
+                className="flex-1 sm:flex-initial min-h-[36px] px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white cursor-pointer"
               >
-                + Log Quick Result
+                + Log Result
               </button>
             </div>
           )}
@@ -1206,17 +1354,23 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         {isOfficer && showManualMatchForm && (
           <form
             onSubmit={handleManualMatchSubmit}
-            className="mb-6 p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-4"
+            className="mb-5 p-3.5 sm:p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-4"
           >
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                Log Completed Match Result (Auto-Updates Ladder)
-              </h4>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Log Completed Match Result
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Choose Ranked Ladder, Friendly (W/L Only · 0 Elo), or Practice
+                  Day Log (Match History Only)
+                </p>
+              </div>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setMFormat('singles')}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  className={`px-2.5 py-1 text-xs font-semibold rounded cursor-pointer ${
                     mFormat === 'singles'
                       ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                       : 'text-slate-600 dark:text-slate-400'
@@ -1227,7 +1381,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setMFormat('doubles')}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded ${
+                  className={`px-2.5 py-1 text-xs font-semibold rounded cursor-pointer ${
                     mFormat === 'doubles'
                       ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                       : 'text-slate-600 dark:text-slate-400'
@@ -1236,6 +1390,55 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                   Doubles
                 </button>
               </div>
+            </div>
+
+            {/* Match Mode Selector: Ranked vs Friendly W/L vs Practice History Only */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {(
+                [
+                  {
+                    id: 'ranked',
+                    title: 'Ranked Ladder Match',
+                    desc: 'Updates Elo rating, W/L record & Match History',
+                  },
+                  {
+                    id: 'friendly_wl',
+                    title: 'Friendly Practice (0 Elo)',
+                    desc: 'Adds Wins/Losses & Points without changing Elo',
+                  },
+                  {
+                    id: 'practice_history',
+                    title: 'Practice Log (History Only)',
+                    desc: 'Saves score to Match History only (No Elo or W/L)',
+                  },
+                ] as const
+              ).map((modeOpt) => {
+                const active = mMatchMode === modeOpt.id;
+                return (
+                  <button
+                    key={modeOpt.id}
+                    type="button"
+                    onClick={() => setMMatchMode(modeOpt.id)}
+                    className={`p-2.5 rounded-md border text-left transition-colors cursor-pointer ${
+                      active
+                        ? 'bg-white dark:bg-slate-900 border-blue-600 dark:border-blue-400'
+                        : 'bg-slate-100/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                      <span>{modeOpt.title}</span>
+                      {active && (
+                        <span className="text-[10px] font-mono-num uppercase text-blue-600 dark:text-blue-400">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      {modeOpt.desc}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
@@ -1333,7 +1536,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowManualMatchForm(false)}
-                className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 dark:text-slate-400"
+                className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 dark:text-slate-400 cursor-pointer"
               >
                 Cancel
               </button>
@@ -1341,25 +1544,39 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 type="submit"
                 className="px-4 py-1.5 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
               >
-                Save Match & Update Elo
+                {mMatchMode === 'ranked'
+                  ? 'Save Match & Update Elo'
+                  : mMatchMode === 'friendly_wl'
+                  ? 'Save Friendly Match (W/L Only · 0 Elo)'
+                  : 'Log Practice Match to History'}
               </button>
             </div>
           </form>
         )}
 
         <div className="overflow-x-auto touch-scroll">
-          <table className="w-full min-w-[680px] text-left border-collapse">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-mono-num uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                <th className="py-3 pr-3">Rank</th>
-                <th className="py-3 px-3">Player</th>
-                <th className="py-3 px-3 text-right">Elo Rating</th>
-                <th className="py-3 px-3 text-right">Month Δ</th>
-                <th className="py-3 px-3 text-right">W–L Record</th>
-                <th className="py-3 px-3 text-right">Win %</th>
-                <th className="py-3 px-3 text-right">PF / PA (Diff)</th>
-                <th className="py-3 px-3 text-right">Badges</th>
-                <th className="py-3 pl-3 text-right">Streak</th>
+                <th className="py-2.5 pr-2 sm:pr-3">Rank</th>
+                <th className="py-2.5 px-2 sm:px-3">Player</th>
+                <th className="py-2.5 px-2 sm:px-3 text-right">Elo</th>
+                <th className="hidden md:table-cell py-2.5 px-3 text-right">
+                  Month Δ
+                </th>
+                <th className="py-2.5 pl-2 sm:px-3 text-right">W–L</th>
+                <th className="hidden md:table-cell py-2.5 px-3 text-right">
+                  Win %
+                </th>
+                <th className="hidden lg:table-cell py-2.5 px-3 text-right">
+                  PF / PA (Diff)
+                </th>
+                <th className="hidden md:table-cell py-2.5 px-3 text-right">
+                  Badges
+                </th>
+                <th className="hidden sm:table-cell py-2.5 pl-3 text-right">
+                  Streak
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
@@ -1372,6 +1589,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 const monthDiff = member.elo - member.monthStartElo;
                 const ptDiff = member.pointsFor - member.pointsAgainst;
                 const isExpanded = expandedMemberId === member.id;
+                const isEditingStats = editingStatsMemberId === member.id;
                 const playerMatches = getPlayerRecentMatches(member.id);
                 const memberAchievements = computeMemberAchievements(
                   member,
@@ -1391,19 +1609,19 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                       }
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                     >
-                      <td className="py-3 pr-3 font-mono-num font-bold text-slate-900 dark:text-white tabular-nums">
+                      <td className="py-3 pr-2 sm:pr-3 font-mono-num font-bold text-slate-900 dark:text-white tabular-nums text-xs sm:text-sm">
                         #{index + 1}
                       </td>
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2.5">
+                      <td className="py-3 px-2 sm:px-3 max-w-[165px] sm:max-w-none">
+                        <div className="flex items-center gap-2 sm:gap-2.5">
                           {member.photoUrl ? (
                             <img
                               src={member.photoUrl}
                               alt={member.name}
-                              className="w-8 h-8 rounded object-cover shrink-0 border border-slate-200 dark:border-slate-700"
+                              className="w-7 h-7 sm:w-8 sm:h-8 rounded object-cover shrink-0 border border-slate-200 dark:border-slate-700"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 text-[11px]">
+                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 text-[10px] sm:text-[11px]">
                               {member.name
                                 .split(' ')
                                 .map((n) => n[0])
@@ -1413,11 +1631,11 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                           )}
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-slate-900 dark:text-white truncate">
+                              <span className="font-semibold text-slate-900 dark:text-white truncate text-xs sm:text-sm">
                                 {member.name}
                               </span>
                               {activeMember?.id === member.id && (
-                                <span className="text-[10px] font-mono-num uppercase font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white">
+                                <span className="text-[9px] font-mono-num uppercase font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white shrink-0">
                                   YOU
                                 </span>
                               )}
@@ -1427,19 +1645,20 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                               )}
                             </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num">
-                              {member.grade}th Grade · {member.skillLevel}
-                              {member.duprRating
-                                ? ` · ${member.duprRating} DUPR`
-                                : ''}
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num truncate">
+                              Gr. {member.grade} · {member.skillLevel}
+                              <span className="md:hidden">
+                                {' '}
+                                · {unlockedBadges.length}/10 Badges
+                              </span>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-3 text-right font-mono-num font-bold text-base text-slate-900 dark:text-white tabular-nums">
+                      <td className="py-3 px-2 sm:px-3 text-right font-mono-num font-bold text-sm sm:text-base text-slate-900 dark:text-white tabular-nums">
                         {member.elo}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono-num text-xs tabular-nums">
+                      <td className="hidden md:table-cell py-3 px-3 text-right font-mono-num text-xs tabular-nums">
                         <span
                           className={
                             monthDiff >= 0
@@ -1450,13 +1669,13 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                           {monthDiff >= 0 ? `+${monthDiff}` : monthDiff}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-right font-mono-num text-slate-800 dark:text-slate-200 tabular-nums">
+                      <td className="py-3 pl-2 sm:px-3 text-right font-mono-num text-xs sm:text-sm text-slate-800 dark:text-slate-200 tabular-nums whitespace-nowrap">
                         {member.wins}–{member.losses}
                       </td>
-                      <td className="py-3 px-3 text-right font-mono-num text-slate-700 dark:text-slate-300 tabular-nums">
+                      <td className="hidden md:table-cell py-3 px-3 text-right font-mono-num text-slate-700 dark:text-slate-300 tabular-nums">
                         {winPct}%
                       </td>
-                      <td className="py-3 px-3 text-right font-mono-num text-xs text-slate-600 dark:text-slate-300 tabular-nums">
+                      <td className="hidden lg:table-cell py-3 px-3 text-right font-mono-num text-xs text-slate-600 dark:text-slate-300 tabular-nums">
                         {member.pointsFor} / {member.pointsAgainst}{' '}
                         <span
                           className={
@@ -1468,12 +1687,12 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                           ({ptDiff >= 0 ? `+${ptDiff}` : ptDiff})
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-right font-mono-num text-xs tabular-nums">
+                      <td className="hidden md:table-cell py-3 px-3 text-right font-mono-num text-xs tabular-nums">
                         <span className="font-semibold text-slate-700 dark:text-slate-300">
                           {unlockedBadges.length}/{memberAchievements.length}
                         </span>
                       </td>
-                      <td className="py-3 pl-3 text-right font-mono-num text-xs tabular-nums">
+                      <td className="hidden sm:table-cell py-3 pl-3 text-right font-mono-num text-xs tabular-nums">
                         <span
                           className={`font-bold ${
                             member.streak >= 3
@@ -1494,21 +1713,49 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
 
                     {isExpanded && (
                       <tr className="bg-slate-50 dark:bg-slate-950">
-                        <td colSpan={9} className="px-4 py-4 text-xs space-y-4">
+                        <td
+                          colSpan={9}
+                          className="px-3 sm:px-4 py-3.5 sm:py-4 text-xs space-y-3.5"
+                        >
                           {/* Player Scouting Header + Quick Actions */}
                           <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
                             <div>
                               <span className="font-display text-sm font-bold uppercase text-slate-900 dark:text-white">
-                                {member.name} · Athlete Scouting & Milestones
+                                {member.name} · Scouting & Milestones
                               </span>
-                              <span className="ml-2 font-mono-num text-slate-500">
-                                ({unlockedBadges.length} of{' '}
-                                {memberAchievements.length} Varsity Badges
-                                Unlocked)
+                              <span className="ml-1.5 font-mono-num text-slate-500">
+                                ({unlockedBadges.length}/
+                                {memberAchievements.length} Badges)
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                              {isOfficer && onUpdateMember && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isEditingStats) {
+                                      setEditingStatsMemberId(null);
+                                    } else {
+                                      openOfficerStatEditor(member);
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1 rounded font-semibold inline-flex items-center gap-1 cursor-pointer ${
+                                    isEditingStats
+                                      ? 'bg-amber-400 text-slate-950'
+                                      : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                                  }`}
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>
+                                    {isEditingStats
+                                      ? 'Close Editor'
+                                      : 'Edit Stats & Badges'}
+                                  </span>
+                                </button>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1522,6 +1769,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                                   } else {
                                     setH2hPlayerBId(member.id);
                                   }
+                                  setMobileSection('h2h');
                                 }}
                                 className="px-2.5 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold cursor-pointer hover:bg-slate-100"
                               >
@@ -1544,53 +1792,386 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                             </div>
                           </div>
 
-                          {/* Varsity Achievement Badges Grid */}
-                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                            {memberAchievements.map((ach) => (
-                              <div
-                                key={ach.id}
-                                className={`p-2.5 rounded border flex flex-col justify-between gap-1.5 ${
-                                  ach.unlocked
-                                    ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
-                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-75'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between gap-1.5">
-                                  <div
-                                    className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
-                                      ach.unlocked
-                                        ? 'bg-emerald-600 text-white'
-                                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                                    }`}
-                                  >
-                                    {renderBadgeIcon(ach)}
-                                  </div>
-                                  <span
-                                    className={`text-[9px] font-mono-num font-bold uppercase ${
-                                      ach.unlocked
-                                        ? 'text-emerald-700 dark:text-emerald-400'
-                                        : 'text-slate-400'
-                                    }`}
-                                  >
-                                    {ach.unlocked ? 'UNLOCKED' : ach.category}
-                                  </span>
-                                </div>
+                          {/* OFFICER INLINE PLAYER STAT & ACHIEVEMENT EDITOR */}
+                          {isOfficer && isEditingStats && onUpdateMember && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-3.5 sm:p-4 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 space-y-4"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200 dark:border-slate-800">
                                 <div>
-                                  <div className="font-bold text-slate-900 dark:text-white text-[11px] leading-tight">
-                                    {ach.title}
+                                  <div className="text-[10px] font-mono-num uppercase tracking-wider font-bold text-amber-600 dark:text-amber-400">
+                                    Officer Player Override Console
                                   </div>
-                                  <div className="text-[10px] font-mono-num text-slate-500 mt-0.5 tabular-nums">
-                                    {ach.progressLabel}
+                                  <div className="font-display text-base font-bold text-slate-900 dark:text-white">
+                                    Adjust Stats & Varsity Badges for{' '}
+                                    {member.name}
                                   </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRecalculateStatsFromMatches(member)
+                                  }
+                                  className="px-2.5 py-1.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                                  title="Recompute W-L, Points, Streak, and Elo directly from remaining match history"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  <span>Recalculate from Match History</span>
+                                </button>
+                              </div>
+
+                              {/* Direct Stat Number Inputs */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                                <div>
+                                  <label className="block text-[10px] font-mono-num uppercase font-semibold text-slate-500 mb-1">
+                                    Elo Rating
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={100}
+                                    max={3500}
+                                    value={editElo}
+                                    onChange={(e) =>
+                                      setEditElo(Number(e.target.value))
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded font-mono-num font-bold text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-mono-num uppercase font-semibold text-slate-500 mb-1">
+                                    Month Start Elo
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={100}
+                                    max={3500}
+                                    value={editMonthStartElo}
+                                    onChange={(e) =>
+                                      setEditMonthStartElo(
+                                        Number(e.target.value)
+                                      )
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded font-mono-num text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-mono-num uppercase font-semibold text-slate-500 mb-1">
+                                    Wins
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={editWins}
+                                    onChange={(e) =>
+                                      setEditWins(Number(e.target.value))
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded font-mono-num font-bold text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-mono-num uppercase font-semibold text-slate-500 mb-1">
+                                    Losses
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={editLosses}
+                                    onChange={(e) =>
+                                      setEditLosses(Number(e.target.value))
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded font-mono-num font-bold text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-mono-num uppercase font-semibold text-slate-500 mb-1">
+                                    Points For (PF)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={editPointsFor}
+                                    onChange={(e) =>
+                                      setEditPointsFor(Number(e.target.value))
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded font-mono-num text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-mono-num uppercase font-semibold text-slate-500 mb-1">
+                                    Points Against
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={editPointsAgainst}
+                                    onChange={(e) =>
+                                      setEditPointsAgainst(
+                                        Number(e.target.value)
+                                      )
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded font-mono-num text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-mono-num uppercase font-semibold text-slate-500 mb-1">
+                                    Streak (+W / -L)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={-50}
+                                    max={50}
+                                    value={editStreak}
+                                    onChange={(e) =>
+                                      setEditStreak(Number(e.target.value))
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded font-mono-num font-bold text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                                  />
                                 </div>
                               </div>
-                            ))}
+
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                <span className="text-[11px] text-slate-500">
+                                  Tip: Use the badge controls below to manually
+                                  grant or lock any achievement badge for{' '}
+                                  {member.name}.
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditingStatsMemberId(null)
+                                    }
+                                    className="px-3 py-1.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleSaveOfficerStatOverride(member)
+                                    }
+                                    className="px-3.5 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer"
+                                  >
+                                    Save Player Stats
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Compact Mobile Stats Strip (Shows columns hidden on small screens) */}
+                          <div className="grid grid-cols-4 gap-2 md:hidden">
+                            <div className="p-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                              <div className="text-[9px] font-mono-num uppercase text-slate-400">
+                                Month Δ
+                              </div>
+                              <div
+                                className={`font-mono-num font-bold text-xs tabular-nums ${
+                                  monthDiff >= 0
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-red-500'
+                                }`}
+                              >
+                                {monthDiff >= 0 ? `+${monthDiff}` : monthDiff}
+                              </div>
+                            </div>
+                            <div className="p-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                              <div className="text-[9px] font-mono-num uppercase text-slate-400">
+                                Win %
+                              </div>
+                              <div className="font-mono-num font-bold text-xs text-slate-900 dark:text-white tabular-nums">
+                                {winPct}%
+                              </div>
+                            </div>
+                            <div className="p-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                              <div className="text-[9px] font-mono-num uppercase text-slate-400">
+                                Pt Diff
+                              </div>
+                              <div
+                                className={`font-mono-num font-bold text-xs tabular-nums ${
+                                  ptDiff >= 0
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-red-500'
+                                }`}
+                              >
+                                {ptDiff >= 0 ? `+${ptDiff}` : ptDiff}
+                              </div>
+                            </div>
+                            <div className="p-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                              <div className="text-[9px] font-mono-num uppercase text-slate-400">
+                                Streak
+                              </div>
+                              <div className="font-mono-num font-bold text-xs text-amber-600 dark:text-amber-400 tabular-nums">
+                                {member.streak > 0
+                                  ? `W${member.streak}`
+                                  : member.streak < 0
+                                  ? `L${Math.abs(member.streak)}`
+                                  : '—'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Varsity Achievement Badges Grid */}
+                          <div className="space-y-2">
+                            {isOfficer && onUpdateMember && (
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                                <span>
+                                  Officer Badge Controls: Grant, Lock, or leave
+                                  on Auto for each milestone
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onUpdateMember({
+                                        ...member,
+                                        unlockedAchievementIds:
+                                          memberAchievements.map((a) => a.id),
+                                        revokedAchievementIds: [],
+                                      });
+                                    }}
+                                    className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer"
+                                  >
+                                    Unlock All 10
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onUpdateMember({
+                                        ...member,
+                                        unlockedAchievementIds: [],
+                                        revokedAchievementIds: [],
+                                      });
+                                    }}
+                                    className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
+                                  >
+                                    Reset All to Auto
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                              {memberAchievements.map((ach) => (
+                                <div
+                                  key={ach.id}
+                                  className={`p-2.5 rounded border flex flex-col justify-between gap-1.5 ${
+                                    ach.unlocked
+                                      ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
+                                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <div
+                                      className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${
+                                        ach.unlocked
+                                          ? 'bg-emerald-600 text-white'
+                                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                      }`}
+                                    >
+                                      {renderBadgeIcon(ach)}
+                                    </div>
+                                    <span
+                                      className={`text-[9px] font-mono-num font-bold uppercase ${
+                                        ach.unlocked
+                                          ? 'text-emerald-700 dark:text-emerald-400'
+                                          : 'text-slate-400'
+                                      }`}
+                                    >
+                                      {ach.overrideStatus === 'granted'
+                                        ? 'GRANTED'
+                                        : ach.overrideStatus === 'revoked'
+                                        ? 'LOCKED'
+                                        : ach.unlocked
+                                        ? 'UNLOCKED'
+                                        : ach.category}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <div className="font-bold text-slate-900 dark:text-white text-[11px] leading-tight">
+                                      {ach.title}
+                                    </div>
+                                    <div className="text-[10px] font-mono-num text-slate-500 mt-0.5 tabular-nums">
+                                      {ach.progressLabel}
+                                    </div>
+                                  </div>
+
+                                  {isOfficer && onUpdateMember && (
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="grid grid-cols-3 gap-1 pt-1.5 border-t border-slate-200/70 dark:border-slate-800"
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleSetBadgeOverride(
+                                            member,
+                                            ach.id,
+                                            'granted'
+                                          )
+                                        }
+                                        className={`py-0.5 rounded text-[9px] font-mono-num font-bold uppercase cursor-pointer ${
+                                          ach.overrideStatus === 'granted'
+                                            ? 'bg-emerald-600 text-white'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-100'
+                                        }`}
+                                      >
+                                        Grant
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleSetBadgeOverride(
+                                            member,
+                                            ach.id,
+                                            'revoked'
+                                          )
+                                        }
+                                        className={`py-0.5 rounded text-[9px] font-mono-num font-bold uppercase cursor-pointer ${
+                                          ach.overrideStatus === 'revoked'
+                                            ? 'bg-red-600 text-white'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-red-100'
+                                        }`}
+                                      >
+                                        Lock
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleSetBadgeOverride(
+                                            member,
+                                            ach.id,
+                                            'auto'
+                                          )
+                                        }
+                                        className={`py-0.5 rounded text-[9px] font-mono-num font-bold uppercase cursor-pointer ${
+                                          ach.overrideStatus === 'auto'
+                                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                                        }`}
+                                      >
+                                        Auto
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
 
                           {/* Recent Matches Log for Player */}
                           <div>
                             <div className="font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                              Recent Official Matches for {member.name}:
+                              Recent Recorded Matches for {member.name}:
                             </div>
                             {playerMatches.length === 0 ? (
                               <div className="text-slate-500">
@@ -1614,6 +2195,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                                       (g) => `${g.team1Score}–${g.team2Score}`
                                     )
                                     .join(', ');
+                                  const pmMode = getEffectiveMatchMode(pm);
                                   return (
                                     <div
                                       key={pm.id}
@@ -1634,11 +2216,16 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                                         </span>
                                       </div>
                                       <div className="font-mono-num text-slate-600 dark:text-slate-400 tabular-nums">
-                                        {scoreStr} · {pm.date} (
-                                        {won
-                                          ? `+${pm.eloDelta}`
-                                          : `-${pm.eloDelta}`}{' '}
-                                        Elo)
+                                        {scoreStr} · {pm.date} ·{' '}
+                                        {pmMode === 'practice_history'
+                                          ? 'Practice Log (No Elo/WL)'
+                                          : pmMode === 'friendly_wl'
+                                          ? 'Friendly (W/L · 0 Elo)'
+                                          : `${
+                                              won
+                                                ? `+${pm.eloDelta}`
+                                                : `-${pm.eloDelta}`
+                                            } Elo`}
                                       </div>
                                     </div>
                                   );
@@ -1658,15 +2245,19 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       </div>
 
       {/* Match History Log */}
-      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+      <div
+        className={`${
+          mobileSection === 'ladder' ? 'block' : 'hidden lg:block'
+        } rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6`}
+      >
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
               Club Match History ({matches.length})
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              All completed singles, doubles, and challenge matches saved from
-              the Score Keeper
+              All completed ranked, friendly, and practice matches — deleting a
+              match automatically reverts its Elo & W/L impact
             </p>
           </div>
         </div>
@@ -1678,14 +2269,15 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
             const scoreStr = m.games
               .map((g) => `${g.team1Score}–${g.team2Score}`)
               .join(', ');
+            const mode = getEffectiveMatchMode(m);
 
             return (
               <div
                 key={m.id}
-                className="py-3 flex flex-wrap items-center justify-between gap-4 text-sm"
+                className="py-3 flex flex-wrap items-center justify-between gap-3 text-sm"
               >
-                <div className="space-y-0.5">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span
                       className={
                         m.winnerTeam === 1
@@ -1706,31 +2298,50 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                       {t2Names}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-500 flex items-center gap-2">
+                  <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
                     <span className="capitalize">{m.format}</span>
                     <span aria-hidden="true">·</span>
                     <span className="capitalize">{m.scoringType}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      {mode === 'practice_history'
+                        ? 'Practice Log'
+                        : mode === 'friendly_wl'
+                        ? 'Friendly Match'
+                        : 'Ranked Ladder'}
+                    </span>
                     <span aria-hidden="true">·</span>
                     <span className="font-mono-num tabular-nums">{m.date}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="text-right font-mono-num tabular-nums">
                     <div className="font-bold text-slate-900 dark:text-white">
                       {scoreStr}
                     </div>
-                    <div className="text-xs text-emerald-600 dark:text-emerald-400">
-                      ±{m.eloDelta} Elo
+                    <div
+                      className={`text-xs ${
+                        mode === 'ranked'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      {mode === 'practice_history'
+                        ? 'History Only (0 Elo)'
+                        : mode === 'friendly_wl'
+                        ? 'W/L Only (0 Elo)'
+                        : `±${m.eloDelta} Elo`}
                     </div>
                   </div>
                   {isOfficer && (
                     <button
                       onClick={() => onDeleteMatch(m.id)}
-                      className="p-2 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
-                      title="Delete match record"
+                      className="px-2.5 py-1.5 rounded text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/50 border border-red-200 dark:border-red-900/60 inline-flex items-center gap-1.5 cursor-pointer"
+                      title="Delete match record and revert player Elo, Wins/Losses, and Points"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Delete & Revert</span>
                     </button>
                   )}
                 </div>

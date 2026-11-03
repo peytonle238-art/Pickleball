@@ -181,6 +181,9 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   const [activityFilter, setActivityFilter] = useState<
     'all' | 'achievements' | 'matches' | 'attendance' | 'tasks'
   >('all');
+  const [mobileAuthMode, setMobileAuthMode] = useState<'signin' | 'register'>(
+    'signin'
+  );
   const [now, setNow] = useState<Date>(() => new Date());
 
   useEffect(() => {
@@ -523,9 +526,14 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="min-h-[36px] px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                  className="min-h-[36px] px-3 py-1.5 rounded-md bg-slate-900 text-white sm:bg-slate-50 sm:text-slate-800 hover:bg-slate-800 sm:hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 border border-slate-800 sm:border-slate-200 dark:border-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
                 >
-                  <span>Menu</span>
+                  <span className="sm:hidden">
+                    {activeMember
+                      ? activeMember.name.split(' ')[0]
+                      : 'Sign In / Menu'}
+                  </span>
+                  <span className="hidden sm:inline">Menu</span>
                   <ChevronDown
                     className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
                       menuOpen ? 'rotate-180' : ''
@@ -973,8 +981,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           )}
                         </div>
 
-                        {/* Navigation Links */}
-                        <div className="space-y-0.5">
+                        {/* Navigation Links (Desktop / Quick Jump) */}
+                        <div className="hidden sm:block space-y-0.5">
                           {MEMBER_NAV_TABS.map((item) => {
                             const isSelected = activeTab === item.id;
                             return (
@@ -1036,19 +1044,19 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 </AnimatePresence>
               </div>
 
-              {/* Officer Sign In Button */}
+              {/* Officer Sign In Button (Desktop/Tablet only; on Mobile it lives inside the Menu) */}
               <button
                 type="button"
                 onClick={onRequestOfficerLogin}
-                className="min-h-[36px] px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                className="hidden sm:inline-flex min-h-[36px] px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 items-center"
               >
                 Officer Sign In
               </button>
             </div>
           </div>
 
-          {/* Lower Row: Flat Underline Section Bar */}
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-200 dark:border-slate-800">
+          {/* Lower Row: Flat Underline Section Bar (Desktop/Tablet only; Mobile uses fixed bottom bar) */}
+          <div className="hidden md:flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-200 dark:border-slate-800">
             {MEMBER_NAV_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -1073,7 +1081,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       {/* ================================================================= */}
       {/* MEMBER PORTAL CONTENT VIEWPORT                                    */}
       {/* ================================================================= */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -1084,75 +1092,75 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
           >
             {/* Contextual Back Bar on Sub-Views */}
             {activeTab !== 'home' && (
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-3">
-                <div className="flex items-center gap-3">
+              <div className="mb-4 sm:mb-6 flex items-center justify-between gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2.5 sm:px-4 sm:py-3">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <button
                     type="button"
                     onClick={() => onNavigate('home')}
-                    className="px-2.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors"
+                    className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors shrink-0"
                   >
-                    ← Overview
+                    ← Home
                   </button>
-                  <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
-                  <div>
-                    <h1 className="font-display text-lg font-bold text-slate-900 dark:text-white leading-none">
+                  <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div className="min-w-0">
+                    <h1 className="font-display text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-none truncate">
                       {currentNav.label}
                     </h1>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                       {currentNav.description}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {activeMember ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        {activeMember.name}{' '}
-                        <span className="font-mono-num text-blue-600 dark:text-blue-400">
-                          (ID: {activeMember.schoolId || activeMember.id})
-                        </span>
+                {activeMember ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="hidden sm:inline text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      {activeMember.name}{' '}
+                      <span className="font-mono-num text-blue-600 dark:text-blue-400">
+                        (ID: {activeMember.schoolId || activeMember.id})
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMenuAccountTab('signin');
-                          setMenuOpen(true);
-                        }}
-                        className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
-                      >
-                        Switch ID
-                      </button>
-                    </div>
-                  ) : (
+                    </span>
                     <button
                       type="button"
                       onClick={() => {
                         setMenuAccountTab('signin');
                         setMenuOpen(true);
                       }}
-                      className="px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
                     >
-                      Sign In with School ID / Join
+                      Switch ID
                     </button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  activeTab !== 'activity' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuAccountTab('signin');
+                        setMenuOpen(true);
+                      }}
+                      className="px-2.5 sm:px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer shrink-0"
+                    >
+                      Sign In
+                    </button>
+                  )
+                )}
               </div>
             )}
 
             {/* ============================================================= */}
-            {/* OVERVIEW TAB: ONLY WELCOME TO BNHS PICKLEBALL CLUB            */}
+            {/* OVERVIEW TAB: WELCOME BANNER + QUICK MOBILE NAVIGATION        */}
             {/* ============================================================= */}
             {activeTab === 'home' && (
-              <div className="space-y-6">
-                <div className="rounded-lg bg-slate-900 text-white border border-slate-800 p-6 sm:p-8">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                    <div className="space-y-3 max-w-xl">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="rounded-lg bg-slate-900 text-white border border-slate-800 p-5 sm:p-8">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6">
+                    <div className="space-y-2.5 sm:space-y-3 max-w-xl">
                       <div className="text-[11px] font-mono-num uppercase tracking-widest text-amber-400 font-semibold">
                         {data.settings.schoolName} · Official Member Hub
                       </div>
 
-                      <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-none">
+                      <h1 className="font-display text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-none">
                         Welcome to {data.settings.clubName}
                       </h1>
 
@@ -1172,34 +1180,34 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-300 leading-relaxed max-w-lg">
-                          Use the Menu above to sign in with your School ID or
-                          add yourself to the club database to track your
-                          matches, attendance, and badges.
+                        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
+                          Sign in with your School ID or add yourself to the
+                          club database to track your matches, attendance, and
+                          varsity achievement badges.
                         </p>
                       )}
                     </div>
 
                     {hasScheduledEvents && (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="px-3.5 py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[64px]">
-                          <div className="font-mono-num text-2xl font-bold text-white tabular-nums leading-none">
+                      <div className="grid grid-cols-3 gap-2 w-full sm:w-auto shrink-0">
+                        <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
+                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums leading-none">
                             {String(days).padStart(2, '0')}
                           </div>
                           <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
                             Days
                           </div>
                         </div>
-                        <div className="px-3.5 py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[64px]">
-                          <div className="font-mono-num text-2xl font-bold text-white tabular-nums leading-none">
+                        <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
+                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums leading-none">
                             {String(hours).padStart(2, '0')}
                           </div>
                           <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
                             Hrs
                           </div>
                         </div>
-                        <div className="px-3.5 py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[64px]">
-                          <div className="font-mono-num text-2xl font-bold text-amber-400 tabular-nums leading-none">
+                        <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
+                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-amber-400 tabular-nums leading-none">
                             {String(minutes).padStart(2, '0')}
                           </div>
                           <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
@@ -1210,6 +1218,81 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     )}
                   </div>
                 </div>
+
+                {/* Quick 2x2 Action Strip for Mobile & Desktop */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('activity')}
+                    className="p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
+                    <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
+                      01 · ATHLETE PROFILE
+                    </div>
+                    <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
+                      My Activity & Badges
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {activeMember
+                        ? `${unlockedAchievementsCount}/10 badges unlocked`
+                        : 'Sign in with School ID'}
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('ladder')}
+                    className="p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
+                    <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
+                      02 · STANDINGS
+                    </div>
+                    <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
+                      Ladder & Callouts
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num truncate">
+                      {data.members.length} players ·{' '}
+                      {
+                        (data.challenges || []).filter(
+                          (c) => c.status === 'open' || c.status === 'accepted'
+                        ).length
+                      }{' '}
+                      active
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('tournaments')}
+                    className="p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
+                    <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
+                      03 · BRACKETS
+                    </div>
+                    <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
+                      Club Tournaments
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {data.clubTournaments.length} brackets & pools
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('calendar')}
+                    className="p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
+                    <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400">
+                      04 · SCHEDULE
+                    </div>
+                    <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
+                      Practice Calendar
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      Dates, times & courts
+                    </div>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1217,15 +1300,15 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
             {/* MY ACTIVITY TAB: ACHIEVEMENTS, MATCHES, ATTENDANCE & TASKS    */}
             {/* ============================================================= */}
             {activeTab === 'activity' && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {!activeMember ? (
                   /* Prompt to Sign In with School ID or Add Yourself */
-                  <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6">
-                    <div className="max-w-xl space-y-1.5">
+                  <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-8 space-y-4 sm:space-y-6">
+                    <div className="max-w-xl space-y-1">
                       <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
                         Member School ID Account
                       </div>
-                      <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+                      <h2 className="font-display text-xl sm:text-3xl font-bold text-slate-900 dark:text-white">
                         Sign In with Your School ID or Add Yourself
                       </h2>
                       <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -1235,11 +1318,41 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                    {/* Mobile 2-Tab Form Switcher (Prevents stacking 2 long forms on phone screens) */}
+                    <div className="lg:hidden grid grid-cols-2 gap-1 p-1 rounded-md bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setMobileAuthMode('signin')}
+                        className={`py-2 px-3 rounded text-xs font-bold transition-colors cursor-pointer ${
+                          mobileAuthMode === 'signin'
+                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                            : 'text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        Sign In with ID
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMobileAuthMode('register')}
+                        className={`py-2 px-3 rounded text-xs font-bold transition-colors cursor-pointer ${
+                          mobileAuthMode === 'register'
+                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                            : 'text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        New Member Registration
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       {/* Left: Continue with School ID */}
                       <form
                         onSubmit={handleSchoolIdSubmit}
-                        className="p-5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-4 flex flex-col justify-between"
+                        className={`${
+                          mobileAuthMode === 'signin'
+                            ? 'flex'
+                            : 'hidden lg:flex'
+                        } p-4 sm:p-5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-4 flex-col justify-between`}
                       >
                         <div className="space-y-3">
                           <div className="text-sm font-bold text-slate-900 dark:text-white">
@@ -1265,8 +1378,15 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             />
                           </div>
                           {schoolIdError && (
-                            <div className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                              {schoolIdError}
+                            <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-between gap-2">
+                              <span>{schoolIdError}</span>
+                              <button
+                                type="button"
+                                onClick={() => setMobileAuthMode('register')}
+                                className="lg:hidden underline font-bold text-blue-600 dark:text-blue-400 shrink-0"
+                              >
+                                Register →
+                              </button>
                             </div>
                           )}
                         </div>
@@ -1282,13 +1402,17 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       {/* Right: Add Yourself to the Database */}
                       <form
                         onSubmit={handleRegisterSubmit}
-                        className="p-5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3"
+                        className={`${
+                          mobileAuthMode === 'register'
+                            ? 'block'
+                            : 'hidden lg:block'
+                        } p-4 sm:p-5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3`}
                       >
                         <div className="text-sm font-bold text-slate-900 dark:text-white">
                           New Member? Add Yourself to Database
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                           <div>
                             <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                               School ID *
@@ -1372,8 +1496,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         </div>
 
                         {/* Profile Photo Upload Option */}
-                        <div className="flex items-center gap-3 p-3 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                          <div className="relative w-11 h-11 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700">
+                        <div className="flex items-center gap-3 p-2.5 sm:p-3 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                          <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700">
                             {regPhoto ? (
                               <img
                                 src={regPhoto}
@@ -1449,17 +1573,17 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 ) : (
                   <>
                     {/* Personal Metrics & Season Performance Card */}
-                    <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between gap-5">
-                      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 sm:pb-4 border-b border-slate-200 dark:border-slate-800">
+                        <div className="flex items-center gap-3 min-w-0">
                           {activeMember.photoUrl ? (
                             <img
                               src={activeMember.photoUrl}
                               alt={activeMember.name}
-                              className="w-14 h-14 rounded-md object-cover border border-slate-300 dark:border-slate-700 shrink-0"
+                              className="w-12 h-12 sm:w-14 sm:h-14 rounded-md object-cover border border-slate-300 dark:border-slate-700 shrink-0"
                             />
                           ) : (
-                            <div className="w-14 h-14 rounded-md bg-slate-900 dark:bg-slate-800 text-white font-display text-xl font-bold flex items-center justify-center shrink-0">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md bg-slate-900 dark:bg-slate-800 text-white font-display text-lg sm:text-xl font-bold flex items-center justify-center shrink-0">
                               {activeMember.name
                                 .split(' ')
                                 .map((n) => n[0])
@@ -1468,15 +1592,14 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             </div>
                           )}
                           <div className="min-w-0">
-                            <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
-                              Personal Athlete Account · School ID:{' '}
-                              {activeMember.schoolId || activeMember.id}
+                            <div className="text-[10px] sm:text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
+                              ID: {activeMember.schoolId || activeMember.id}
                             </div>
-                            <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white truncate">
+                            <h2 className="font-display text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
                               {activeMember.name}
                             </h2>
                             <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num">
-                              Grade {activeMember.grade} ·{' '}
+                              Gr. {activeMember.grade} ·{' '}
                               {activeMember.skillLevel} · {activeMember.elo} Elo
                             </div>
                           </div>
@@ -1486,19 +1609,19 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           <button
                             type="button"
                             onClick={onSignOutMember}
-                            className="min-h-[34px] px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+                            className="min-h-[32px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
                           >
-                            Switch School ID
+                            Switch ID
                           </button>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                            Badges Unlocked
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                        <div className="p-3 sm:p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+                          <div className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                            Badges
                           </div>
-                          <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                             {unlockedAchievementsCount}/{myAchievements.length}
                           </div>
                           <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
@@ -1515,14 +1638,14 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           </div>
                         </div>
 
-                        <div className="p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                            <span>Match Record</span>
+                        <div className="p-3 sm:p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                            <span>Record</span>
                             <span className="font-mono-num font-bold text-slate-700 dark:text-slate-300">
                               {winRatePct}%
                             </span>
                           </div>
-                          <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                             {activeMember.wins}W–{activeMember.losses}L
                           </div>
                           <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
@@ -1533,14 +1656,14 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           </div>
                         </div>
 
-                        <div className="p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                        <div className="p-3 sm:p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                             <span>Attendance</span>
                             <span className="font-mono-num font-bold text-emerald-600 dark:text-emerald-400">
                               {attendanceStats.attended}/{attendanceStats.total}
                             </span>
                           </div>
-                          <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                             {attendanceStats.pct}%
                           </div>
                           <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
@@ -1551,14 +1674,14 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           </div>
                         </div>
 
-                        <div className="p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                            Tasks Involved In
+                        <div className="p-3 sm:p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+                          <div className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                            Club Tasks
                           </div>
-                          <div className="font-mono-num text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                             {myTasks.length}
                           </div>
-                          <div className="text-[11px] text-slate-500 font-mono-num tabular-nums">
+                          <div className="text-[10px] sm:text-[11px] text-slate-500 font-mono-num tabular-nums">
                             {
                               myTasks.filter((t) => t.status === 'Done').length
                             }{' '}
@@ -1578,22 +1701,22 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             { id: 'all', label: 'All Activity' },
                             {
                               id: 'achievements',
-                              label: `Achievements (${unlockedAchievementsCount}/${myAchievements.length})`,
+                              label: `Badges (${unlockedAchievementsCount}/${myAchievements.length})`,
                             },
                             {
                               id: 'matches',
-                              label: `My Matches (${
+                              label: `Matches (${
                                 myMatches.length +
                                 myTournamentBracketMatches.length
                               })`,
                             },
                             {
                               id: 'attendance',
-                              label: `My Attendance (${myAttendanceSessions.length})`,
+                              label: `Attendance (${myAttendanceSessions.length})`,
                             },
                             {
                               id: 'tasks',
-                              label: `My Tasks (${myTasks.length})`,
+                              label: `Tasks (${myTasks.length})`,
                             },
                           ] as const
                         ).map((tab) => (
@@ -1615,7 +1738,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
 
                     {/* ACTIVE RIVALRY CALLOUTS FOR SIGNED-IN MEMBER */}
                     {myActiveChallenges.length > 0 && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-3.5 sm:space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
@@ -1630,7 +1753,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             onClick={() => onNavigate('ladder')}
                             className="px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white text-xs font-semibold cursor-pointer"
                           >
-                            Open Challenge Board & H2H Calculator →
+                            Challenge Board →
                           </button>
                         </div>
 
@@ -1643,7 +1766,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                             return (
                               <div
                                 key={c.id}
-                                className="p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3 text-xs"
+                                className="p-3.5 sm:p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3 text-xs"
                               >
                                 <div className="space-y-1.5">
                                   <div className="flex items-center justify-between gap-2">
@@ -1733,7 +1856,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 0: ACHIEVEMENT BADGES & MILESTONES */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'achievements') && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -1744,27 +1867,49 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                               streaks, wins, and practice attendance
                             </p>
                           </div>
-                          <span className="text-xs font-mono-num font-bold text-slate-700 dark:text-slate-300 tabular-nums">
-                            {unlockedAchievementsCount} of{' '}
-                            {myAchievements.length} Unlocked
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono-num font-bold text-slate-700 dark:text-slate-300 tabular-nums">
+                              {unlockedAchievementsCount} of{' '}
+                              {myAchievements.length} Unlocked
+                            </span>
+                            {activityFilter === 'all' && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setActivityFilter('achievements')
+                                }
+                                className="sm:hidden px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-blue-600 dark:text-blue-400 cursor-pointer"
+                              >
+                                View All 10 →
+                              </button>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                          {myAchievements.map((ach) => {
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                          {myAchievements.map((ach, idx) => {
                             const iconColors = ach.unlocked
                               ? 'bg-emerald-600 text-white'
                               : 'bg-slate-200 dark:bg-slate-800 text-slate-500';
+                            // On mobile when viewing "All Activity", show unlocked badges or top 4 so 10 cards don't push Matches down
+                            const hideOnMobileOverview =
+                              activityFilter === 'all' &&
+                              !ach.unlocked &&
+                              idx >= 4;
                             return (
                               <div
                                 key={ach.id}
-                                className={`p-4 rounded-md border flex flex-col justify-between gap-3 ${
+                                className={`${
+                                  hideOnMobileOverview
+                                    ? 'hidden sm:flex'
+                                    : 'flex'
+                                } p-3.5 sm:p-4 rounded-md border flex-col justify-between gap-2.5 sm:gap-3 ${
                                   ach.unlocked
                                     ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
                                     : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
                                 }`}
                               >
-                                <div className="space-y-2.5">
+                                <div className="space-y-2">
                                   <div className="flex items-start justify-between gap-2">
                                     <div
                                       className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${iconColors}`}
@@ -1824,7 +1969,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 1: MY MATCHES HISTORY */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'matches') && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -1909,18 +2054,30 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                                     <div className="text-base font-bold text-slate-900 dark:text-white">
                                       {scoreStr}
                                     </div>
-                                    <div
-                                      className={`text-xs font-bold ${
-                                        won
-                                          ? 'text-emerald-600 dark:text-emerald-400'
-                                          : 'text-red-500'
-                                      }`}
-                                    >
-                                      {won
-                                        ? `+${m.eloDelta}`
-                                        : `-${m.eloDelta}`}{' '}
-                                      Elo
-                                    </div>
+                                    {m.matchMode === 'practice_history' ? (
+                                      <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                                        Practice Log · 0 Elo
+                                      </div>
+                                    ) : m.isFriendly ||
+                                      m.matchMode === 'friendly_wl' ||
+                                      m.eloDelta === 0 ? (
+                                      <div className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                                        Friendly W/L · 0 Elo
+                                      </div>
+                                    ) : (
+                                      <div
+                                        className={`text-xs font-bold ${
+                                          won
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-red-500'
+                                        }`}
+                                      >
+                                        {won
+                                          ? `+${m.eloDelta}`
+                                          : `-${m.eloDelta}`}{' '}
+                                        Elo
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -1990,7 +2147,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 2: MY ATTENDANCE HISTORY */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'attendance') && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -2047,7 +2204,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 3: TASKS INVOLVED IN */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'tasks') && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
