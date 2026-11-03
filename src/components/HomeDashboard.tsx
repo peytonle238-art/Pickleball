@@ -1,17 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
-import { ClubDataState, NavTab } from '../types';
-import { getDaysUntil, getNextUpcomingEvent } from '../utils/clubUtils';
+import { ArrowRight, ArrowUpRight, Flame } from 'lucide-react';
+import { ClubDataState, Member, NavTab, ReactionKey } from '../types';
+import {
+  getClubText,
+  getDaysUntil,
+  getEloTierInfo,
+  getNextUpcomingEvent,
+} from '../utils/clubUtils';
+import { ClubInteractivePulse } from './ClubInteractivePulse';
 
 interface HomeDashboardProps {
   data: ClubDataState;
+  activeMember?: Member | null;
   isOfficer: boolean;
+  onVoteMvp?: (candidateId: string) => void;
+  onResetMvpVotes?: () => void;
+  onVotePoll?: (pollId: string, optionId: string) => void;
+  onCreatePoll?: (question: string, optionLabels: string[]) => void;
+  onDeletePoll?: (pollId: string) => void;
+  onToggleReaction?: (feedItemId: string, reaction: ReactionKey) => void;
   onNavigate: (tab: NavTab) => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   data,
+  activeMember = null,
   isOfficer,
+  onVoteMvp,
+  onResetMvpVotes,
+  onVotePoll,
+  onCreatePoll,
+  onDeletePoll,
+  onToggleReaction,
   onNavigate,
 }) => {
   const [now, setNow] = useState<Date>(() => new Date());
@@ -55,6 +75,23 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Optional President Custom Spotlight Banner */}
+      {(data.settings.customText?.homeCustomHeadline?.trim() ||
+        data.settings.customText?.homeCustomSubtext?.trim()) && (
+        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-1.5">
+          {data.settings.customText?.homeCustomHeadline?.trim() && (
+            <h2 className="font-display text-xl sm:text-2xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
+              {data.settings.customText.homeCustomHeadline}
+            </h2>
+          )}
+          {data.settings.customText?.homeCustomSubtext?.trim() && (
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+              {data.settings.customText.homeCustomSubtext}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* 4-Column Flat Editorial Index Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-0 sm:border border-slate-200 dark:border-slate-800 rounded-lg sm:bg-white sm:dark:bg-slate-900 sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 overflow-hidden">
         <button
@@ -67,7 +104,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
           <div>
             <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
-              Ladder & Challenges
+              {getClubText(
+                data.settings,
+                'homeCard1Title',
+                'Ladder & Challenges'
+              )}
             </div>
             <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono-num truncate">
               {data.members.length} players ·{' '}
@@ -91,7 +132,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
           <div>
             <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
-              Tournaments
+              {getClubText(data.settings, 'homeCard2Title', 'Tournaments')}
             </div>
             <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
               In-club pools & watch
@@ -109,7 +150,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
           <div>
             <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
-              Club Calendar
+              {getClubText(data.settings, 'homeCard3Title', 'Club Calendar')}
             </div>
             <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
               Practices, dates & courts
@@ -128,7 +169,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
           <div>
             <div className="font-display text-base sm:text-lg font-bold uppercase text-white leading-tight">
-              Score a Match
+              {getClubText(data.settings, 'homeCard4Title', 'Score a Match')}
             </div>
             <div className="text-[11px] sm:text-xs text-white/85 truncate">
               Side-out referee & courts
@@ -138,7 +179,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       </div>
 
       {/* Next Scheduled Session Flat Scoreboard Banner */}
-      <div className="rounded-lg bg-slate-900 text-white p-4 sm:p-6 border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
+      <div className="rounded-lg bg-slate-900 text-white p-4 sm:p-6 border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 court-arena-surface">
         {hasScheduledEvents ? (
           <>
             <div className="space-y-1.5 sm:space-y-2 max-w-2xl">
@@ -248,38 +289,55 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
             {top5Members.length > 0 ? (
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {top5Members.map((member, index) => (
-                  <div
-                    key={member.id}
-                    className="py-3 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 font-mono-num font-bold text-sm text-slate-400">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                          {member.name}
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                          Grade {member.grade} · {member.skillLevel}
-                          {member.duprRating
-                            ? ` · ${member.duprRating} DUPR`
-                            : ''}
+                {top5Members.map((member, index) => {
+                  const tier = getEloTierInfo(member.elo);
+                  return (
+                    <div
+                      key={member.id}
+                      onClick={() => onNavigate('ladder')}
+                      className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 px-2 -mx-2 rounded transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-6 font-mono-num font-bold text-sm text-slate-400">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                              {member.name}
+                            </span>
+                            <span
+                              className={`text-[9px] font-mono-num uppercase font-bold px-1.5 py-0.5 rounded shrink-0 ${tier.badgeBgClass}`}
+                            >
+                              {tier.shortCode}
+                            </span>
+                            {member.streak >= 3 && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-mono-num font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                                <Flame className="w-3 h-3" />
+                                W{member.streak}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                            Grade {member.grade} · {member.skillLevel}
+                            {member.duprRating
+                              ? ` · ${member.duprRating} DUPR`
+                              : ''}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-4 shrink-0 text-right">
-                      <div className="text-xs font-mono-num text-slate-500 dark:text-slate-400">
-                        {member.wins}–{member.losses}
-                      </div>
-                      <div className="font-mono-num font-bold text-base text-slate-900 dark:text-white w-12">
-                        {member.elo}
+                      <div className="flex items-center gap-4 shrink-0 text-right">
+                        <div className="text-xs font-mono-num text-slate-500 dark:text-slate-400 tabular-nums">
+                          {member.wins}–{member.losses}
+                        </div>
+                        <div className="font-mono-num font-bold text-base text-slate-900 dark:text-white w-12 tabular-nums">
+                          {member.elo}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="py-10 text-center space-y-1.5">
@@ -417,6 +475,22 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Interactive Club Pulse: Weekly MVP Fan Vote, Club Polls & Live Activity Feed */}
+      {onVoteMvp && onVotePoll && onToggleReaction && (
+        <ClubInteractivePulse
+          data={data}
+          activeMember={activeMember}
+          isOfficer={isOfficer}
+          onVoteMvp={onVoteMvp}
+          onResetMvpVotes={onResetMvpVotes}
+          onVotePoll={onVotePoll}
+          onCreatePoll={onCreatePoll}
+          onDeletePoll={onDeletePoll}
+          onToggleReaction={onToggleReaction}
+          onNavigate={onNavigate}
+        />
+      )}
 
       {/* Officer-Only Executive Management Strip */}
       {isOfficer && (

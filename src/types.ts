@@ -31,6 +31,7 @@ export interface ClubSettings {
     timeRange: string;
     location: string;
   };
+  customText?: Record<string, string>;
 }
 
 export interface Officer {
@@ -245,6 +246,29 @@ export interface LadderChallenge {
   scoreSummary?: string;
 }
 
+export interface ClubPollOption {
+  id: string;
+  label: string;
+  voterIds: string[];
+}
+
+export interface ClubPoll {
+  id: string;
+  question: string;
+  createdAt: string;
+  isActive: boolean;
+  options: ClubPollOption[];
+}
+
+export type ReactionKey = 'fire' | 'clutch' | 'upset' | 'goat';
+
+export interface ActivityReactionCounts {
+  fire: string[];
+  clutch: string[];
+  upset: string[];
+  goat: string[];
+}
+
 export interface ClubDataState {
   settings: ClubSettings;
   officers: Officer[];
@@ -253,6 +277,9 @@ export interface ClubDataState {
   attendance: AttendanceSession[];
   matches: MatchRecord[];
   challenges?: LadderChallenge[];
+  polls?: ClubPoll[];
+  mvpVotes?: Record<string, string>; // voterKey -> memberId
+  activityReactions?: Record<string, ActivityReactionCounts>; // activityId -> reaction voter arrays
   clubTournaments: ClubTournament[];
   outsideTournaments: OutsideTournament[];
   events: CalendarEvent[];

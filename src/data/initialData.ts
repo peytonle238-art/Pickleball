@@ -22,12 +22,30 @@ export const INITIAL_CLUB_DATA: ClubDataState = {
       timeRange: '3:50 PM – 5:30 PM',
       location: 'BNHS Varsity Courts',
     },
+    customText: {},
   },
   officers: [],
   tasks: [],
   members: [],
   attendance: [],
   matches: [],
+  challenges: [],
+  polls: [
+    {
+      id: 'poll-default-format',
+      question: 'Which format should we run at this Friday’s Open Court Tournament?',
+      createdAt: new Date().toISOString().slice(0, 10),
+      isActive: true,
+      options: [
+        { id: 'opt-1', label: 'Doubles Switch-Partner Mixer', voterIds: [] },
+        { id: 'opt-2', label: 'Single-Elimination Varsity Bracket', voterIds: [] },
+        { id: 'opt-3', label: 'King of the Court (Up/Down River)', voterIds: [] },
+        { id: 'opt-4', label: 'Singles Ladder Challenge Night', voterIds: [] },
+      ],
+    },
+  ],
+  mvpVotes: {},
+  activityReactions: {},
   clubTournaments: [],
   outsideTournaments: [],
   events: [],
@@ -123,6 +141,7 @@ export function sanitizeAndStripTemplateData(
     ...INITIAL_CLUB_DATA.settings,
     ...(state.settings || {}),
     clubName: normalizedClubName,
+    customText: state.settings?.customText || {},
     officerPin:
       !state.settings?.officerPin || state.settings.officerPin === '1234'
         ? '9002'
@@ -161,6 +180,11 @@ export function sanitizeAndStripTemplateData(
     challenges: (state.challenges || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),
+    polls: Array.isArray(state.polls)
+      ? state.polls
+      : INITIAL_CLUB_DATA.polls,
+    mvpVotes: state.mvpVotes || {},
+    activityReactions: state.activityReactions || {},
     clubTournaments: (state.clubTournaments || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),

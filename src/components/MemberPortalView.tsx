@@ -21,6 +21,7 @@ import {
   GradeLevel,
   Member,
   NavTab,
+  ReactionKey,
   SkillLevel,
 } from '../types';
 import {
@@ -33,6 +34,8 @@ import { BOBCATS_LOGO_URL } from './WelcomeScreen';
 import { LadderStatsView } from './LadderStatsView';
 import { TournamentsView } from './TournamentsView';
 import { CalendarEventsView } from './CalendarEventsView';
+import { VarsityPlayerCard } from './VarsityPlayerCard';
+import { ClubInteractivePulse } from './ClubInteractivePulse';
 
 interface MemberPortalViewProps {
   data: ClubDataState;
@@ -63,6 +66,9 @@ interface MemberPortalViewProps {
     status: 'open' | 'accepted' | 'declined',
     remove?: boolean
   ) => void;
+  onVoteMvp: (candidateId: string) => void;
+  onVotePoll: (pollId: string, optionId: string) => void;
+  onToggleReaction: (feedItemId: string, reaction: ReactionKey) => void;
   onSignOutMember: () => void;
   onOfficerSignIn: (pin: string) => boolean;
   onNavigate: (tab: NavTab) => void;
@@ -148,6 +154,9 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   onRegisterMember,
   onCreateChallenge,
   onUpdateChallengeStatus,
+  onVoteMvp,
+  onVotePoll,
+  onToggleReaction,
   onSignOutMember,
   onOfficerSignIn,
   onNavigate,
@@ -209,6 +218,13 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
 
   const getMemberName = (id: string) =>
     data.members.find((m) => m.id === id)?.name || 'Club Player';
+
+  const activeMemberRank = useMemo(() => {
+    if (!activeMember) return 1;
+    const sorted = [...data.members].sort((a, b) => b.elo - a.elo);
+    const idx = sorted.findIndex((m) => m.id === activeMember.id);
+    return idx >= 0 ? idx + 1 : 1;
+  }, [data.members, activeMember]);
 
   const hasScheduledEvents =
     data.events.length > 0 ||
@@ -1293,6 +1309,17 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     </div>
                   </button>
                 </div>
+
+                {/* Interactive Club Pulse: Weekly MVP Voting, Club Polls & Live Activity Feed with Reactions */}
+                <ClubInteractivePulse
+                  data={data}
+                  activeMember={activeMember}
+                  isOfficer={false}
+                  onVoteMvp={onVoteMvp}
+                  onVotePoll={onVotePoll}
+                  onToggleReaction={onToggleReaction}
+                  onNavigate={onNavigate}
+                />
               </div>
             )}
 
@@ -1572,6 +1599,15 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   </div>
                 ) : (
                   <>
+                    {/* Interactive 3D-Tilt Varsity Athlete Card with Elo Sparkline */}
+                    <VarsityPlayerCard
+                      member={activeMember}
+                      allMembers={data.members}
+                      matches={data.matches}
+                      attendance={data.attendance}
+                      challenges={data.challenges || []}
+                    />
+
                     {/* Personal Metrics & Season Performance Card */}
                     <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5">
                       <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 sm:pb-4 border-b border-slate-200 dark:border-slate-800">

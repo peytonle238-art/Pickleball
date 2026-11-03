@@ -1,6 +1,7 @@
 import {
   AttendanceSession,
   CalendarEvent,
+  ClubDataState,
   ClubSettings,
   ClubTournamentMatch,
   ClubTournamentParticipant,
@@ -1024,3 +1025,407 @@ export function processImageFileToDataUrl(file: File, maxDim = 256): Promise<str
     reader.readAsDataURL(file);
   });
 }
+
+export interface EloTierInfo {
+  name: string;
+  shortCode: string;
+  minElo: number;
+  nextTierElo: number | null;
+  nextTierName: string | null;
+  progressPct: number;
+  accentColor: string;
+  badgeBgClass: string;
+}
+
+/**
+ * Computes Varsity Elo Tier details and progression toward the next tier threshold.
+ */
+export function getEloTierInfo(elo: number): EloTierInfo {
+  if (elo >= 1450) {
+    return {
+      name: 'Varsity Legend',
+      shortCode: 'LEGEND',
+      minElo: 1450,
+      nextTierElo: null,
+      nextTierName: null,
+      progressPct: 100,
+      accentColor: '#eab308',
+      badgeBgClass: 'bg-amber-400 text-slate-950',
+    };
+  }
+  if (elo >= 1350) {
+    return {
+      name: 'Varsity Elite',
+      shortCode: 'ELITE',
+      minElo: 1350,
+      nextTierElo: 1450,
+      nextTierName: 'Varsity Legend',
+      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 1350) / 100) * 100))),
+      accentColor: '#38bdf8',
+      badgeBgClass: 'bg-sky-400 text-slate-950',
+    };
+  }
+  if (elo >= 1250) {
+    return {
+      name: 'All-District',
+      shortCode: 'DISTRICT',
+      minElo: 1250,
+      nextTierElo: 1350,
+      nextTierName: 'Varsity Elite',
+      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 1250) / 100) * 100))),
+      accentColor: '#10b981',
+      badgeBgClass: 'bg-emerald-500 text-white',
+    };
+  }
+  if (elo >= 1150) {
+    return {
+      name: 'Varsity Contender',
+      shortCode: 'VARSITY',
+      minElo: 1150,
+      nextTierElo: 1250,
+      nextTierName: 'All-District',
+      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 1150) / 100) * 100))),
+      accentColor: '#3b82f6',
+      badgeBgClass: 'bg-blue-600 text-white',
+    };
+  }
+  return {
+    name: 'Club Challenger',
+    shortCode: 'CHALLENGER',
+    minElo: 800,
+    nextTierElo: 1150,
+    nextTierName: 'Varsity Contender',
+    progressPct: Math.min(100, Math.max(5, Math.round(((elo - 950) / 200) * 100))),
+    accentColor: '#64748b',
+    badgeBgClass: 'bg-slate-700 text-white',
+  };
+}
+
+/**
+ * Calculates real-time live win probability for Team 1 and Team 2 by blending
+ * pre-match Elo rating expectation with live scoreboard point differential and leverage.
+ */
+export function computeLiveMatchWinProbability(
+  team1Elos: number[],
+  team2Elos: number[],
+  score1: number,
+  score2: number,
+  targetScore: 11 | 15 | 21 = 11
+): { team1Pct: number; team2Pct: number; statusLabel: string } {
+  const avg1 =
+    team1Elos.reduce((s, v) => s + v, 0) / Math.max(1, team1Elos.length);
+  const avg2 =
+    team2Elos.reduce((s, v) => s + v, 0) / Math.max(1, team2Elos.length);
+
+  // Base Elo log-odds
+  const eloLogit = ((avg1 - avg2) / 400) * Math.LN10;
+
+  // Score leverage increases as the game approaches targetScore
+  const maxScore = Math.max(score1, score2);
+  const progressRatio = Math.min(1.35, maxScore / Math.max(1, targetScore));
+  const pointWeight = 0.24 + progressRatio * 0.22;
+  const scoreDiff = score1 - score2;
+
+  const combinedLogit = eloLogit * (1 - progressRatio * 0.45) + scoreDiff * pointWeight;
+  const rawProb1 = 1 / (1 + Math.exp(-combinedLogit));
+
+  // Check if game is already decided (reached targetScore & win by 2)
+  if (score1 >= targetScore && score1 - score2 >= 2) {
+    return { team1Pct: 100, team2Pct: 0, statusLabel: 'TEAM 1 VICTORY' };
+  }
+  if (score2 >= targetScore && score2 - score1 >= 2) {
+    return { team1Pct: 0, team2Pct: 100, statusLabel: 'TEAM 2 VICTORY' };
+  }
+
+  const team1Pct = Math.min(99, Math.max(1, Math.round(rawProb1 * 100)));
+  const team2Pct = 100 - team1Pct;
+
+  let statusLabel = 'EVEN MATCHUP';
+  const t1GamePoint = score1 >= targetScore - 1 && score1 - score2 >= 1;
+  const t2GamePoint = score2 >= targetScore - 1 && score2 - score1 >= 1;
+
+  if (t1GamePoint) {
+    statusLabel = 'GAME POINT · TEAM 1';
+  } else if (t2GamePoint) {
+    statusLabel = 'GAME POINT · TEAM 2';
+  } else if (score1 >= targetScore - 1 && score2 >= targetScore - 1 && score1 === score2) {
+    statusLabel = 'DEUCE PRESSURE · WIN BY 2';
+  } else if (Math.abs(scoreDiff) >= 5) {
+    statusLabel = scoreDiff > 0 ? 'TEAM 1 SURGE' : 'TEAM 2 SURGE';
+  } else if (Math.abs(avg1 - avg2) >= 75 && scoreDiff * (avg1 - avg2) < 0) {
+    statusLabel = 'UPSET ALERT ON COURT';
+  }
+
+  return { team1Pct, team2Pct, statusLabel };
+}
+
+export interface PlayerEloHistoryPoint {
+  matchId: string;
+  date: string;
+  eloAfter: number;
+  eloDelta: number;
+  won: boolean;
+  opponentLabel: string;
+  scoreLabel: string;
+}
+
+/**
+ * Builds a chronological Elo trajectory for a player's interactive sparkline.
+ */
+export function buildPlayerEloHistoryPoints(
+  member: Member,
+  allMatches: MatchRecord[],
+  allMembers: Member[]
+): PlayerEloHistoryPoint[] {
+  const getShort = (id: string) => {
+    const found = allMembers.find((m) => m.id === id);
+    if (!found) return 'Player';
+    const parts = found.name.split(' ');
+    return parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : found.name;
+  };
+
+  const playerMatches = allMatches
+    .filter(
+      (m) => m.team1Ids.includes(member.id) || m.team2Ids.includes(member.id)
+    )
+    .slice(0, 12)
+    .reverse(); // Oldest -> Newest
+
+  if (playerMatches.length === 0) {
+    return [
+      {
+        matchId: 'baseline',
+        date: member.joinDate || 'Start',
+        eloAfter: member.elo,
+        eloDelta: 0,
+        won: true,
+        opponentLabel: 'Season Baseline',
+        scoreLabel: `${member.elo} Elo`,
+      },
+    ];
+  }
+
+  // Reconstruct backwards from current member.elo so the final point matches member.elo
+  const points: PlayerEloHistoryPoint[] = [];
+  let runningElo = member.elo;
+
+  const newestFirst = [...playerMatches].reverse();
+  const reconstructedNewestFirst: PlayerEloHistoryPoint[] = [];
+
+  for (const m of newestFirst) {
+    const inT1 = m.team1Ids.includes(member.id);
+    const won = (inT1 && m.winnerTeam === 1) || (!inT1 && m.winnerTeam === 2);
+    const mode = getEffectiveMatchMode(m);
+    const signedDelta =
+      mode === 'ranked' ? (won ? m.eloDelta : -m.eloDelta) : 0;
+    const oppIds = inT1 ? m.team2Ids : m.team1Ids;
+    const scoreStr = m.games
+      .map((g) => `${g.team1Score}–${g.team2Score}`)
+      .join(', ');
+
+    reconstructedNewestFirst.push({
+      matchId: m.id,
+      date: m.date,
+      eloAfter: runningElo,
+      eloDelta: signedDelta,
+      won,
+      opponentLabel: `vs. ${oppIds.map(getShort).join(' / ')}`,
+      scoreLabel: scoreStr,
+    });
+
+    runningElo = Math.max(800, runningElo - signedDelta);
+  }
+
+  points.push({
+    matchId: 'baseline',
+    date: 'Start',
+    eloAfter: runningElo,
+    eloDelta: 0,
+    won: true,
+    opponentLabel: 'Starting Rating',
+    scoreLabel: `${runningElo} Elo`,
+  });
+
+  points.push(...reconstructedNewestFirst.reverse());
+  return points;
+}
+
+export interface SiteTextEntryDefinition {
+  key: string;
+  section: string;
+  label: string;
+  defaultValue: string;
+  multiline?: boolean;
+}
+
+export const DEFAULT_SITE_TEXT_ENTRIES: SiteTextEntryDefinition[] = [
+  {
+    key: 'welcomeTagline',
+    section: 'Welcome Screen',
+    label: 'Welcome Hero Description',
+    defaultValue:
+      'Official varsity & club athlete portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.',
+    multiline: true,
+  },
+  {
+    key: 'welcomeAccessHeading',
+    section: 'Welcome Screen',
+    label: 'Access Card Heading',
+    defaultValue: 'Athlete & Officer Access',
+  },
+  {
+    key: 'welcomeSignInPrompt',
+    section: 'Welcome Screen',
+    label: 'School ID Sign-In Prompt',
+    defaultValue: 'Enter your School ID to load your member profile:',
+  },
+  {
+    key: 'memberPortalSubtitle',
+    section: 'Member Portal',
+    label: 'Member Portal Header Subtitle',
+    defaultValue: 'Member Portal',
+  },
+  {
+    key: 'officerConsoleSubtitle',
+    section: 'Officer Console',
+    label: 'Officer Console Header Subtitle',
+    defaultValue: 'Officer Console',
+  },
+  {
+    key: 'homeCustomHeadline',
+    section: 'Home Overview',
+    label: 'Custom Spotlight Headline (Optional)',
+    defaultValue: '',
+  },
+  {
+    key: 'homeCustomSubtext',
+    section: 'Home Overview',
+    label: 'Custom Spotlight Body Copy (Optional)',
+    defaultValue: '',
+    multiline: true,
+  },
+  {
+    key: 'homeCard1Title',
+    section: 'Home Overview',
+    label: 'Quick Tile 1 Title',
+    defaultValue: 'Ladder & Challenges',
+  },
+  {
+    key: 'homeCard2Title',
+    section: 'Home Overview',
+    label: 'Quick Tile 2 Title',
+    defaultValue: 'Tournaments',
+  },
+  {
+    key: 'homeCard3Title',
+    section: 'Home Overview',
+    label: 'Quick Tile 3 Title',
+    defaultValue: 'Club Calendar',
+  },
+  {
+    key: 'homeCard4Title',
+    section: 'Home Overview',
+    label: 'Quick Tile 4 Title',
+    defaultValue: 'Score a Match',
+  },
+  {
+    key: 'pulseMvpHeading',
+    section: 'Interactive Pulse',
+    label: 'Weekly MVP Card Title',
+    defaultValue: 'Athlete of the Week Ballot',
+  },
+  {
+    key: 'pulsePollHeading',
+    section: 'Interactive Pulse',
+    label: 'Live Club Polls Card Title',
+    defaultValue: 'Live Club Polls',
+  },
+  {
+    key: 'pulseFeedHeading',
+    section: 'Interactive Pulse',
+    label: 'Activity Feed Card Title',
+    defaultValue: 'Club Activity & Highlights',
+  },
+  {
+    key: 'clubRulesOrNotes',
+    section: 'Club Rules & Info',
+    label: 'Custom Club Rules / Footer Note',
+    defaultValue: '',
+    multiline: true,
+  },
+];
+
+export function getClubText(
+  settings: ClubSettings | undefined,
+  key: string,
+  defaultValue: string
+): string {
+  const custom = settings?.customText?.[key];
+  if (custom !== undefined && custom.trim() !== '') {
+    return custom;
+  }
+  return defaultValue;
+}
+
+const PROTECTED_KEYS = new Set([
+  'id',
+  'challengerId',
+  'opponentId',
+  'completedMatchId',
+  'winnerMemberId',
+  'tournamentId',
+  'matchId',
+  'checkedOutToMemberId',
+  'primaryColor',
+  'secondaryColor',
+  'photoUrl',
+]);
+
+/**
+ * Globally searches and replaces text across every string field in ClubDataState
+ * (including settings, customText, members, matches, tournaments, events, announcements, etc.).
+ */
+export function globalReplaceTextInClubState(
+  state: ClubDataState,
+  findStr: string,
+  replaceStr: string,
+  caseSensitive = false
+): { nextState: ClubDataState; replacementsCount: number } {
+  if (!findStr) {
+    return { nextState: state, replacementsCount: 0 };
+  }
+
+  let replacementsCount = 0;
+  const escaped = findStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(escaped, caseSensitive ? 'g' : 'gi');
+
+  const transformNode = (node: unknown, keyName?: string): unknown => {
+    if (keyName && PROTECTED_KEYS.has(keyName)) {
+      return node;
+    }
+    if (typeof node === 'string') {
+      if (node.startsWith('data:image/')) return node;
+      const matches = node.match(regex);
+      if (matches && matches.length > 0) {
+        replacementsCount += matches.length;
+        return node.replace(regex, replaceStr);
+      }
+      return node;
+    }
+    if (Array.isArray(node)) {
+      return node.map((item) => transformNode(item));
+    }
+    if (node && typeof node === 'object') {
+      const result: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        result[k] = transformNode(v, k);
+      }
+      return result;
+    }
+    return node;
+  };
+
+  const nextState = transformNode(state) as ClubDataState;
+  return { nextState, replacementsCount };
+}
+

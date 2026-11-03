@@ -11,6 +11,7 @@ import {
   Play,
   Settings,
   ShieldCheck,
+  Sparkles,
   Sun,
   Trophy,
   Users,
@@ -19,12 +20,14 @@ import {
 } from 'lucide-react';
 import {
   ClubDataState,
+  ClubPoll,
   GradeLevel,
   LadderChallenge,
   MatchRecord,
   Member,
   NavTab,
   PendingTournamentScoreContext,
+  ReactionKey,
   SeasonArchive,
   SkillLevel,
 } from './types';
@@ -35,7 +38,9 @@ import {
 import {
   applyMatchToMembers,
   calculateEloDelta,
+  getClubText,
   getEffectiveMatchMode,
+  globalReplaceTextInClubState,
   revertMatchFromMembers,
   updateTournamentMatchList,
 } from './utils/clubUtils';
@@ -64,6 +69,7 @@ import {
 import { PresidentAdminView } from './components/PresidentAdminView';
 import { BOBCATS_LOGO_URL, WelcomeScreen } from './components/WelcomeScreen';
 import { MemberPortalView } from './components/MemberPortalView';
+import { getVoterIdentityKey } from './components/ClubInteractivePulse';
 
 const STORAGE_KEY = 'bnhs_pickleball_hq_fresh_v2';
 const LEGACY_STORAGE_KEY = 'bnhs_pickleball_hq_v1';
@@ -152,6 +158,13 @@ export default function App() {
   // Toast status message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // President Live On-Screen Text Edit Mode
+  const [liveTextEditMode, setLiveTextEditMode] = useState<boolean>(false);
+  const [liveTextEditModal, setLiveTextEditModal] = useState<{
+    originalText: string;
+    replacementText: string;
+  } | null>(null);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -206,6 +219,31 @@ export default function App() {
       workspaceDocExistsRef.current = true;
     } catch (err) {
       console.error('Failed to immediately persist club data to cloud:', err);
+    }
+  };
+
+  // Authoritative President replacement (never re-merges deleted items back from cloud)
+  const handleReplaceFullClubData = (
+    nextState: ClubDataState,
+    msg?: string
+  ) => {
+    latestLocalDataRef.current = nextState;
+    initialCloudLoadDoneRef.current = true;
+    lastSavedSerializedRef.current = JSON.stringify(nextState);
+    setData(nextState);
+    void (async () => {
+      try {
+        await saveGlobalClubWorkspaceToFirestore(
+          nextState,
+          workspaceDocExistsRef.current
+        );
+        workspaceDocExistsRef.current = true;
+      } catch (err) {
+        console.error('Failed to save President state update to cloud:', err);
+      }
+    })();
+    if (msg) {
+      showToast(msg);
     }
   };
 
@@ -404,6 +442,82 @@ export default function App() {
       localStorage.setItem(THEME_KEY, 'light');
     }
   }, [darkMode]);
+
+  // Apply President inline::<original> text overrides across DOM text nodes
+  useEffect(() => {
+    const customMap = data.settings.customText || {};
+    const inlinePairs = Object.entries(customMap)
+      .filter(([k, v]) => k.startsWith('inline::') && typeof v === 'string')
+      .map(([k, v]) => [k.replace(/^inline::/, ''), v] as const)
+      .filter(([orig, rep]) => orig.length > 0 && orig !== rep);
+
+    if (inlinePairs.length === 0) return;
+
+    const applyOverridesToTree = () => {
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT
+      );
+      let node: Node | null = walker.nextNode();
+      while (node) {
+        const parentTag = node.parentElement?.tagName;
+        if (
+          parentTag !== 'SCRIPT' &&
+          parentTag !== 'STYLE' &&
+          parentTag !== 'TEXTAREA' &&
+          parentTag !== 'INPUT'
+        ) {
+          const val = node.nodeValue || '';
+          const trimmed = val.trim();
+          if (trimmed) {
+            for (const [orig, rep] of inlinePairs) {
+              if (trimmed === orig) {
+                node.nodeValue = val.replace(orig, rep);
+              }
+            }
+          }
+        }
+        node = walker.nextNode();
+      }
+    };
+
+    applyOverridesToTree();
+    const timer = setTimeout(applyOverridesToTree, 120);
+    return () => clearTimeout(timer);
+  }, [data, activeTab, showWelcomeScreen, isOfficer]);
+
+  // Click listener for President Live On-Screen Text Edit Mode
+  useEffect(() => {
+    if (!isPresident || !liveTextEditMode) return;
+
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-president-live-editor="true"]')) return;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT'
+      ) {
+        return;
+      }
+
+      // Extract clean leaf text from the clicked element
+      const directText = (target.innerText || target.textContent || '').trim();
+      if (!directText || directText.length > 260) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      setLiveTextEditModal({
+        originalText: directText,
+        replacementText: directText,
+      });
+    };
+
+    document.addEventListener('click', handleDocumentClick, true);
+    return () =>
+      document.removeEventListener('click', handleDocumentClick, true);
+  }, [isPresident, liveTextEditMode]);
 
   const handleSelectLinkedMember = async (memberId: string) => {
     setLinkedMemberId(memberId);
@@ -681,7 +795,6 @@ export default function App() {
   const handleToggleMode = () => {
     if (isOfficer) {
       setIsOfficer(false);
-      setIsPresident(false);
       if (!MEMBER_ALLOWED_TABS.includes(activeTab)) {
         setActiveTab('home');
       }
@@ -981,6 +1094,139 @@ export default function App() {
     showToast(`Challenge settled! ${scoreSummary}`);
   };
 
+  // =========================================================================
+  // INTERACTIVE CLUB PULSE HANDLERS: MVP VOTING, POLLS & ACTIVITY REACTIONS
+  // =========================================================================
+  const activeMemberObj =
+    data.members.find(
+      (m) =>
+        m.id === linkedMemberId ||
+        (m.schoolId &&
+          linkedMemberId &&
+          m.schoolId.trim().toLowerCase() ===
+            linkedMemberId.trim().toLowerCase())
+    ) || null;
+  const voterKey = getVoterIdentityKey(activeMemberObj);
+
+  const handleVoteMvp = (candidateId: string) => {
+    const currentSnapshot = latestLocalDataRef.current;
+    const currentVotes = { ...(currentSnapshot.mvpVotes || {}) };
+    if (currentVotes[voterKey] === candidateId) {
+      delete currentVotes[voterKey];
+      showToast('Removed your Weekly MVP vote.');
+    } else {
+      currentVotes[voterKey] = candidateId;
+      const candName =
+        currentSnapshot.members.find((m) => m.id === candidateId)?.name ||
+        'Athlete';
+      showToast(`Voted ${candName} for Athlete of the Week!`);
+    }
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
+      mvpVotes: currentVotes,
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+  };
+
+  const handleResetMvpVotes = () => {
+    if (!isOfficer) return;
+    const nextState: ClubDataState = {
+      ...latestLocalDataRef.current,
+      mvpVotes: {},
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+    showToast('Weekly MVP ballot reset for the new week.');
+  };
+
+  const handleVotePoll = (pollId: string, optionId: string) => {
+    const currentSnapshot = latestLocalDataRef.current;
+    const nextPolls = (currentSnapshot.polls || []).map((poll) => {
+      if (poll.id !== pollId) return poll;
+      const alreadyVotedThisOption = poll.options.some(
+        (opt) => opt.id === optionId && (opt.voterIds || []).includes(voterKey)
+      );
+      const nextOptions = poll.options.map((opt) => {
+        const filtered = (opt.voterIds || []).filter((v) => v !== voterKey);
+        if (opt.id === optionId && !alreadyVotedThisOption) {
+          return { ...opt, voterIds: [...filtered, voterKey] };
+        }
+        return { ...opt, voterIds: filtered };
+      });
+      return { ...poll, options: nextOptions };
+    });
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
+      polls: nextPolls,
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+  };
+
+  const handleCreatePoll = (question: string, optionLabels: string[]) => {
+    if (!isOfficer) return;
+    const newPoll: ClubPoll = {
+      id: `poll-${Date.now()}`,
+      question,
+      options: optionLabels.map((label, idx) => ({
+        id: `opt-${Date.now()}-${idx}`,
+        label,
+        voterIds: [],
+      })),
+      createdAt: new Date().toISOString().slice(0, 10),
+      isActive: true,
+    };
+    const currentSnapshot = latestLocalDataRef.current;
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
+      polls: [newPoll, ...(currentSnapshot.polls || [])],
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+    showToast('New interactive club poll published!');
+  };
+
+  const handleDeletePoll = (pollId: string) => {
+    if (!isOfficer) return;
+    const currentSnapshot = latestLocalDataRef.current;
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
+      polls: (currentSnapshot.polls || []).filter((p) => p.id !== pollId),
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+    showToast('Poll removed.');
+  };
+
+  const handleToggleReaction = (feedItemId: string, reaction: ReactionKey) => {
+    const currentSnapshot = latestLocalDataRef.current;
+    const currentReactions = { ...(currentSnapshot.activityReactions || {}) };
+    const existingEntry = currentReactions[feedItemId] || {
+      fire: [],
+      clutch: [],
+      upset: [],
+      goat: [],
+    };
+    const currentList = [...(existingEntry[reaction] || [])];
+    const hasReacted = currentList.includes(voterKey);
+    const nextList = hasReacted
+      ? currentList.filter((v) => v !== voterKey)
+      : [...currentList, voterKey];
+
+    currentReactions[feedItemId] = {
+      ...existingEntry,
+      [reaction]: nextList,
+    };
+
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
+      activityReactions: currentReactions,
+    };
+    setData(nextState);
+    void persistClubDataImmediately(nextState);
+  };
+
   const handleExportJSON = () => {
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -1203,6 +1449,9 @@ export default function App() {
           onRegisterMember={handleRegisterMember}
           onCreateChallenge={handleCreateChallenge}
           onUpdateChallengeStatus={handleUpdateChallengeStatus}
+          onVoteMvp={handleVoteMvp}
+          onVotePoll={handleVotePoll}
+          onToggleReaction={handleToggleReaction}
           onSignOutMember={handleSignOutMember}
           onOfficerSignIn={handleOfficerSignIn}
           onNavigate={handleNavigate}
@@ -1264,7 +1513,15 @@ export default function App() {
                 </div>
                 <span className="font-display text-base sm:text-xl font-bold uppercase tracking-tight text-white truncate">
                   {data.settings.clubName}
-                  <span className="hidden md:inline"> · Officer Console</span>
+                  <span className="hidden md:inline">
+                    {' '}
+                    ·{' '}
+                    {getClubText(
+                      data.settings,
+                      'officerConsoleSubtitle',
+                      'Officer Console'
+                    )}
+                  </span>
                 </span>
               </button>
 
@@ -1557,7 +1814,14 @@ export default function App() {
                   {activeTab === 'home' && (
                     <HomeDashboard
                       data={data}
+                      activeMember={activeMemberObj}
                       isOfficer={true}
+                      onVoteMvp={handleVoteMvp}
+                      onResetMvpVotes={handleResetMvpVotes}
+                      onVotePoll={handleVotePoll}
+                      onCreatePoll={handleCreatePoll}
+                      onDeletePoll={handleDeletePoll}
+                      onToggleReaction={handleToggleReaction}
                       onNavigate={handleNavigate}
                     />
                   )}
@@ -1694,17 +1958,20 @@ export default function App() {
                     <PresidentAdminView
                       data={data}
                       isPresident={isPresident}
+                      liveTextEditMode={liveTextEditMode}
+                      onToggleLiveTextEditMode={setLiveTextEditMode}
+                      onReplaceFullClubData={handleReplaceFullClubData}
                       onUpdateSettings={(settings) =>
-                        setData((prev) => ({ ...prev, settings }))
+                        handleReplaceFullClubData({ ...data, settings })
                       }
                       onUpdateMembers={(members) =>
-                        setData((prev) => ({ ...prev, members }))
+                        handleReplaceFullClubData({ ...data, members })
                       }
                       onUpdateOfficers={(officers) =>
-                        setData((prev) => ({ ...prev, officers }))
+                        handleReplaceFullClubData({ ...data, officers })
                       }
                       onUpdateMatches={(matches) =>
-                        setData((prev) => ({ ...prev, matches }))
+                        handleReplaceFullClubData({ ...data, matches })
                       }
                       onVoidMatch={handleVoidMatch}
                       onResetAllElo={handleResetAllElo}
@@ -1715,8 +1982,10 @@ export default function App() {
                       onExportJSON={handleExportJSON}
                       onImportJSON={handleImportJSON}
                       onResetFactoryData={() => {
-                        setData(INITIAL_CLUB_DATA);
-                        showToast('Cleared all club data to factory baseline!');
+                        handleReplaceFullClubData(
+                          INITIAL_CLUB_DATA,
+                          'Cleared all club data to factory baseline!'
+                        );
                       }}
                       onRequestPresidentUnlock={() => {
                         setPendingOfficerTab('admin');
@@ -1887,6 +2156,156 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ================================================================= */}
+      {/* PRESIDENT FLOATING QUICK BAR & LIVE ON-SCREEN TEXT EDIT MODAL     */}
+      {/* ================================================================= */}
+      {isPresident && (
+        <div
+          data-president-live-editor="true"
+          className="fixed bottom-20 lg:bottom-5 left-4 z-50 flex items-center gap-2 no-print"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              const next = !liveTextEditMode;
+              setLiveTextEditMode(next);
+              showToast(
+                next
+                  ? 'President Live Text Edit ON — click any text on screen to change it!'
+                  : 'President Live Text Edit OFF.'
+              );
+            }}
+            className={`px-3 py-2 rounded-md text-xs font-bold shadow-lg border flex items-center gap-1.5 cursor-pointer transition-colors ${
+              liveTextEditMode
+                ? 'bg-amber-400 text-slate-950 border-amber-300'
+                : 'bg-slate-900 text-white border-slate-700 hover:bg-slate-800'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>
+              {liveTextEditMode ? 'Live Text Edit: ON' : 'Edit Any Text'}
+            </span>
+          </button>
+
+          {(!isOfficer || activeTab !== 'admin') && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOfficer(true);
+                setShowWelcomeScreen(false);
+                setActiveTab('admin');
+              }}
+              className="px-3 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 text-xs font-bold shadow-lg flex items-center gap-1.5 cursor-pointer"
+            >
+              <Crown className="w-3.5 h-3.5" />
+              <span>President Console</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {isPresident && liveTextEditModal && (
+        <div
+          data-president-live-editor="true"
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+        >
+          <div className="w-full max-w-md rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <div className="text-[10px] font-mono-num uppercase tracking-wider font-bold text-amber-500">
+                  President Live Text Override
+                </div>
+                <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
+                  Change On-Screen Text
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLiveTextEditModal(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  Selected Original Text
+                </label>
+                <div className="p-2.5 rounded bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 break-words">
+                  {liveTextEditModal.originalText}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                  New Replacement Text
+                </label>
+                <textarea
+                  rows={3}
+                  autoFocus
+                  value={liveTextEditModal.replacementText}
+                  onChange={(e) =>
+                    setLiveTextEditModal({
+                      ...liveTextEditModal,
+                      replacementText: e.target.value,
+                    })
+                  }
+                  className="w-full p-2.5 rounded bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setLiveTextEditModal(null)}
+                className="px-3.5 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const orig = liveTextEditModal.originalText.trim();
+                  const rep = liveTextEditModal.replacementText;
+                  if (!orig) {
+                    setLiveTextEditModal(null);
+                    return;
+                  }
+                  // Replace across all database strings + store inline override for UI labels
+                  const { nextState } = globalReplaceTextInClubState(
+                    latestLocalDataRef.current,
+                    orig,
+                    rep,
+                    true
+                  );
+                  const updatedState: ClubDataState = {
+                    ...nextState,
+                    settings: {
+                      ...nextState.settings,
+                      customText: {
+                        ...(nextState.settings.customText || {}),
+                        [`inline::${orig}`]: rep,
+                      },
+                    },
+                  };
+                  setLiveTextEditModal(null);
+                  handleReplaceFullClubData(
+                    updatedState,
+                    `Updated text "${orig.slice(0, 28)}" across club portal!`
+                  );
+                }}
+                className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+              >
+                Save Text Everywhere
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

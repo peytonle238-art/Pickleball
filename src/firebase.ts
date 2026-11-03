@@ -228,6 +228,15 @@ export function mergeClubDataStates(
     attendance: mergeById(primary.attendance, secondary.attendance),
     matches: mergeById(primary.matches, secondary.matches),
     challenges: mergeById(primary.challenges || [], secondary.challenges || []),
+    polls: mergeById(primary.polls || [], secondary.polls || []),
+    mvpVotes: {
+      ...(secondary.mvpVotes || {}),
+      ...(primary.mvpVotes || {}),
+    },
+    activityReactions: {
+      ...(secondary.activityReactions || {}),
+      ...(primary.activityReactions || {}),
+    },
     clubTournaments: mergeById(
       primary.clubTournaments,
       secondary.clubTournaments

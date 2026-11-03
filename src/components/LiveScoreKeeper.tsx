@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import {
+  Flame,
+  Minus,
+  Plus,
+  Radio,
+  Sparkles,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import {
   AttendanceSession,
   GameScore,
@@ -8,7 +16,17 @@ import {
   Member,
   PendingTournamentScoreContext,
 } from '../types';
-import { calculateEloDelta } from '../utils/clubUtils';
+import {
+  calculateEloDelta,
+  computeLiveMatchWinProbability,
+  getEloTierInfo,
+} from '../utils/clubUtils';
+import {
+  playGamePointAlert,
+  playPointPop,
+  playSideOutTone,
+  playVictoryFanfare,
+} from '../utils/soundUtils';
 
 interface LiveScoreKeeperProps {
   members: Member[];
@@ -95,12 +113,24 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
   });
 
   const [history, setHistory] = useState<ScoreSnapshot[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [courtPulseTeam, setCourtPulseTeam] = useState<1 | 2 | null>(null);
   const [savedMatchSummary, setSavedMatchSummary] = useState<{
     winnerTeam: 1 | 2;
     eloDelta: number;
     matchMode: MatchMode;
     games: GameScore[];
+    winnerNames: string[];
+    promotedPlayers: { name: string; oldTier: string; newTier: string; newElo: number }[];
+    streakPlayers: { name: string; newStreak: number }[];
   } | null>(null);
+
+  const triggerCourtPulse = (team: 1 | 2) => {
+    setCourtPulseTeam(team);
+    setTimeout(() => {
+      setCourtPulseTeam((prev) => (prev === team ? null : prev));
+    }, 450);
+  };
 
   // =========================================================================
   // MULTI-COURT PRACTICE NIGHT & SMART COURT GENERATOR STATE
@@ -307,6 +337,18 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
       return;
     }
     const clamped = Math.max(0, nextScore);
+    const targetCourt = courts.find((c) => c.id === courtId);
+    if (targetCourt) {
+      const oldScore = team === 1 ? targetCourt.team1Score : targetCourt.team2Score;
+      if (clamped > oldScore) {
+        const otherScore = team === 1 ? targetCourt.team2Score : targetCourt.team1Score;
+        if (clamped === targetCourt.targetScore - 1 && clamped > otherScore) {
+          playGamePointAlert(soundEnabled);
+        } else {
+          playPointPop(soundEnabled);
+        }
+      }
+    }
     setCourts((prev) =>
       prev.map((c) =>
         c.id === courtId
@@ -383,6 +425,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
     };
 
     onSaveCompletedMatch(newMatch);
+    playVictoryFanfare(soundEnabled);
 
     setCourts((prev) =>
       prev.map((c) =>
@@ -557,6 +600,13 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
     const gameWonBy2 = s2 >= targetScore && s2 - s1 >= 2;
 
     if (!gameWonBy1 && !gameWonBy2) {
+      const t1GamePt = s1 >= targetScore - 1 && s1 - s2 >= 1;
+      const t2GamePt = s2 >= targetScore - 1 && s2 - s1 >= 1;
+      if (t1GamePt || t2GamePt) {
+        playGamePointAlert(soundEnabled);
+      } else {
+        playPointPop(soundEnabled);
+      }
       setState(nextSnap);
       return;
     }
@@ -589,6 +639,40 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
           ? calculateEloDelta(t1Elos, t2Elos, winnerTeam)
           : 0;
 
+      const winningIds = winnerTeam === 1 ? team1Ids : team2Ids;
+      const winnerNames = winningIds.map(getMemberName);
+      const promotedPlayers: {
+        name: string;
+        oldTier: string;
+        newTier: string;
+        newElo: number;
+      }[] = [];
+      const streakPlayers: { name: string; newStreak: number }[] = [];
+
+      for (const pid of winningIds) {
+        const mem = members.find((m) => m.id === pid);
+        if (!mem) continue;
+        if (effectiveMode === 'ranked' && eloDelta > 0) {
+          const oldTier = getEloTierInfo(mem.elo);
+          const newElo = mem.elo + eloDelta;
+          const newTier = getEloTierInfo(newElo);
+          if (newTier.name !== oldTier.name) {
+            promotedPlayers.push({
+              name: mem.name,
+              oldTier: oldTier.name,
+              newTier: newTier.name,
+              newElo,
+            });
+          }
+        }
+        if (effectiveMode !== 'practice_history') {
+          const nextStreak = mem.streak > 0 ? mem.streak + 1 : 1;
+          if (nextStreak >= 3) {
+            streakPlayers.push({ name: mem.name, newStreak: nextStreak });
+          }
+        }
+      }
+
       const newMatch: MatchRecord = {
         id: `match-${Date.now()}`,
         date: new Date().toISOString().slice(0, 10),
@@ -607,6 +691,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         tournamentMatchId: pendingTournamentMatch?.matchId,
       };
 
+      playVictoryFanfare(soundEnabled);
       setState({
         ...nextSnap,
         completedGames: updatedGames,
@@ -616,11 +701,15 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         eloDelta,
         matchMode: effectiveMode,
         games: updatedGames,
+        winnerNames,
+        promotedPlayers,
+        streakPlayers,
       });
       if (isOfficer) {
         onSaveCompletedMatch(newMatch);
       }
     } else {
+      playVictoryFanfare(soundEnabled);
       setState({
         team1Score: 0,
         team2Score: 0,
@@ -641,6 +730,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
     }
     if (savedMatchSummary) return;
     setHistory((prev) => [...prev, state]);
+    triggerCourtPulse(state.servingTeam);
 
     if (state.servingTeam === 1) {
       const nextScore = state.team1Score + 1;
@@ -688,6 +778,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
     }
     if (savedMatchSummary) return;
     setHistory((prev) => [...prev, state]);
+    playSideOutTone(soundEnabled);
 
     if (format === 'doubles' && state.serverNumber === 1) {
       setState({
@@ -712,6 +803,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
     }
     if (savedMatchSummary) return;
     setHistory((prev) => [...prev, state]);
+    triggerCourtPulse(winningTeam);
 
     if (winningTeam === 1) {
       const nextScore = state.team1Score + 1;
@@ -746,6 +838,24 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
     }
   };
 
+  const handleInteractiveCourtTap = (tappedTeam: 1 | 2) => {
+    if (!isOfficer) {
+      onRequestOfficerUnlock();
+      return;
+    }
+    if (savedMatchSummary) return;
+    if (scoringType === 'rally') {
+      handleRallyPoint(tappedTeam);
+    } else {
+      if (state.servingTeam === tappedTeam) {
+        handleServerPoint();
+      } else {
+        triggerCourtPulse(tappedTeam);
+        handleSideOutOrSecondServer();
+      }
+    }
+  };
+
   const handleUndo = () => {
     if (!isOfficer) {
       onRequestOfficerUnlock();
@@ -757,8 +867,125 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
     setHistory((h) => h.slice(0, -1));
   };
 
+  const singleCourtWinProb = useMemo(() => {
+    const t1Elos = team1Ids.map(getMemberElo);
+    const t2Elos = team2Ids.map(getMemberElo);
+    return computeLiveMatchWinProbability(
+      t1Elos,
+      t2Elos,
+      state.team1Score,
+      state.team2Score,
+      targetScore
+    );
+  }, [team1Ids, team2Ids, state.team1Score, state.team2Score, targetScore, members]);
+
+  const hotStreakMembers = useMemo(
+    () =>
+      [...members]
+        .filter((m) => m.streak >= 3)
+        .sort((a, b) => b.streak - a.streak)
+        .slice(0, 3),
+    [members]
+  );
+
   return (
     <div className="space-y-6">
+      {/* Live Broadcast Spectator Ticker + Sound Effects Toggle */}
+      <div className="rounded-lg bg-slate-900 text-white border border-slate-800 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 court-arena-surface">
+        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar min-w-0 flex-1">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-mono-num text-[10px] font-bold uppercase tracking-wider shrink-0">
+            <Radio className="w-3 h-3" />
+            <span>LIVE COURT TICKER</span>
+          </span>
+
+          {scoreMode === 'single' ? (
+            <div className="flex items-center gap-3 text-xs font-mono-num whitespace-nowrap">
+              <span>
+                <strong className="text-white">
+                  {team1Ids.map(getShortName).join('/')}
+                </strong>{' '}
+                <span className="text-amber-400 font-bold">
+                  {state.team1Score}–{state.team2Score}
+                </span>{' '}
+                <strong className="text-white">
+                  {team2Ids.map(getShortName).join('/')}
+                </strong>
+              </span>
+              <span className="text-slate-500">·</span>
+              <span className="text-slate-300">
+                Win Odds: {singleCourtWinProb.team1Pct}% / {singleCourtWinProb.team2Pct}%
+              </span>
+              {(state.team1Score >= targetScore - 1 ||
+                state.team2Score >= targetScore - 1) &&
+                Math.abs(state.team1Score - state.team2Score) >= 1 && (
+                  <>
+                    <span className="text-slate-500">·</span>
+                    <span className="text-emerald-400 font-bold uppercase">
+                      GAME POINT ON COURT
+                    </span>
+                  </>
+                )}
+            </div>
+          ) : courts.length > 0 ? (
+            <div className="flex items-center gap-3 text-xs font-mono-num whitespace-nowrap">
+              {courts.map((c) => (
+                <span key={c.id} className="inline-flex items-center gap-1.5">
+                  <span className="text-slate-400">C{c.courtNumber}:</span>
+                  <strong className="text-white">
+                    {c.team1Ids.map(getShortName).join('/')}
+                  </strong>
+                  <span className="text-amber-400 font-bold">
+                    {c.team1Score}–{c.team2Score}
+                  </span>
+                  <strong className="text-white">
+                    {c.team2Ids.map(getShortName).join('/')}
+                  </strong>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-slate-300 truncate">
+              Courtside broadcast ready · Tap court diagram halves to score live rallies
+            </span>
+          )}
+
+          {hotStreakMembers.length > 0 && (
+            <div className="hidden xl:flex items-center gap-2 pl-2 border-l border-slate-800 text-[11px] font-mono-num text-amber-300 shrink-0">
+              <Flame className="w-3.5 h-3.5 text-amber-400" />
+              <span>
+                Active Streaks:{' '}
+                {hotStreakMembers
+                  .map((m) => `${m.name.split(' ')[0]} (${m.streak}W)`)
+                  .join(' · ')}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSoundEnabled(!soundEnabled)}
+          className={`px-2.5 py-1 rounded text-[11px] font-mono-num font-bold uppercase tracking-wider inline-flex items-center gap-1.5 border cursor-pointer transition-colors shrink-0 ${
+            soundEnabled
+              ? 'bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700'
+              : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+          }`}
+          title="Toggle synthesized scoreboard sound effects"
+        >
+          {soundEnabled ? (
+            <>
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Court Audio ON</span>
+            </>
+          ) : (
+            <>
+              <VolumeX className="w-3.5 h-3.5" />
+              <span>Audio Muted</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Top Mode Switcher: Single Court Referee vs Multi-Court Practice Night */}
       <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -1062,11 +1289,18 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                   court.team2Ids.map(getMemberElo),
                   projectedLeader
                 );
+                const courtWinProb = computeLiveMatchWinProbability(
+                  court.team1Ids.map(getMemberElo),
+                  court.team2Ids.map(getMemberElo),
+                  court.team1Score,
+                  court.team2Score,
+                  court.targetScore
+                );
 
                 return (
                   <div
                     key={court.id}
-                    className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between gap-4 shadow-2xs"
+                    className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between gap-4"
                   >
                     {/* Court Top Bar */}
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -1100,6 +1334,27 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                         ) : (
                           `Stakes: ±${projectedDelta} Elo`
                         )}
+                      </div>
+                    </div>
+
+                    {/* Live Court Win Probability Bar */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] font-mono-num tabular-nums">
+                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                          T1 Win Odds: {courtWinProb.team1Pct}%
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                          {courtWinProb.statusLabel}
+                        </span>
+                        <span className="font-bold text-amber-600 dark:text-amber-400">
+                          T2 Win Odds: {courtWinProb.team2Pct}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-sm bg-amber-500 overflow-hidden flex">
+                        <div
+                          className="h-full bg-blue-600 transition-all duration-300"
+                          style={{ width: `${courtWinProb.team1Pct}%` }}
+                        />
                       </div>
                     </div>
 
@@ -1585,44 +1840,128 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
             </div>
           </div>
 
-          {/* Match Saved Banner if Match Complete */}
+          {/* Match Saved & Animated Elo Rank-Up Celebration Banner if Match Complete */}
           {savedMatchSummary && (
-            <div className="rounded-lg bg-emerald-950 text-white p-6 border border-emerald-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="text-emerald-300 text-xs font-bold uppercase tracking-wider">
-                  Match Automatically Saved to Match History & Club Ladder
+            <div className="rounded-lg bg-emerald-950 text-white p-5 sm:p-6 border border-emerald-700 space-y-4 court-arena-surface">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="text-emerald-300 text-xs font-mono-num font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>
+                      Match Saved to Club History & Live Ladder
+                    </span>
+                  </div>
+                  <h3 className="font-display text-2xl sm:text-3xl font-bold uppercase tracking-tight">
+                    {savedMatchSummary.winnerNames.join(' & ')} Win (
+                    {savedMatchSummary.games
+                      .map((g) => `${g.team1Score}–${g.team2Score}`)
+                      .join(', ')}
+                    )
+                  </h3>
+                  <p className="text-xs text-emerald-200/90">
+                    {savedMatchSummary.matchMode === 'practice_history'
+                      ? 'Practice match logged to Match History (0 Elo change, Wins/Losses unchanged).'
+                      : savedMatchSummary.matchMode === 'friendly_wl'
+                      ? 'Friendly match recorded: Wins & Losses updated with 0 Elo rating change.'
+                      : `Official Ranked Victory: +${savedMatchSummary.eloDelta} Elo awarded to winners.`}
+                  </p>
                 </div>
-                <h3 className="font-display text-2xl font-bold uppercase">
-                  Team {savedMatchSummary.winnerTeam} Wins (
-                  {savedMatchSummary.games
-                    .map((g) => `${g.team1Score}–${g.team2Score}`)
-                    .join(', ')}
-                  )
-                </h3>
-                <p className="text-xs text-emerald-200/80">
-                  {savedMatchSummary.matchMode === 'practice_history'
-                    ? 'Practice match logged to Match History (0 Elo change, Wins/Losses unchanged).'
-                    : savedMatchSummary.matchMode === 'friendly_wl'
-                    ? 'Friendly match recorded: Wins & Losses updated with 0 Elo rating change.'
-                    : `Ladder rating updated: ±${savedMatchSummary.eloDelta} Elo points applied to participating players.`}
-                </p>
+
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <button
+                    onClick={() => resetScoreboard(format)}
+                    className="px-4 py-2.5 rounded-md bg-white text-slate-900 text-xs font-bold uppercase tracking-wider hover:bg-emerald-50 cursor-pointer"
+                  >
+                    Play Rematch
+                  </button>
+                  <button
+                    onClick={onNavigateToLadder}
+                    className="px-4 py-2.5 rounded-md bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-600 cursor-pointer"
+                  >
+                    View Updated Ladder
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <button
-                  onClick={() => resetScoreboard(format)}
-                  className="px-4 py-2.5 rounded-md bg-white text-slate-900 text-xs font-bold uppercase tracking-wider hover:bg-emerald-50 cursor-pointer"
-                >
-                  Play Rematch
-                </button>
-                <button
-                  onClick={onNavigateToLadder}
-                  className="px-4 py-2.5 rounded-md bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider hover:bg-emerald-600 cursor-pointer"
-                >
-                  View Updated Ladder
-                </button>
-              </div>
+
+              {/* Rank-Up Promotions & Hot Streak Milestone Callouts */}
+              {(savedMatchSummary.promotedPlayers.length > 0 ||
+                savedMatchSummary.streakPlayers.length > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-emerald-800/80">
+                  {savedMatchSummary.promotedPlayers.map((promo, i) => (
+                    <div
+                      key={`promo-${i}`}
+                      className="p-3 rounded-md bg-amber-400/15 border border-amber-400/40 flex items-center justify-between gap-2"
+                    >
+                      <div>
+                        <div className="text-[10px] font-mono-num uppercase tracking-wider font-bold text-amber-300">
+                          VARSITY TIER PROMOTION
+                        </div>
+                        <div className="text-sm font-bold text-white">
+                          {promo.name}: {promo.oldTier} → {promo.newTier}
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 rounded bg-amber-400 text-slate-950 font-mono-num text-xs font-bold">
+                        {promo.newElo} ELO
+                      </span>
+                    </div>
+                  ))}
+
+                  {savedMatchSummary.streakPlayers.map((stk, i) => (
+                    <div
+                      key={`streak-${i}`}
+                      className="p-3 rounded-md bg-emerald-900/60 border border-emerald-600/50 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Flame className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div>
+                          <div className="text-[10px] font-mono-num uppercase tracking-wider font-bold text-emerald-300">
+                            HOT STREAK MILESTONE
+                          </div>
+                          <div className="text-sm font-bold text-white">
+                            {stk.name} is on a {stk.newStreak}-Match Win Streak!
+                          </div>
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 rounded bg-emerald-600 text-white font-mono-num text-xs font-bold">
+                        W{stk.newStreak}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
+          {/* Real-Time Live Match Win Probability Bar */}
+          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 space-y-2">
+            <div className="flex items-center justify-between text-xs font-mono-num tabular-nums">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-blue-600 dark:text-blue-400 text-sm sm:text-base">
+                  {singleCourtWinProb.team1Pct}%
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  Team 1 ({team1Ids.map(getShortName).join(' / ')})
+                </span>
+              </div>
+              <span className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 hidden sm:inline">
+                {singleCourtWinProb.statusLabel}
+              </span>
+              <div className="flex items-center gap-2 text-right">
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  Team 2 ({team2Ids.map(getShortName).join(' / ')})
+                </span>
+                <span className="font-bold text-amber-600 dark:text-amber-400 text-sm sm:text-base">
+                  {singleCourtWinProb.team2Pct}%
+                </span>
+              </div>
+            </div>
+            <div className="h-2.5 w-full rounded-sm bg-amber-500 overflow-hidden flex">
+              <div
+                className="h-full bg-blue-600 transition-all duration-300"
+                style={{ width: `${singleCourtWinProb.team1Pct}%` }}
+              />
+            </div>
+          </div>
 
           {/* Main Scoreboard & Interactive Court Diagram */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
@@ -1827,29 +2166,53 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
               )}
             </div>
 
-            {/* Right Column: Live Court Diagram */}
+            {/* Right Column: Interactive Live Court Diagram */}
             <div className="lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div>
                   <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                    Live Court & Service Position Diagram
+                    Interactive Court & Service Diagram
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Shows who serves from which side (Even/Right vs Odd/Left)
+                    Tap Team 1 (West) or Team 2 (East) court side to score rally
+                    winner directly
                   </p>
                 </div>
-                <span className="text-xs font-mono-num font-semibold text-slate-600 dark:text-slate-300">
+                <span className="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono-num font-bold text-slate-700 dark:text-slate-200">
                   {state.servingTeam === 1 ? 'Team 1' : 'Team 2'} Serve
                 </span>
               </div>
 
               <div className="relative w-full aspect-[16/10] rounded-xl bg-blue-900 p-3 sm:p-4 border-4 border-slate-700 shadow-inner flex items-stretch select-none">
                 <div className="w-full h-full border-2 border-white grid grid-cols-12 relative">
-                  <div className="col-span-5 grid grid-rows-2 border-r-2 border-white">
+                  {/* Interactive West Court Half (Team 1) */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleInteractiveCourtTap(1)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleInteractiveCourtTap(1);
+                      }
+                    }}
+                    title={
+                      scoringType === 'rally'
+                        ? 'Tap to award +1 Rally Point to Team 1'
+                        : state.servingTeam === 1
+                        ? 'Tap to award +1 Server Point to Team 1'
+                        : 'Tap for Side Out / 2nd Server (Team 1 won rally)'
+                    }
+                    className={`col-span-5 grid grid-rows-2 border-r-2 border-white cursor-pointer transition-all relative ${
+                      courtPulseTeam === 1
+                        ? 'ring-4 ring-amber-400 ring-inset'
+                        : 'hover:brightness-110'
+                    }`}
+                  >
                     <div
                       className={`p-2 sm:p-3 border-b border-white/80 flex flex-col justify-between transition-colors ${
                         state.servingTeam === 1 && effectiveServeSide === 'left'
-                          ? 'bg-amber-400/30'
+                          ? 'bg-amber-400/35'
                           : 'bg-blue-700/60'
                       }`}
                     >
@@ -1876,7 +2239,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                     <div
                       className={`p-2 sm:p-3 border-t border-white/80 flex flex-col justify-between transition-colors ${
                         state.servingTeam === 1 && effectiveServeSide === 'right'
-                          ? 'bg-amber-400/30'
+                          ? 'bg-amber-400/35'
                           : 'bg-blue-700/60'
                       }`}
                     >
@@ -1895,14 +2258,22 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                             </span>
                           )}
                       </div>
-                      <div className="text-xs sm:text-sm font-bold text-white truncate">
-                        {team1RightPlayerId
-                          ? getShortName(team1RightPlayerId)
-                          : '—'}
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs sm:text-sm font-bold text-white truncate">
+                          {team1RightPlayerId
+                            ? getShortName(team1RightPlayerId)
+                            : '—'}
+                        </span>
+                        <span className="text-[9px] font-mono-num uppercase px-1.5 py-0.5 rounded bg-black/35 text-white/90 shrink-0">
+                          {scoringType === 'rally' || state.servingTeam === 1
+                            ? 'Tap +1 T1'
+                            : 'Tap Side-Out'}
+                        </span>
                       </div>
                     </div>
                   </div>
 
+                  {/* Non-Volley Kitchen Zone */}
                   <div className="col-span-2 bg-emerald-800/80 grid grid-cols-2 relative">
                     <div className="border-r-2 border-dashed border-white flex items-center justify-center">
                       <span className="text-[9px] font-bold tracking-widest text-white/75 -rotate-90 whitespace-nowrap">
@@ -1916,11 +2287,34 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                     </div>
                   </div>
 
-                  <div className="col-span-5 grid grid-rows-2 border-l-2 border-white">
+                  {/* Interactive East Court Half (Team 2) */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleInteractiveCourtTap(2)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleInteractiveCourtTap(2);
+                      }
+                    }}
+                    title={
+                      scoringType === 'rally'
+                        ? 'Tap to award +1 Rally Point to Team 2'
+                        : state.servingTeam === 2
+                        ? 'Tap to award +1 Server Point to Team 2'
+                        : 'Tap for Side Out / 2nd Server (Team 2 won rally)'
+                    }
+                    className={`col-span-5 grid grid-rows-2 border-l-2 border-white cursor-pointer transition-all relative ${
+                      courtPulseTeam === 2
+                        ? 'ring-4 ring-amber-400 ring-inset'
+                        : 'hover:brightness-110'
+                    }`}
+                  >
                     <div
                       className={`p-2 sm:p-3 border-b border-white/80 flex flex-col justify-between transition-colors ${
                         state.servingTeam === 2 && effectiveServeSide === 'right'
-                          ? 'bg-amber-400/30'
+                          ? 'bg-amber-400/35'
                           : 'bg-blue-700/60'
                       }`}
                     >
@@ -1949,7 +2343,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                     <div
                       className={`p-2 sm:p-3 border-t border-white/80 flex flex-col justify-between transition-colors ${
                         state.servingTeam === 2 && effectiveServeSide === 'left'
-                          ? 'bg-amber-400/30'
+                          ? 'bg-amber-400/35'
                           : 'bg-blue-700/60'
                       }`}
                     >
@@ -1968,8 +2362,17 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                             </span>
                           )}
                       </div>
-                      <div className="text-xs sm:text-sm font-bold text-white truncate text-right">
-                        {team2LeftPlayerId ? getShortName(team2LeftPlayerId) : '—'}
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[9px] font-mono-num uppercase px-1.5 py-0.5 rounded bg-black/35 text-white/90 shrink-0">
+                          {scoringType === 'rally' || state.servingTeam === 2
+                            ? 'Tap +1 T2'
+                            : 'Tap Side-Out'}
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-white truncate text-right">
+                          {team2LeftPlayerId
+                            ? getShortName(team2LeftPlayerId)
+                            : '—'}
+                        </span>
                       </div>
                     </div>
                   </div>

@@ -26,8 +26,10 @@ import {
   computeHeadToHeadSummary,
   computeMemberAchievements,
   getEffectiveMatchMode,
+  getEloTierInfo,
   recalculateMemberStatsFromHistory,
 } from '../utils/clubUtils';
+import { VarsityPlayerCard } from './VarsityPlayerCard';
 
 interface LadderStatsViewProps {
   members: Member[];
@@ -1634,6 +1636,13 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                               <span className="font-semibold text-slate-900 dark:text-white truncate text-xs sm:text-sm">
                                 {member.name}
                               </span>
+                              <span
+                                className={`hidden sm:inline-block text-[9px] font-mono-num uppercase font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                                  getEloTierInfo(member.elo).badgeBgClass
+                                }`}
+                              >
+                                {getEloTierInfo(member.elo).shortCode}
+                              </span>
                               {activeMember?.id === member.id && (
                                 <span className="text-[9px] font-mono-num uppercase font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white shrink-0">
                                   YOU
@@ -1790,6 +1799,18 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                                   </button>
                                 )}
                             </div>
+                          </div>
+
+                          {/* Interactive 3D-Tilt Varsity Player Card & Elo Sparkline */}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <VarsityPlayerCard
+                              member={member}
+                              allMembers={members}
+                              matches={matches}
+                              attendance={attendance}
+                              challenges={challenges}
+                              compact={true}
+                            />
                           </div>
 
                           {/* OFFICER INLINE PLAYER STAT & ACHIEVEMENT EDITOR */}

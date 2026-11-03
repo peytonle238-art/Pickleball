@@ -89,6 +89,32 @@ body {
   padding-top: max(0.75rem, env(safe-area-inset-top, 0.75rem));
 }
 
+/* Broadcast Varsity Arena Court Architectural Surfaces */
+.court-arena-surface {
+  background-color: #0b1120;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.perspective-1000 {
+  perspective: 1100px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
 @media print {
   .no-print {
     display: none !important;

@@ -13,7 +13,11 @@ import {
   NavTab,
   SkillLevel,
 } from '../types';
-import { getNextUpcomingEvent, processImageFileToDataUrl } from '../utils/clubUtils';
+import {
+  getClubText,
+  getNextUpcomingEvent,
+  processImageFileToDataUrl,
+} from '../utils/clubUtils';
 
 export const BOBCATS_LOGO_URL = '/assets/aistudio/images_25669a2b.png';
 
@@ -292,8 +296,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 {data.settings.clubName}
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-md">
-                Official varsity & club athlete portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.
+                {getClubText(
+                  data.settings,
+                  'welcomeTagline',
+                  'Official varsity & club athlete portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.'
+                )}
               </p>
+              {data.settings.customText?.clubRulesOrNotes?.trim() && (
+                <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                  {data.settings.customText.clubRulesOrNotes}
+                </div>
+              )}
             </div>
 
             {/* Quick Navigation Links */}
@@ -331,7 +344,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <div className="lg:col-span-6 w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 text-left space-y-5">
             <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="font-display text-lg font-bold uppercase tracking-tight text-slate-900 dark:text-white">
-                Athlete & Officer Access
+                {getClubText(
+                  data.settings,
+                  'welcomeAccessHeading',
+                  'Athlete & Officer Access'
+                )}
               </div>
               {activeMember && (
                 <span className="font-mono-num text-xs font-semibold text-emerald-700 dark:text-emerald-400">
@@ -436,7 +453,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 ) : (
                   <form onSubmit={handleSchoolIdSubmit} className="space-y-2.5">
                     <label className="block text-xs text-slate-600 dark:text-slate-400">
-                      Enter your School ID to load your member profile:
+                      {getClubText(
+                        data.settings,
+                        'welcomeSignInPrompt',
+                        'Enter your School ID to load your member profile:'
+                      )}
                     </label>
                     <div className="flex items-center gap-2">
                       <input
