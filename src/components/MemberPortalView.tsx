@@ -443,7 +443,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       : 0;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#090d16] text-slate-900 dark:text-slate-100 flex flex-col pb-28 md:pb-16 overflow-y-auto overflow-x-hidden transition-colors duration-200">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#090d16] text-slate-900 dark:text-slate-100 flex flex-col pb-28 md:pb-16 transition-colors duration-200">
       {/* Broadcast Alert Banner if active */}
       {data.settings.broadcastNotice?.enabled &&
         data.settings.broadcastNotice.text && (

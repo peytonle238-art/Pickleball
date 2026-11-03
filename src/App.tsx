@@ -1468,7 +1468,7 @@ export default function App() {
         /* =============================================================== */
         /* VIEW 2: FULL-FEATURED OFFICER EXECUTIVE COMMAND CONSOLE         */
         /* =============================================================== */
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 overflow-y-auto overflow-x-hidden transition-colors duration-200">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 transition-colors duration-200">
           {/* President Broadcast Notice Alert Banner if active */}
           {data.settings.broadcastNotice?.enabled && data.settings.broadcastNotice.text && (
             <aside

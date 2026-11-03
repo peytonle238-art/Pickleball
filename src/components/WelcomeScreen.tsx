@@ -222,7 +222,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-between overflow-x-hidden overflow-y-auto transition-colors duration-200">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-between transition-colors duration-200">
       {/* Top Varsity Masthead Bar */}
       <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
         <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
