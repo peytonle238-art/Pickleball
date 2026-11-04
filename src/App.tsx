@@ -282,6 +282,42 @@ export default function App() {
         if (exists && cloudData && cloudData.members && cloudData.settings) {
           workspaceDocExistsRef.current = true;
           const cleanedCloud = sanitizeAndStripTemplateData(cloudData);
+          const ELO_ZERO_MIGRATION_KEY =
+            'bnhs_pickleball_elo_zero_varsity_removed_v1';
+          let needsZeroMigration = false;
+          try {
+            needsZeroMigration =
+              localStorage.getItem(ELO_ZERO_MIGRATION_KEY) !== 'done';
+          } catch {
+            needsZeroMigration = false;
+          }
+
+          if (needsZeroMigration) {
+            try {
+              localStorage.setItem(ELO_ZERO_MIGRATION_KEY, 'done');
+            } catch {
+              // Ignore storage error
+            }
+            const zeroedCloud: ClubDataState = {
+              ...cleanedCloud,
+              members: cleanedCloud.members.map((m) => ({
+                ...m,
+                elo: 0,
+                monthStartElo: 0,
+              })),
+            };
+            initialCloudLoadDoneRef.current = true;
+            lastSavedSerializedRef.current = JSON.stringify(zeroedCloud);
+            isApplyingRemoteSnapshotRef.current = true;
+            setData(zeroedCloud);
+            try {
+              await saveGlobalClubWorkspaceToFirestore(zeroedCloud, true);
+            } catch (err) {
+              console.error('Failed to push zeroed Elo migration to cloud:', err);
+            }
+            return;
+          }
+
           let hasMigratedLocal = false;
           try {
             hasMigratedLocal =
@@ -690,8 +726,8 @@ export default function App() {
       name: cleanName,
       grade,
       skillLevel,
-      elo: 1200,
-      monthStartElo: 1200,
+      elo: 0,
+      monthStartElo: 0,
       wins: 0,
       losses: 0,
       pointsFor: 0,
@@ -861,13 +897,13 @@ export default function App() {
       ...latestLocalDataRef.current,
       members: latestLocalDataRef.current.members.map((m) => ({
         ...m,
-        elo: 1200,
-        monthStartElo: 1200,
+        elo: 0,
+        monthStartElo: 0,
       })),
     };
     setData(nextState);
     void persistClubDataImmediately(nextState);
-    showToast('All member Elo ratings reset to 1200.');
+    showToast('All member Elo ratings reset to 0.');
   };
 
   const handleSaveCompletedMatch = (newMatch: MatchRecord) => {
@@ -1035,8 +1071,8 @@ export default function App() {
     );
     const winnerTeam: 1 | 2 = challengerScore >= opponentScore ? 1 : 2;
     const eloDelta = calculateEloDelta(
-      [challenger?.elo || 1200],
-      [opponent?.elo || 1200],
+      [challenger?.elo ?? 0],
+      [opponent?.elo ?? 0],
       winnerTeam
     );
 
@@ -1287,8 +1323,8 @@ export default function App() {
 
     const resetMembers = data.members.map((m) => ({
       ...m,
-      elo: 1200,
-      monthStartElo: 1200,
+      elo: 0,
+      monthStartElo: 0,
       wins: 0,
       losses: 0,
       pointsFor: 0,

@@ -20,7 +20,7 @@ export const INITIAL_CLUB_DATA: ClubDataState = {
       enabled: false,
       daysOfWeek: [],
       timeRange: '3:50 PM – 5:30 PM',
-      location: 'BNHS Varsity Courts',
+      location: 'BNHS Club Courts',
     },
     customText: {},
   },
@@ -38,7 +38,7 @@ export const INITIAL_CLUB_DATA: ClubDataState = {
       isActive: true,
       options: [
         { id: 'opt-1', label: 'Doubles Switch-Partner Mixer', voterIds: [] },
-        { id: 'opt-2', label: 'Single-Elimination Varsity Bracket', voterIds: [] },
+        { id: 'opt-2', label: 'Single-Elimination Club Bracket', voterIds: [] },
         { id: 'opt-3', label: 'King of the Court (Up/Down River)', voterIds: [] },
         { id: 'opt-4', label: 'Singles Ladder Challenge Night', voterIds: [] },
       ],
@@ -121,6 +121,27 @@ export const TEMPLATE_RECORD_IDS = new Set([
   'arch-1',
 ]);
 
+export const ELO_ZERO_VARSITY_MIGRATION_KEY =
+  'bnhs_pickleball_elo_zero_varsity_removed_v1';
+
+function scrubVarsityText(str: string | undefined): string {
+  if (!str) return '';
+  return str
+    .replace(
+      /Official varsity & club athlete portal/gi,
+      'Official high school pickleball club portal'
+    )
+    .replace(/BNHS Varsity Courts/gi, 'BNHS Club Courts')
+    .replace(
+      /Single-Elimination Varsity Bracket/gi,
+      'Single-Elimination Club Bracket'
+    )
+    .replace(/Varsity Court Practice/gi, 'After-School Club Practice')
+    .replace(/Varsity Open Court Session/gi, 'Club Open Court Session')
+    .replace(/\bVarsity\b/g, 'Club')
+    .replace(/\bvarsity\b/g, 'club');
+}
+
 export function sanitizeAndStripTemplateData(
   state: ClubDataState
 ): ClubDataState {
@@ -131,17 +152,38 @@ export function sanitizeAndStripTemplateData(
     Array.isArray(state.events) &&
     state.events.some((e) => TEMPLATE_RECORD_IDS.has(e.id));
 
+  let shouldResetEloToZero = false;
+  if (typeof window !== 'undefined') {
+    try {
+      if (localStorage.getItem(ELO_ZERO_VARSITY_MIGRATION_KEY) !== 'done') {
+        shouldResetEloToZero = true;
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
   const rawClubName = state.settings?.clubName || 'BNHS Pickleball Club';
   const normalizedClubName =
     rawClubName === 'BNHS Pickleball Club HQ'
       ? 'BNHS Pickleball Club'
-      : rawClubName;
+      : scrubVarsityText(rawClubName);
+
+  const rawCustomText = state.settings?.customText || {};
+  const cleanedCustomText: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rawCustomText)) {
+    cleanedCustomText[k] = typeof v === 'string' ? scrubVarsityText(v) : v;
+  }
+
+  const rawLoc =
+    state.settings?.recurringPractices?.location || 'BNHS Club Courts';
+  const cleanedLocation = scrubVarsityText(rawLoc) || 'BNHS Club Courts';
 
   const nextSettings = {
     ...INITIAL_CLUB_DATA.settings,
     ...(state.settings || {}),
     clubName: normalizedClubName,
-    customText: state.settings?.customText || {},
+    customText: cleanedCustomText,
     officerPin:
       !state.settings?.officerPin || state.settings.officerPin === '1234'
         ? '9002'
@@ -154,12 +196,13 @@ export function sanitizeAndStripTemplateData(
             timeRange:
               state.settings?.recurringPractices?.timeRange ||
               '3:50 PM – 5:30 PM',
-            location:
-              state.settings?.recurringPractices?.location ||
-              'BNHS Varsity Courts',
+            location: cleanedLocation,
           }
-        : state.settings?.recurringPractices ||
-          INITIAL_CLUB_DATA.settings.recurringPractices,
+        : {
+            ...(state.settings?.recurringPractices ||
+              INITIAL_CLUB_DATA.settings.recurringPractices),
+            location: cleanedLocation,
+          },
   };
 
   return {
@@ -168,9 +211,17 @@ export function sanitizeAndStripTemplateData(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),
     tasks: (state.tasks || []).filter((x) => !TEMPLATE_RECORD_IDS.has(x.id)),
-    members: (state.members || []).filter(
-      (x) => !TEMPLATE_RECORD_IDS.has(x.id)
-    ),
+    members: (state.members || [])
+      .filter((x) => !TEMPLATE_RECORD_IDS.has(x.id))
+      .map((m) => ({
+        ...m,
+        elo: shouldResetEloToZero ? 0 : typeof m.elo === 'number' ? m.elo : 0,
+        monthStartElo: shouldResetEloToZero
+          ? 0
+          : typeof m.monthStartElo === 'number'
+          ? m.monthStartElo
+          : 0,
+      })),
     attendance: (state.attendance || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),
@@ -181,7 +232,16 @@ export function sanitizeAndStripTemplateData(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),
     polls: Array.isArray(state.polls)
-      ? state.polls
+      ? state.polls.map((p) => ({
+          ...p,
+          question: scrubVarsityText(p.question),
+          options: Array.isArray(p.options)
+            ? p.options.map((o) => ({
+                ...o,
+                label: scrubVarsityText(o.label),
+              }))
+            : [],
+        }))
       : INITIAL_CLUB_DATA.polls,
     mvpVotes: state.mvpVotes || {},
     activityReactions: state.activityReactions || {},
@@ -191,7 +251,13 @@ export function sanitizeAndStripTemplateData(
     outsideTournaments: (state.outsideTournaments || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),
-    events: (state.events || []).filter((x) => !TEMPLATE_RECORD_IDS.has(x.id)),
+    events: (state.events || [])
+      .filter((x) => !TEMPLATE_RECORD_IDS.has(x.id))
+      .map((ev) => ({
+        ...ev,
+        title: scrubVarsityText(ev.title),
+        location: scrubVarsityText(ev.location),
+      })),
     announcements: (state.announcements || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),

@@ -95,8 +95,8 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
   const [editingStatsMemberId, setEditingStatsMemberId] = useState<
     string | null
   >(null);
-  const [editElo, setEditElo] = useState<number>(1200);
-  const [editMonthStartElo, setEditMonthStartElo] = useState<number>(1200);
+  const [editElo, setEditElo] = useState<number>(0);
+  const [editMonthStartElo, setEditMonthStartElo] = useState<number>(0);
   const [editWins, setEditWins] = useState<number>(0);
   const [editLosses, setEditLosses] = useState<number>(0);
   const [editPointsFor, setEditPointsFor] = useState<number>(0);
@@ -281,9 +281,9 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
     if (!isOfficer || !onUpdateMember) return;
     onUpdateMember({
       ...member,
-      elo: Math.max(100, Math.min(3500, Math.round(editElo))),
+      elo: Math.max(0, Math.min(3500, Math.round(editElo))),
       monthStartElo: Math.max(
-        100,
+        0,
         Math.min(3500, Math.round(editMonthStartElo))
       ),
       wins: Math.max(0, Math.round(editWins)),
@@ -341,10 +341,10 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
     const team2Ids = mFormat === 'doubles' ? [mT2P1, mT2P2] : [mT2P1];
     const winnerTeam: 1 | 2 = mScore1 >= mScore2 ? 1 : 2;
     const t1Elos = team1Ids.map(
-      (id) => members.find((m) => m.id === id)?.elo || 1200
+      (id) => members.find((m) => m.id === id)?.elo ?? 0
     );
     const t2Elos = team2Ids.map(
-      (id) => members.find((m) => m.id === id)?.elo || 1200
+      (id) => members.find((m) => m.id === id)?.elo ?? 0
     );
     const calculatedDelta = calculateEloDelta(t1Elos, t2Elos, winnerTeam);
     const eloDelta = mMatchMode === 'ranked' ? calculatedDelta : 0;
@@ -1105,13 +1105,13 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 const oRank = getMemberRank(c.opponentId);
 
                 const stakeIfChallengerWins = calculateEloDelta(
-                  [challenger?.elo || 1200],
-                  [opponent?.elo || 1200],
+                  [challenger?.elo ?? 0],
+                  [opponent?.elo ?? 0],
                   1
                 );
                 const stakeIfOpponentWins = calculateEloDelta(
-                  [challenger?.elo || 1200],
-                  [opponent?.elo || 1200],
+                  [challenger?.elo ?? 0],
+                  [opponent?.elo ?? 0],
                   2
                 );
 
@@ -1329,7 +1329,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
               Official BNHS Elo Club Ladder
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Tap any player row to inspect their unlocked varsity badges,
+              Tap any player row to inspect their unlocked club badges,
               streak milestones & recent matches
             </p>
           </div>
@@ -1825,7 +1825,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                                     Officer Player Override Console
                                   </div>
                                   <div className="font-display text-base font-bold text-slate-900 dark:text-white">
-                                    Adjust Stats & Varsity Badges for{' '}
+                                    Adjust Stats & Club Badges for{' '}
                                     {member.name}
                                   </div>
                                 </div>
@@ -1850,7 +1850,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                                   </label>
                                   <input
                                     type="number"
-                                    min={100}
+                                    min={0}
                                     max={3500}
                                     value={editElo}
                                     onChange={(e) =>
@@ -1866,7 +1866,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                                   </label>
                                   <input
                                     type="number"
-                                    min={100}
+                                    min={0}
                                     max={3500}
                                     value={editMonthStartElo}
                                     onChange={(e) =>

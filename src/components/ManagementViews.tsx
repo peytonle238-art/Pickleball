@@ -678,7 +678,7 @@ interface SettingsViewProps {
 const SCHOOL_COLOR_PRESETS = [
   { name: 'Bobcat Royal & Gold', primary: '#1d4ed8', secondary: '#eab308' },
   {
-    name: 'Varsity Navy & Electric Lime',
+    name: 'Club Navy & Electric Lime',
     primary: '#1e3a8a',
     secondary: '#84cc16',
   },
@@ -992,7 +992,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </h3>
               <p className="text-xs text-slate-500">
                 Archives current season ladder standings and resets W–L & Elo
-                to 1200 for the new semester.
+                to 0 for the new semester.
               </p>
             </div>
 

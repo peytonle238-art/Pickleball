@@ -273,7 +273,7 @@ export const ClubInteractivePulse: React.FC<ClubInteractivePulseProps> = ({
                     ? Math.round((votes / mvpVoteTallies.total) * 100)
                     : 0;
                 const isSelected = myMvpChoice === cand.id;
-                const monthGain = cand.elo - (cand.monthStartElo || 1200);
+                const monthGain = cand.elo - (cand.monthStartElo ?? 0);
 
                 return (
                   <button

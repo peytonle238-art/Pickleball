@@ -135,7 +135,7 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
   const totalGames = member.wins + member.losses;
   const winPct =
     totalGames > 0 ? Math.round((member.wins / totalGames) * 100) : 0;
-  const monthDelta = member.elo - (member.monthStartElo || 1200);
+  const monthDelta = member.elo - (member.monthStartElo ?? 0);
   const ptDiff = (member.pointsFor || 0) - (member.pointsAgainst || 0);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -172,9 +172,9 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
   const sparkCoords = useMemo(() => {
     if (eloHistory.length === 0) return [];
     const elos = eloHistory.map((p) => p.eloAfter);
-    const minElo = Math.min(...elos, 1150) - 15;
-    const maxElo = Math.max(...elos, 1250) + 15;
-    const span = Math.max(30, maxElo - minElo);
+    const minElo = Math.min(...elos, 0);
+    const maxElo = Math.max(...elos, 50) + 10;
+    const span = Math.max(20, maxElo - minElo);
 
     return eloHistory.map((pt, idx) => {
       const x =
@@ -285,7 +285,7 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
                 <div className="min-w-0 space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-mono-num uppercase tracking-widest text-slate-400">
-                      BNHS VARSITY CARD
+                      BNHS CLUB PLAYER CARD
                     </span>
                     {member.streak >= 3 && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[10px] font-mono-num font-bold">

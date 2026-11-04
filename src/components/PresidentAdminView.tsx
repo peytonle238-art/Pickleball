@@ -157,7 +157,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
     data.settings.recurringPractices?.timeRange || '3:50 PM – 5:30 PM'
   );
   const [practiceLocationInput, setPracticeLocationInput] = useState(
-    data.settings.recurringPractices?.location || 'BNHS Varsity Courts'
+    data.settings.recurringPractices?.location || 'BNHS Club Courts'
   );
   const [customTextDraft, setCustomTextDraft] = useState<
     Record<string, string>
@@ -206,7 +206,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
   const [calibratingMemberId, setCalibratingMemberId] = useState<string | null>(
     null
   );
-  const [calibrationEloInput, setCalibrationEloInput] = useState<number>(1200);
+  const [calibrationEloInput, setCalibrationEloInput] = useState<number>(0);
 
   // Dues state
   const [duesAmountInput, setDuesAmountInput] = useState<number>(
@@ -522,8 +522,8 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
           skillLevel: 'Intermediate',
           paddleNotes: '',
           joinDate: today,
-          elo: 1200,
-          monthStartElo: 1200,
+          elo: 0,
+          monthStartElo: 0,
           wins: 0,
           losses: 0,
           pointsFor: 0,
@@ -553,7 +553,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
         setEditingDraft({
           id: newId,
           date: today,
-          title: 'Varsity Court Practice',
+          title: 'After-School Club Practice',
           presentMemberIds: [],
         } satisfies AttendanceSession);
         break;
@@ -628,10 +628,10 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       case 'events':
         setEditingDraft({
           id: newId,
-          title: 'Varsity Open Court Session',
+          title: 'Club Open Court Session',
           date: today,
           time: '4:00 PM – 5:30 PM',
-          location: 'BNHS Varsity Courts',
+          location: 'BNHS Club Courts',
           type: 'Practice',
           description: 'Bring paddles, water, and court shoes.',
         } satisfies CalendarEvent);
@@ -778,7 +778,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       recurringPractices: {
         ...data.settings.recurringPractices,
         timeRange: practiceTimeInput.trim() || '3:50 PM – 5:30 PM',
-        location: practiceLocationInput.trim() || 'BNHS Varsity Courts',
+        location: practiceLocationInput.trim() || 'BNHS Club Courts',
       },
       customText: cleanedCustom,
     };
@@ -919,7 +919,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       m.id === memberId
         ? {
             ...m,
-            elo: Math.max(100, Math.min(3000, Number(calibrationEloInput))),
+            elo: Math.max(0, Math.min(3000, Number(calibrationEloInput))),
           }
         : m
     );
@@ -973,7 +973,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
   const handleExecuteResetElo = () => {
     onResetAllElo();
     setConfirmResetElo(false);
-    triggerToast('All member Elo ratings reset to 1200.');
+    triggerToast('All member Elo ratings reset to 0.');
   };
 
   // Handle factory reset confirmation
@@ -2053,7 +2053,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
                   type="text"
                   value={findText}
                   onChange={(e) => setFindText(e.target.value)}
-                  placeholder="e.g. BNHS Varsity Courts"
+                  placeholder="e.g. BNHS Club Courts"
                   className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs"
                 />
               </div>
@@ -2690,18 +2690,18 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
               onClick={() => setConfirmResetElo(true)}
               className="px-3.5 py-1.5 rounded-md bg-red-50 hover:bg-red-100 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs font-semibold cursor-pointer"
             >
-              Reset Entire Club to 1200 Elo
+              Reset Entire Club to 0 Elo
             </button>
           </div>
 
           {confirmResetElo && (
             <div className="p-4 rounded-md bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 space-y-3">
               <div className="text-xs font-bold text-red-700 dark:text-red-300">
-                Confirm Elo Reset to 1200 for ALL Members
+                Confirm Elo Reset to 0 for ALL Members
               </div>
               <p className="text-xs text-red-600 dark:text-red-300">
                 This will reset the Elo ratings of all {data.members.length}{' '}
-                members back to the baseline 1200.
+                members back to the baseline 0.
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -2709,7 +2709,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
                   onClick={handleExecuteResetElo}
                   className="px-3 py-1.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-semibold cursor-pointer"
                 >
-                  Yes, Reset All to 1200
+                  Yes, Reset All to 0
                 </button>
                 <button
                   type="button"
@@ -2779,7 +2779,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
                           <div className="inline-flex items-center gap-1.5">
                             <input
                               type="number"
-                              min={100}
+                              min={0}
                               max={3000}
                               value={calibrationEloInput}
                               onChange={(e) =>

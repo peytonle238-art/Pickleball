@@ -44,7 +44,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
   const [evTitle, setEvTitle] = useState('');
   const [evDate, setEvDate] = useState(selectedDateStr);
   const [evTime, setEvTime] = useState('3:50 PM – 5:30 PM');
-  const [evLocation, setEvLocation] = useState('BNHS Varsity Courts 1–6');
+  const [evLocation, setEvLocation] = useState('BNHS Club Courts 1–6');
   const [evType, setEvType] = useState<EventCategory>('Practice');
   const [evDesc, setEvDesc] = useState('');
 
@@ -135,7 +135,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
     setEvTitle('');
     setEvDate(forDate);
     setEvTime('3:50 PM – 5:30 PM');
-    setEvLocation('BNHS Varsity Courts 1–6');
+    setEvLocation('BNHS Club Courts 1–6');
     setEvType('Practice');
     setEvDesc('');
     setShowEventForm(true);

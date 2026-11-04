@@ -84,9 +84,9 @@ export const ALL_ACHIEVEMENT_DEFINITIONS: {
   },
   {
     id: 'varsity-contender',
-    title: 'Varsity Contender',
+    title: 'Club Ladder Contender',
     category: 'Rating',
-    description: 'Reach a 1,250+ Club Elo rating on the official ladder',
+    description: 'Reach a 100+ Club Elo rating on the official ladder',
   },
   {
     id: 'golden-pickle',
@@ -173,8 +173,8 @@ export function computeMemberAchievements(
 
   const careerPointsScored = Math.max(0, member.pointsFor || 0);
 
-  const eloProgress = Math.max(0, member.elo - 1150);
-  const eloTarget = 100; // 1150 -> 1250
+  const eloProgress = Math.max(0, member.elo);
+  const eloTarget = 100;
 
   const grantedSet = new Set(member.unlockedAchievementIds || []);
   const revokedSet = new Set(member.revokedAchievementIds || []);
@@ -274,16 +274,16 @@ export function computeMemberAchievements(
     },
     {
       id: 'varsity-contender',
-      title: 'Varsity Contender',
-      description: 'Reach a 1,250+ Club Elo rating on the official ladder',
+      title: 'Club Ladder Contender',
+      description: 'Reach a 100+ Club Elo rating on the official ladder',
       category: 'Rating',
       current: member.elo,
-      target: 1250,
+      target: 100,
       pct:
-        member.elo >= 1250
+        member.elo >= 100
           ? 100
           : Math.min(100, Math.round((eloProgress / eloTarget) * 100)),
-      progressLabel: `${member.elo} / 1250 Elo`,
+      progressLabel: `${member.elo} / 100 Elo`,
       accent: 'blue',
     },
     {
@@ -472,7 +472,7 @@ export function applyMatchToMembers(
           ? m.elo
           : won
           ? m.elo + effectiveEloDelta
-          : Math.max(800, m.elo - effectiveEloDelta),
+          : Math.max(0, m.elo - effectiveEloDelta),
       wins: won ? m.wins + 1 : m.wins,
       losses: won ? m.losses : m.losses + 1,
       pointsFor: m.pointsFor + pf,
@@ -548,7 +548,7 @@ export function revertMatchFromMembers(
       effectiveDelta === 0
         ? m.elo
         : won
-        ? Math.max(800, m.elo - effectiveDelta)
+        ? Math.max(0, m.elo - effectiveDelta)
         : m.elo + effectiveDelta;
 
     return {
@@ -572,7 +572,7 @@ export function recalculateMemberStatsFromHistory(
   allMatches: MatchRecord[]
 ): Member {
   const chronological = [...allMatches].reverse();
-  let elo = member.monthStartElo || 1200;
+  let elo = member.monthStartElo ?? 0;
   let wins = 0;
   let losses = 0;
   let pointsFor = 0;
@@ -600,7 +600,7 @@ export function recalculateMemberStatsFromHistory(
     } else {
       losses += 1;
       streak = streak < 0 ? streak - 1 : -1;
-      if (mode === 'ranked') elo = Math.max(800, elo - m.eloDelta);
+      if (mode === 'ranked') elo = Math.max(0, elo - m.eloDelta);
     }
 
     pointsFor += pf;
@@ -976,7 +976,7 @@ export function getNextUpcomingEvent(
       title: 'After-School Practice & Open Courts',
       date: `${fy}-${fm}-${fd}`,
       time: settings.recurringPractices.timeRange || '3:50 PM – 5:30 PM',
-      location: settings.recurringPractices.location || 'BNHS Varsity Courts',
+      location: settings.recurringPractices.location || 'BNHS Club Courts',
       type: 'Practice',
       description: 'Open court play and ladder challenges.',
     },
@@ -1038,14 +1038,14 @@ export interface EloTierInfo {
 }
 
 /**
- * Computes Varsity Elo Tier details and progression toward the next tier threshold.
+ * Computes Club Elo Tier details and progression toward the next tier threshold.
  */
 export function getEloTierInfo(elo: number): EloTierInfo {
-  if (elo >= 1450) {
+  if (elo >= 300) {
     return {
-      name: 'Varsity Legend',
-      shortCode: 'LEGEND',
-      minElo: 1450,
+      name: 'Club Champion',
+      shortCode: 'CHAMPION',
+      minElo: 300,
       nextTierElo: null,
       nextTierName: null,
       progressPct: 100,
@@ -1053,49 +1053,49 @@ export function getEloTierInfo(elo: number): EloTierInfo {
       badgeBgClass: 'bg-amber-400 text-slate-950',
     };
   }
-  if (elo >= 1350) {
+  if (elo >= 200) {
     return {
-      name: 'Varsity Elite',
-      shortCode: 'ELITE',
-      minElo: 1350,
-      nextTierElo: 1450,
-      nextTierName: 'Varsity Legend',
-      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 1350) / 100) * 100))),
+      name: 'Gold Club',
+      shortCode: 'GOLD',
+      minElo: 200,
+      nextTierElo: 300,
+      nextTierName: 'Club Champion',
+      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 200) / 100) * 100))),
       accentColor: '#38bdf8',
       badgeBgClass: 'bg-sky-400 text-slate-950',
     };
   }
-  if (elo >= 1250) {
+  if (elo >= 100) {
     return {
-      name: 'All-District',
-      shortCode: 'DISTRICT',
-      minElo: 1250,
-      nextTierElo: 1350,
-      nextTierName: 'Varsity Elite',
-      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 1250) / 100) * 100))),
+      name: 'Silver Club',
+      shortCode: 'SILVER',
+      minElo: 100,
+      nextTierElo: 200,
+      nextTierName: 'Gold Club',
+      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 100) / 100) * 100))),
       accentColor: '#10b981',
       badgeBgClass: 'bg-emerald-500 text-white',
     };
   }
-  if (elo >= 1150) {
+  if (elo >= 25) {
     return {
-      name: 'Varsity Contender',
-      shortCode: 'VARSITY',
-      minElo: 1150,
-      nextTierElo: 1250,
-      nextTierName: 'All-District',
-      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 1150) / 100) * 100))),
+      name: 'Bronze Club',
+      shortCode: 'BRONZE',
+      minElo: 25,
+      nextTierElo: 100,
+      nextTierName: 'Silver Club',
+      progressPct: Math.min(100, Math.max(0, Math.round(((elo - 25) / 75) * 100))),
       accentColor: '#3b82f6',
       badgeBgClass: 'bg-blue-600 text-white',
     };
   }
   return {
-    name: 'Club Challenger',
-    shortCode: 'CHALLENGER',
-    minElo: 800,
-    nextTierElo: 1150,
-    nextTierName: 'Varsity Contender',
-    progressPct: Math.min(100, Math.max(5, Math.round(((elo - 950) / 200) * 100))),
+    name: 'Club Member',
+    shortCode: 'MEMBER',
+    minElo: 0,
+    nextTierElo: 25,
+    nextTierName: 'Bronze Club',
+    progressPct: Math.min(100, Math.max(0, Math.round((Math.max(0, elo) / 25) * 100))),
     accentColor: '#64748b',
     badgeBgClass: 'bg-slate-700 text-white',
   };
@@ -1233,7 +1233,7 @@ export function buildPlayerEloHistoryPoints(
       scoreLabel: scoreStr,
     });
 
-    runningElo = Math.max(800, runningElo - signedDelta);
+    runningElo = Math.max(0, runningElo - signedDelta);
   }
 
   points.push({
@@ -1264,7 +1264,7 @@ export const DEFAULT_SITE_TEXT_ENTRIES: SiteTextEntryDefinition[] = [
     section: 'Welcome Screen',
     label: 'Welcome Hero Description',
     defaultValue:
-      'Official varsity & club athlete portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.',
+      'Official high school pickleball club portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.',
     multiline: true,
   },
   {

@@ -1199,7 +1199,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
                           Sign in with your School ID or add yourself to the
                           club database to track your matches, attendance, and
-                          varsity achievement badges.
+                          club achievement badges.
                         </p>
                       )}
                     </div>

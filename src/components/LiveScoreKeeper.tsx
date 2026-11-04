@@ -230,7 +230,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
     return parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : full;
   };
   const getMemberElo = (id: string) =>
-    members.find((m) => m.id === id)?.elo || 1200;
+    members.find((m) => m.id === id)?.elo ?? 0;
 
   // =========================================================================
   // SMART COURT GENERATOR HANDLERS
@@ -629,10 +629,10 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
         ? 'ranked'
         : matchMode;
       const t1Elos = team1Ids.map(
-        (id) => members.find((m) => m.id === id)?.elo || 1200
+        (id) => members.find((m) => m.id === id)?.elo ?? 0
       );
       const t2Elos = team2Ids.map(
-        (id) => members.find((m) => m.id === id)?.elo || 1200
+        (id) => members.find((m) => m.id === id)?.elo ?? 0
       );
       const eloDelta =
         effectiveMode === 'ranked'
@@ -1894,7 +1894,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                     >
                       <div>
                         <div className="text-[10px] font-mono-num uppercase tracking-wider font-bold text-amber-300">
-                          VARSITY TIER PROMOTION
+                          CLUB TIER PROMOTION
                         </div>
                         <div className="text-sm font-bold text-white">
                           {promo.name}: {promo.oldTier} → {promo.newTier}

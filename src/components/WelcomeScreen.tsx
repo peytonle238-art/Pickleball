@@ -299,7 +299,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 {getClubText(
                   data.settings,
                   'welcomeTagline',
-                  'Official varsity & club athlete portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.'
+                  'Official high school pickleball club portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.'
                 )}
               </p>
               {data.settings.customText?.clubRulesOrNotes?.trim() && (

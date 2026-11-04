@@ -96,8 +96,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   );
 
   // Officer Stat & Achievement Override state when editing a member
-  const [formElo, setFormElo] = useState<number>(1200);
-  const [formMonthStartElo, setFormMonthStartElo] = useState<number>(1200);
+  const [formElo, setFormElo] = useState<number>(0);
+  const [formMonthStartElo, setFormMonthStartElo] = useState<number>(0);
   const [formWins, setFormWins] = useState<number>(0);
   const [formLosses, setFormLosses] = useState<number>(0);
   const [formPointsFor, setFormPointsFor] = useState<number>(0);
@@ -217,8 +217,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     setFormDupr('3.25');
     setFormPaddle('');
     setFormJoinDate(new Date().toISOString().slice(0, 10));
-    setFormElo(1200);
-    setFormMonthStartElo(1200);
+    setFormElo(0);
+    setFormMonthStartElo(0);
     setFormWins(0);
     setFormLosses(0);
     setFormPointsFor(0);
@@ -308,10 +308,10 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 duprRating: formDupr.trim() || undefined,
                 paddleNotes: formPaddle.trim() || 'Club Loaner Paddle',
                 joinDate: formJoinDate,
-                elo: Math.max(100, Math.round(Number(formElo) || 1200)),
+                elo: Math.max(0, Math.round(Number(formElo) || 0)),
                 monthStartElo: Math.max(
-                  100,
-                  Math.round(Number(formMonthStartElo) || 1200)
+                  0,
+                  Math.round(Number(formMonthStartElo) || 0)
                 ),
                 wins: Math.max(0, Math.round(Number(formWins) || 0)),
                 losses: Math.max(0, Math.round(Number(formLosses) || 0)),
@@ -338,8 +338,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
         duprRating: formDupr.trim() || undefined,
         paddleNotes: formPaddle.trim() || 'Personal Paddle',
         joinDate: formJoinDate,
-        elo: 1200,
-        monthStartElo: 1200,
+        elo: 0,
+        monthStartElo: 0,
         wins: 0,
         losses: 0,
         pointsFor: 0,
@@ -458,13 +458,8 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
       duprRating: row.duprRating,
       paddleNotes: row.paddleNotes || 'Personal Paddle',
       joinDate: today,
-      elo:
-        row.skillLevel === 'Advanced'
-          ? 1240
-          : row.skillLevel === 'Beginner'
-          ? 1160
-          : 1200,
-      monthStartElo: 1200,
+      elo: 0,
+      monthStartElo: 0,
       wins: 0,
       losses: 0,
       pointsFor: 0,
@@ -951,7 +946,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
                   <div>
                     <div className="font-display text-base font-bold uppercase tracking-tight text-slate-900 dark:text-white">
-                      Officer Stats & Varsity Achievement Overrides
+                      Officer Stats & Club Achievement Overrides
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       Adjust Elo, Wins/Losses, Points & Streak, or manually grant/revoke any of the 10 achievement badges
@@ -1059,7 +1054,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                 <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
-                      Varsity Achievement Badges (Grant / Lock / Auto)
+                      Club Achievement Badges (Grant / Lock / Auto)
                     </div>
                     <div className="flex items-center gap-2">
                       <button
