@@ -72,6 +72,12 @@ import { PresidentAdminView } from './components/PresidentAdminView';
 import { BOBCATS_LOGO_URL, WelcomeScreen } from './components/WelcomeScreen';
 import { MemberPortalView } from './components/MemberPortalView';
 import { getVoterIdentityKey } from './components/ClubInteractivePulse';
+import {
+  CommandPaletteModal,
+  HudStatusBar,
+  PreloaderCurtain,
+  ScrollProgressBar,
+} from './components/MotionPrimitives';
 
 const STORAGE_KEY = 'bnhs_pickleball_hq_fresh_v2';
 const LEGACY_STORAGE_KEY = 'bnhs_pickleball_hq_v1';
@@ -125,8 +131,20 @@ export default function App() {
   const [isOfficer, setIsOfficer] = useState<boolean>(false);
   const [isPresident, setIsPresident] = useState<boolean>(false);
 
-  // Universal Dropdown Menu state ("Everything Menu")
+  // Universal Dropdown Menu state ("Everything Menu") & Command-K Palette
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const onGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onGlobalKeyDown);
+    return () => window.removeEventListener('keydown', onGlobalKeyDown);
+  }, []);
 
   // Firebase Auth & Global Firestore Sync state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -1356,48 +1374,62 @@ export default function App() {
   // If Welcome Screen is active, render the animated full-screen Welcome Hub
   if (showWelcomeScreen) {
     return (
-      <WelcomeScreen
-        data={data}
-        darkMode={darkMode}
-        linkedMemberId={linkedMemberId}
-        onToggleDarkMode={() => setDarkMode(!darkMode)}
-        onEnterAsMember={(targetTab) => {
-          void refreshFromGlobalCloud();
-          setActiveTab(
-            MEMBER_ALLOWED_TABS.includes(targetTab) ? targetTab : 'home'
-          );
-          setShowWelcomeScreen(false);
-        }}
-        onEnterAsOfficer={(pin, targetTab) => {
-          const entered = pin.trim();
-          const presPass = (data.settings.presidentPassword || '8855').trim();
-          const isPres = entered === presPass;
-          const isOff = entered === data.settings.officerPin || isPres;
-
-          if (isOff) {
+      <>
+        <PreloaderCurtain
+          clubName={data.settings.clubName}
+          schoolName={data.settings.schoolName}
+        />
+        <ScrollProgressBar />
+        <WelcomeScreen
+          data={data}
+          darkMode={darkMode}
+          linkedMemberId={linkedMemberId}
+          onToggleDarkMode={() => setDarkMode(!darkMode)}
+          onEnterAsMember={(targetTab) => {
             void refreshFromGlobalCloud();
-            setIsOfficer(true);
-            setIsPresident(isPres);
-            setActiveTab(isPres && targetTab === 'home' ? 'admin' : targetTab);
-            setShowWelcomeScreen(false);
-            showToast(
-              isPres
-                ? 'President Administration unlocked (Highest Authority)'
-                : 'Officer Mode unlocked (Full Edit Access)'
+            setActiveTab(
+              MEMBER_ALLOWED_TABS.includes(targetTab) ? targetTab : 'home'
             );
-            return true;
-          }
-          return false;
-        }}
-        onSignInBySchoolId={handleSignInBySchoolId}
-        onRegisterMember={handleRegisterMember}
-        onSignOutMember={handleSignOutMember}
-      />
+            setShowWelcomeScreen(false);
+          }}
+          onEnterAsOfficer={(pin, targetTab) => {
+            const entered = pin.trim();
+            const presPass = (data.settings.presidentPassword || '8855').trim();
+            const isPres = entered === presPass;
+            const isOff = entered === data.settings.officerPin || isPres;
+
+            if (isOff) {
+              void refreshFromGlobalCloud();
+              setIsOfficer(true);
+              setIsPresident(isPres);
+              setActiveTab(
+                isPres && targetTab === 'home' ? 'admin' : targetTab
+              );
+              setShowWelcomeScreen(false);
+              showToast(
+                isPres
+                  ? 'President Administration unlocked (Highest Authority)'
+                  : 'Officer Mode unlocked (Full Edit Access)'
+              );
+              return true;
+            }
+            return false;
+          }}
+          onSignInBySchoolId={handleSignInBySchoolId}
+          onRegisterMember={handleRegisterMember}
+          onSignOutMember={handleSignOutMember}
+        />
+      </>
     );
   }
 
   return (
     <>
+      <PreloaderCurtain
+        clubName={data.settings.clubName}
+        schoolName={data.settings.schoolName}
+      />
+      <ScrollProgressBar />
       {!isOfficer ? (
         /* =============================================================== */
         /* VIEW 1: DEDICATED CLEAN, LIMITED MEMBER PORTAL                  */
@@ -1434,12 +1466,19 @@ export default function App() {
             setShowPinModal(true);
           }}
           onShowWelcomeScreen={() => setShowWelcomeScreen(true)}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
       ) : (
         /* =============================================================== */
         /* VIEW 2: FULL-FEATURED OFFICER EXECUTIVE COMMAND CONSOLE         */
         /* =============================================================== */
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 transition-colors duration-200">
+          <HudStatusBar
+            rosterCount={data.members.length}
+            matchesCount={data.matches.length}
+            isOfficer={true}
+            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          />
           {/* President Broadcast Notice Alert Banner if active */}
           {data.settings.broadcastNotice?.enabled && data.settings.broadcastNotice.text && (
             <aside
@@ -1711,13 +1750,24 @@ export default function App() {
                         key={item.id}
                         type="button"
                         onClick={() => handleNavigate(item.id)}
-                        className={`w-full px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`relative w-full px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
-                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                            ? 'text-white dark:text-slate-900'
                             : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <span>{item.label}</span>
+                        {isSelected && (
+                          <motion.div
+                            layoutId="officer-sidebar-active-pill"
+                            transition={{
+                              type: 'spring',
+                              stiffness: 420,
+                              damping: 34,
+                            }}
+                            className="absolute inset-0 rounded-md bg-slate-900 dark:bg-white -z-0"
+                          />
+                        )}
+                        <span className="relative z-10">{item.label}</span>
                       </button>
                     );
                   })}
@@ -1734,13 +1784,24 @@ export default function App() {
                         key={item.id}
                         type="button"
                         onClick={() => handleNavigate(item.id)}
-                        className={`w-full px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`relative w-full px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
-                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                            ? 'text-white dark:text-slate-900'
                             : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <span>{item.label}</span>
+                        {isSelected && (
+                          <motion.div
+                            layoutId="officer-sidebar-active-pill"
+                            transition={{
+                              type: 'spring',
+                              stiffness: 420,
+                              damping: 34,
+                            }}
+                            className="absolute inset-0 rounded-md bg-slate-900 dark:bg-white -z-0"
+                          />
+                        )}
+                        <span className="relative z-10">{item.label}</span>
                       </button>
                     );
                   })}
@@ -2021,14 +2082,25 @@ export default function App() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleNavigate(tab.id as NavTab)}
-                  className={`py-1.5 px-0.5 rounded-md flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-colors cursor-pointer min-h-[44px] ${
+                  className={`relative py-1.5 px-0.5 rounded-md flex flex-col items-center justify-center gap-1 text-[10px] font-bold transition-colors cursor-pointer min-h-[44px] ${
                     isActive
-                      ? 'text-amber-400 bg-slate-800'
+                      ? 'text-amber-400'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  {tab.icon}
-                  <span className="truncate max-w-full text-[9px] leading-tight">
+                  {isActive && (
+                    <motion.div
+                      layoutId="officer-mobile-nav-pill"
+                      transition={{
+                        type: 'spring',
+                        stiffness: 420,
+                        damping: 34,
+                      }}
+                      className="absolute inset-0 rounded-md bg-slate-800 -z-0"
+                    />
+                  )}
+                  <span className="relative z-10">{tab.icon}</span>
+                  <span className="relative z-10 truncate max-w-full text-[9px] leading-tight">
                     {tab.label}
                   </span>
                 </button>
@@ -2037,6 +2109,27 @@ export default function App() {
           </nav>
         </div>
       )}
+
+      {/* Global Command-K (⌘K / Ctrl+K) Quick Command & Athlete Search Palette */}
+      <CommandPaletteModal
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        members={data.members}
+        darkMode={darkMode}
+        isOfficer={isOfficer}
+        onNavigate={handleNavigate}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+        onSelectMember={(member) => {
+          handleSelectLinkedMember(member.id);
+          handleNavigate(isOfficer ? 'ladder' : 'activity');
+        }}
+        onRequestOfficerLogin={() => {
+          setPendingOfficerTab(null);
+          setPinInput('');
+          setPinError('');
+          setShowPinModal(true);
+        }}
+      />
 
       {/* Global Toast Notification */}
       <AnimatePresence>

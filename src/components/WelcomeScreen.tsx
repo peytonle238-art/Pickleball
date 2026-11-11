@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowRight,
+  ArrowUpRight,
   ChevronDown,
   Moon,
   Sun,
@@ -18,6 +19,12 @@ import {
   getNextUpcomingEvent,
   processImageFileToDataUrl,
 } from '../utils/clubUtils';
+import {
+  AnimatedNumber,
+  EXPO_OUT,
+  HudStatusBar,
+  MaskedTextReveal,
+} from './MotionPrimitives';
 
 export const BOBCATS_LOGO_URL = '/assets/aistudio/images_25669a2b.png';
 
@@ -223,55 +230,66 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col justify-between transition-colors duration-200">
-      {/* Top Varsity Masthead Bar */}
-      <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img
-              src={BOBCATS_LOGO_URL}
-              alt="Byron Nelson Bobcats"
-              className="h-8 w-auto object-contain"
-            />
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
-            <span className="font-display text-lg font-bold tracking-tight uppercase">
-              {data.settings.clubName}
-            </span>
-          </div>
+      {/* Top Varsity Masthead Bar + Carter Ogunsola HUD Telemetry */}
+      <div>
+        <HudStatusBar
+          rosterCount={data.members.length}
+          matchesCount={data.matches.length}
+        />
+        <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+          <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img
+                src={BOBCATS_LOGO_URL}
+                alt="Byron Nelson Bobcats"
+                className="h-8 w-auto object-contain"
+              />
+              <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+              <span className="font-display text-lg font-bold tracking-tight uppercase">
+                {data.settings.clubName}
+              </span>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setAccountTab('officer')}
-              className={`min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer ${
-                accountTab === 'officer'
-                  ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white'
-                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
-            >
-              Officer Sign In
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAccountTab('officer')}
+                className={`co-interactive-btn min-h-[36px] px-3.5 py-1.5 rounded-md text-xs font-semibold border transition-colors cursor-pointer ${
+                  accountTab === 'officer'
+                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                Officer Sign In
+              </button>
 
-            <button
-              type="button"
-              onClick={onToggleDarkMode}
-              className="min-h-[36px] w-9 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              aria-label="Toggle theme"
-            >
-              {darkMode ? (
-                <Sun className="w-4 h-4 text-amber-400" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
-            </button>
+              <button
+                type="button"
+                onClick={onToggleDarkMode}
+                className="co-interactive-btn min-h-[36px] w-9 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Toggle theme"
+              >
+                {darkMode ? (
+                  <Sun className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
       {/* Main Varsity Editorial Split Layout */}
       <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-14 flex-1 flex flex-col justify-center">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* Left Column: Editorial Masthead & Identity */}
-          <div className="lg:col-span-6 space-y-6 pt-2">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: EXPO_OUT }}
+            className="lg:col-span-6 space-y-6 pt-2"
+          >
             <div className="inline-flex items-center gap-3">
               <div className="bg-white p-2.5 rounded-md border border-slate-200 dark:border-slate-800">
                 <img
@@ -283,7 +301,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 <div>{data.settings.schoolName}</div>
                 <div className="font-mono-num text-slate-900 dark:text-white font-bold mt-0.5">
-                  {data.members.length} Active Roster Athletes · {data.matches.length} Matches Logged
+                  <AnimatedNumber value={data.members.length} /> Active Roster
+                  Athletes · <AnimatedNumber value={data.matches.length} />{' '}
+                  Matches Logged
                 </div>
               </div>
             </div>
@@ -293,7 +313,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 className="font-display font-bold tracking-tight text-slate-900 dark:text-white uppercase leading-[0.95]"
                 style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)' }}
               >
-                {data.settings.clubName}
+                <MaskedTextReveal delay={0.05}>
+                  {data.settings.clubName}
+                </MaskedTextReveal>
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-md">
                 {getClubText(
@@ -309,39 +331,74 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               )}
             </div>
 
-            {/* Quick Navigation Links */}
+            {/* Carter Ogunsola Index-Row Portal Directory */}
             <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
-              <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Direct Portal Sections
+              <div className="flex items-center justify-between text-[11px] font-mono-num font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                <span>INDEX // PORTAL SECTIONS</span>
+                <span>01 — 04</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onEnterAsMember('activity')}
-                  className="py-2.5 px-3 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 text-left transition-colors cursor-pointer"
-                >
-                  My Activity
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onEnterAsMember('ladder')}
-                  className="py-2.5 px-3 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 text-left transition-colors cursor-pointer"
-                >
-                  Elo Standings
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onEnterAsMember('calendar')}
-                  className="py-2.5 px-3 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 text-left transition-colors cursor-pointer"
-                >
-                  Calendar
-                </button>
+              <div className="co-index-list divide-y divide-slate-200 dark:divide-slate-800 border-t border-b border-slate-200 dark:border-slate-800">
+                {(
+                  [
+                    {
+                      idx: '01',
+                      id: 'activity' as NavTab,
+                      title: 'My Activity & Badges',
+                      meta: 'Profile · Attendance · Milestones',
+                    },
+                    {
+                      idx: '02',
+                      id: 'ladder' as NavTab,
+                      title: 'Official Elo Standings',
+                      meta: `${data.members.length} Ranked · Callouts`,
+                    },
+                    {
+                      idx: '03',
+                      id: 'tournaments' as NavTab,
+                      title: 'Tournament Brackets',
+                      meta: `${data.clubTournaments.length} Brackets · Pools`,
+                    },
+                    {
+                      idx: '04',
+                      id: 'calendar' as NavTab,
+                      title: 'Practice Schedule',
+                      meta: 'Court Dates · Locations',
+                    },
+                  ] as const
+                ).map((row) => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    onClick={() => onEnterAsMember(row.id)}
+                    className="co-index-row w-full py-2.5 px-1 flex items-center justify-between gap-3 text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-mono-num text-[11px] font-bold text-slate-400 dark:text-slate-500">
+                        {row.idx}
+                      </span>
+                      <span className="co-row-shift text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {row.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono-num text-[11px] text-slate-500 dark:text-slate-400 hidden sm:inline">
+                        {row.meta}
+                      </span>
+                      <ArrowUpRight className="co-row-arrow w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Right Column: Flat Single-Elevation Roster Access & Portal Entry */}
-          <div className="lg:col-span-6 w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 text-left space-y-5">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.08, ease: EXPO_OUT }}
+            className="lg:col-span-6 w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 text-left space-y-5"
+          >
             <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="font-display text-lg font-bold uppercase tracking-tight text-slate-900 dark:text-white">
                 {getClubText(
@@ -357,50 +414,53 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               )}
             </div>
 
-            {/* 3-Tab Switcher: School ID | Add Yourself | Officer */}
+            {/* 3-Tab Switcher with Shared layoutId Spring Indicator */}
             <div className="grid grid-cols-3 border-b border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setAccountTab('signin');
-                  setSignInFeedback(null);
-                }}
-                className={`py-2.5 px-2 text-xs font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
-                  accountTab === 'signin'
-                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                School ID
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAccountTab('register');
-                  setRegFeedback(null);
-                }}
-                className={`py-2.5 px-2 text-xs font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
-                  accountTab === 'register'
-                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Add Yourself
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAccountTab('officer');
-                  setPinError('');
-                }}
-                className={`py-2.5 px-2 text-xs font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
-                  accountTab === 'officer'
-                    ? 'border-slate-900 text-slate-900 dark:border-amber-400 dark:text-amber-400'
-                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Officer
-              </button>
+              {(
+                [
+                  { id: 'signin', label: 'School ID' },
+                  { id: 'register', label: 'Add Yourself' },
+                  { id: 'officer', label: 'Officer' },
+                ] as const
+              ).map((tab) => {
+                const isSelected = accountTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setAccountTab(tab.id);
+                      if (tab.id === 'signin') setSignInFeedback(null);
+                      if (tab.id === 'register') setRegFeedback(null);
+                      if (tab.id === 'officer') setPinError('');
+                    }}
+                    className={`relative py-2.5 px-2 text-xs font-semibold transition-colors cursor-pointer ${
+                      isSelected
+                        ? tab.id === 'officer'
+                          ? 'text-slate-900 dark:text-amber-400'
+                          : 'text-blue-600 dark:text-blue-400'
+                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                    {isSelected && (
+                      <motion.div
+                        layoutId="welcome-auth-tab-indicator"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 420,
+                          damping: 32,
+                        }}
+                        className={`absolute bottom-0 left-0 right-0 h-0.5 -mb-px ${
+                          tab.id === 'officer'
+                            ? 'bg-slate-900 dark:bg-amber-400'
+                            : 'bg-blue-600 dark:bg-blue-400'
+                        }`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* TAB 1: SCHOOL ID SIGN IN */}
@@ -713,7 +773,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         className="fixed inset-0 z-30"
                         onClick={() => setDropdownOpen(false)}
                       />
-                      <div className="absolute left-0 right-0 mt-1 z-40 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.2, ease: EXPO_OUT }}
+                        className="co-index-list absolute left-0 right-0 mt-1 z-40 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden divide-y divide-slate-100 dark:divide-slate-800"
+                      >
                         {MEMBER_DESTINATIONS.map((opt) => {
                           const isSelected = opt.id === selectedDestination;
                           return (
@@ -724,14 +790,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                 setSelectedDestination(opt.id);
                                 setDropdownOpen(false);
                               }}
-                              className={`w-full px-3.5 py-2.5 text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
+                              className={`co-index-row w-full px-3.5 py-2.5 text-left transition-colors flex items-center justify-between gap-3 cursor-pointer ${
                                 isSelected
                                   ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
                               }`}
                             >
                               <div className="min-w-0">
-                                <div className="text-xs font-bold truncate">
+                                <div className="co-row-shift text-xs font-bold truncate">
                                   {opt.label}
                                 </div>
                                 <div
@@ -744,11 +810,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                                   {opt.description}
                                 </div>
                               </div>
-                              <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-60" />
+                              <ArrowRight className="co-row-arrow w-3.5 h-3.5 shrink-0" />
                             </button>
                           );
                         })}
-                      </div>
+                      </motion.div>
                     </>
                   )}
                 </AnimatePresence>
@@ -757,14 +823,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <button
                 type="button"
                 onClick={() => onEnterAsMember(selectedDestination)}
-                className="w-full min-h-[44px] px-4 py-2.5 rounded-md font-bold text-xs uppercase tracking-wider text-white flex items-center justify-center gap-2 cursor-pointer transition-opacity hover:opacity-95"
+                className="co-interactive-btn w-full min-h-[44px] px-4 py-2.5 rounded-md font-bold text-xs uppercase tracking-wider text-white flex items-center justify-center gap-2 cursor-pointer transition-opacity hover:opacity-95"
                 style={{ backgroundColor: 'var(--club-primary)' }}
               >
                 <span>Enter {activeDestObj.label}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       </main>
 

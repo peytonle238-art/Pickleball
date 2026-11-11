@@ -11,6 +11,8 @@
 :root {
   --club-primary: #1d4ed8;
   --club-secondary: #eab308;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
 }
 
 html {
@@ -109,6 +111,89 @@ body {
 
 .rotate-y-180 {
   transform: rotateY(180deg);
+}
+
+/* ========================================================================= */
+/* CARTER OGUNSOLA (carterogunsola.com) EDITORIAL INDEX-ROW CHOREOGRAPHY     */
+/* ========================================================================= */
+.co-index-list {
+  position: relative;
+}
+
+.co-index-row {
+  position: relative;
+  transition:
+    opacity 0.38s var(--ease-out-expo),
+    transform 0.38s var(--ease-out-expo),
+    background-color 0.28s var(--ease-out-expo),
+    border-color 0.28s var(--ease-out-expo);
+  will-change: transform, opacity;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .co-index-list:has(.co-index-row:hover) .co-index-row:not(:hover) {
+    opacity: 0.45;
+  }
+
+  .co-index-row:hover .co-row-shift {
+    transform: translateX(6px);
+  }
+
+  .co-index-row:hover .co-row-arrow {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+.co-row-shift {
+  transition: transform 0.38s var(--ease-out-expo);
+}
+
+.co-row-arrow {
+  opacity: 0.35;
+  transform: translate(-4px, 2px);
+  transition:
+    opacity 0.34s var(--ease-out-expo),
+    transform 0.34s var(--ease-out-expo);
+}
+
+/* Subtle interactive press & hover lift */
+.co-interactive-btn {
+  transition:
+    transform 0.32s var(--ease-out-expo),
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    opacity 0.22s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .co-interactive-btn:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.co-interactive-btn:active {
+  transform: translateY(0px) scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .co-index-list:has(.co-index-row:hover) .co-index-row:not(:hover) {
+    opacity: 1 !important;
+  }
+
+  .co-index-row:hover .co-row-shift,
+  .co-row-arrow {
+    transform: none !important;
+  }
 }
 
 @media print {

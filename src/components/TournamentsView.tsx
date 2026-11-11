@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import {
   Trophy,
   Plus,
@@ -562,24 +563,42 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           <button
             type="button"
             onClick={() => onSwitchSubTab('tournaments')}
-            className={`px-3.5 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
+            className={`relative px-3.5 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
               activeSubTab === 'tournaments'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                ? 'text-slate-900 dark:text-white'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            In-Club Brackets ({clubTournaments.length})
+            {activeSubTab === 'tournaments' && (
+              <motion.div
+                layoutId="tournaments-subtab-pill"
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                className="absolute inset-0 rounded bg-white dark:bg-slate-900 shadow-2xs"
+              />
+            )}
+            <span className="relative z-10">
+              In-Club Brackets ({clubTournaments.length})
+            </span>
           </button>
           <button
             type="button"
             onClick={() => onSwitchSubTab('watch')}
-            className={`px-3.5 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
+            className={`relative px-3.5 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
               activeSubTab === 'watch'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
+                ? 'text-slate-900 dark:text-white'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Regional Watchlist ({outsideTournaments.length})
+            {activeSubTab === 'watch' && (
+              <motion.div
+                layoutId="tournaments-subtab-pill"
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                className="absolute inset-0 rounded bg-white dark:bg-slate-900 shadow-2xs"
+              />
+            )}
+            <span className="relative z-10">
+              Regional Watchlist ({outsideTournaments.length})
+            </span>
           </button>
         </div>
       </div>

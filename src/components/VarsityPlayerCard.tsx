@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { motion } from 'motion/react';
 import {
   Award,
   TrendingUp,
@@ -17,6 +18,7 @@ import {
   buildPlayerEloHistoryPoints,
   computeMemberAchievements,
 } from '../utils/clubUtils';
+import { AnimatedNumber, EXPO_OUT } from './MotionPrimitives';
 
 interface VarsityPlayerCardProps {
   member: Member;
@@ -132,7 +134,12 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
     .toUpperCase();
 
   return (
-    <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: EXPO_OUT }}
+      className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden"
+    >
       {/* Top Club Color Accent Bar */}
       <div
         className="h-1.5 w-full"
@@ -203,7 +210,7 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
             </div>
             <div className="flex items-baseline justify-end gap-2">
               <span className="font-mono-num text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tabular-nums">
-                {member.elo}
+                <AnimatedNumber value={member.elo} />
               </span>
               <span
                 className={`text-xs font-mono-num font-semibold tabular-nums ${
@@ -234,7 +241,7 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
               Win Percentage
             </div>
             <div className="font-mono-num text-base font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
-              {winRate}%
+              <AnimatedNumber value={winRate} suffix="%" />
             </div>
           </div>
 
@@ -308,13 +315,19 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
               </defs>
 
               {sparklineGeometry.areaPath && (
-                <path
+                <motion.path
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.15 }}
                   d={sparklineGeometry.areaPath}
                   fill={`url(#elo-grad-${member.id})`}
                 />
               )}
               {sparklineGeometry.linePath && (
-                <path
+                <motion.path
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 1 }}
+                  transition={{ duration: 0.85, ease: EXPO_OUT }}
                   d={sparklineGeometry.linePath}
                   fill="none"
                   stroke="#2563eb"
@@ -392,6 +405,6 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

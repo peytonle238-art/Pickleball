@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import {
   ArrowLeftRight,
   ChevronDown,
@@ -30,6 +31,7 @@ import {
   recalculateMemberStatsFromHistory,
 } from '../utils/clubUtils';
 import { VarsityPlayerCard } from './VarsityPlayerCard';
+import { AnimatedNumber } from './MotionPrimitives';
 
 interface LadderStatsViewProps {
   members: Member[];
@@ -452,13 +454,20 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
               key={tab.id}
               type="button"
               onClick={() => setMobileSection(tab.id)}
-              className={`min-h-[38px] px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-colors cursor-pointer truncate ${
+              className={`relative min-h-[38px] px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-colors cursor-pointer truncate ${
                 active
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+                  ? 'text-white dark:text-slate-900'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {tab.label}
+              {active && (
+                <motion.div
+                  layoutId="ladder-mobile-section-pill"
+                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  className="absolute inset-0 rounded-md bg-slate-900 dark:bg-white shadow-xs"
+                />
+              )}
+              <span className="relative z-10 truncate">{tab.label}</span>
             </button>
           );
         })}
@@ -1603,7 +1612,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+            <tbody className="co-index-list divide-y divide-slate-200 dark:divide-slate-800 text-sm">
               {rankedLadder.map((member, index) => {
                 const totalGames = member.wins + member.losses;
                 const winPct =
@@ -1631,7 +1640,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                       onClick={() =>
                         setExpandedMemberId(isExpanded ? null : member.id)
                       }
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
+                      className="co-index-row hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                     >
                       <td className="py-3 pr-2 sm:pr-3 font-mono-num font-bold text-slate-900 dark:text-white tabular-nums text-xs sm:text-sm">
                         #{index + 1}
@@ -1655,7 +1664,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                           )}
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-slate-900 dark:text-white truncate text-xs sm:text-sm">
+                              <span className="co-row-shift font-semibold text-slate-900 dark:text-white truncate text-xs sm:text-sm">
                                 {member.name}
                               </span>
                               <span
@@ -1687,7 +1696,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
                         </div>
                       </td>
                       <td className="py-3 px-2 sm:px-3 text-right font-mono-num font-bold text-sm sm:text-base text-slate-900 dark:text-white tabular-nums">
-                        {member.elo}
+                        <AnimatedNumber value={member.elo} />
                       </td>
                       <td className="hidden md:table-cell py-3 px-3 text-right font-mono-num text-xs tabular-nums">
                         <span

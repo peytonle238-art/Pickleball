@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Pin, Megaphone } from 'lucide-react';
+import { ArrowUpRight, Pin, Megaphone } from 'lucide-react';
 import {
   Member,
   ClubDataState,
@@ -11,6 +11,7 @@ import {
   getDaysUntil,
 } from '../utils/clubUtils';
 import { ClubInteractivePulse } from './ClubInteractivePulse';
+import { AnimatedNumber, MaskedTextReveal } from './MotionPrimitives';
 
 interface HomeDashboardProps {
   data: ClubDataState;
@@ -168,7 +169,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             </div>
 
             <h2 className="font-display text-2xl sm:text-4xl font-bold tracking-tight leading-tight text-white">
-              {settings.clubName}
+              <MaskedTextReveal>{settings.clubName}</MaskedTextReveal>
             </h2>
 
             <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
@@ -181,21 +182,21 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             <div className="flex items-center gap-5 sm:gap-7">
               <div>
                 <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
-                  {members.length}
+                  <AnimatedNumber value={members.length} />
                 </div>
                 <div className="text-[11px] text-slate-400">Active Roster</div>
               </div>
               <div className="h-7 w-px bg-slate-800" />
               <div>
                 <div className="font-mono-num text-xl sm:text-2xl font-bold text-amber-400 tabular-nums">
-                  {matches.length}
+                  <AnimatedNumber value={matches.length} />
                 </div>
                 <div className="text-[11px] text-slate-400">Matches Played</div>
               </div>
               <div className="h-7 w-px bg-slate-800" />
               <div>
                 <div className="font-mono-num text-xl sm:text-2xl font-bold text-emerald-400 tabular-nums">
-                  {avgAttendance}%
+                  <AnimatedNumber value={avgAttendance} suffix="%" />
                 </div>
                 <div className="text-[11px] text-slate-400">Avg Attendance</div>
               </div>
@@ -204,13 +205,13 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => onNavigate('scorekeeper')}
-                className="flex-1 sm:flex-initial min-h-[38px] px-4 py-2 rounded-md font-semibold text-xs bg-amber-400 hover:bg-amber-300 text-slate-950 transition-colors cursor-pointer"
+                className="co-interactive-btn flex-1 sm:flex-initial min-h-[38px] px-4 py-2 rounded-md font-semibold text-xs bg-amber-400 hover:bg-amber-300 text-slate-950 transition-colors cursor-pointer"
               >
                 Live Scoreboard
               </button>
               <button
                 onClick={() => onNavigate('ladder')}
-                className="flex-1 sm:flex-initial min-h-[38px] px-4 py-2 rounded-md font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-colors cursor-pointer"
+                className="co-interactive-btn flex-1 sm:flex-initial min-h-[38px] px-4 py-2 rounded-md font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-colors cursor-pointer"
               >
                 View Standings
               </button>
@@ -245,7 +246,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             <div className="grid grid-cols-3 gap-2.5 pt-1">
               <div className="rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 text-center">
                 <div className="font-mono-num text-xl font-bold text-slate-900 dark:text-white tabular-nums">
-                  {countdown.days}
+                  <AnimatedNumber value={countdown.days} />
                 </div>
                 <div className="text-[10px] font-medium uppercase text-slate-500">
                   Days
@@ -253,7 +254,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </div>
               <div className="rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 text-center">
                 <div className="font-mono-num text-xl font-bold text-slate-900 dark:text-white tabular-nums">
-                  {countdown.hours}
+                  <AnimatedNumber value={countdown.hours} />
                 </div>
                 <div className="text-[10px] font-medium uppercase text-slate-500">
                   Hours
@@ -261,7 +262,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </div>
               <div className="rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 text-center">
                 <div className="font-mono-num text-xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
-                  {countdown.minutes}
+                  <AnimatedNumber value={countdown.minutes} />
                 </div>
                 <div className="text-[10px] font-medium uppercase text-slate-500">
                   Minutes
@@ -316,7 +317,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-200 dark:divide-slate-800 mt-1">
+            <div className="co-index-list divide-y divide-slate-200 dark:divide-slate-800 mt-1">
               {topFiveMembers.map((player, index) => {
                 const total = player.wins + player.losses;
                 const winRate =
@@ -326,7 +327,8 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 return (
                   <div
                     key={player.id}
-                    className="py-3 flex items-center justify-between gap-4"
+                    onClick={() => onNavigate('ladder')}
+                    className="co-index-row py-3 flex items-center justify-between gap-4 cursor-pointer"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="w-6 font-mono-num text-sm font-bold text-slate-500 dark:text-slate-400 tabular-nums">
@@ -334,7 +336,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       </span>
 
                       <div className="min-w-0">
-                        <div className="font-semibold text-sm text-slate-900 dark:text-white truncate">
+                        <div className="co-row-shift font-semibold text-sm text-slate-900 dark:text-white truncate">
                           {player.name}
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -344,7 +346,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-5 shrink-0">
+                    <div className="flex items-center gap-4 shrink-0">
                       <div className="text-right hidden sm:block">
                         <div className="font-mono-num text-xs font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
                           {player.wins}W – {player.losses}L ({winRate}%)
@@ -357,12 +359,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
                       <div className="text-right min-w-[60px]">
                         <div className="font-mono-num text-base font-bold text-slate-900 dark:text-white tabular-nums">
-                          {player.elo}
+                          <AnimatedNumber value={player.elo} />
                         </div>
                         <div className="text-[10px] font-medium uppercase text-slate-400">
                           Elo
                         </div>
                       </div>
+
+                      <ArrowUpRight className="co-row-arrow w-3.5 h-3.5 text-slate-400 hidden sm:block" />
                     </div>
                   </div>
                 );
@@ -393,7 +397,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 tab to log official matches.
               </div>
             ) : (
-              <div className="divide-y divide-slate-200 dark:divide-slate-800 mt-1">
+              <div className="co-index-list divide-y divide-slate-200 dark:divide-slate-800 mt-1">
                 {recentMatches.map((m) => {
                   const team1Label = m.team1Ids
                     .map((id) => getMemberName(id).split(' ')[0])
@@ -408,10 +412,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   return (
                     <div
                       key={m.id}
-                      className="py-2.5 flex items-center justify-between gap-3 text-xs"
+                      className="co-index-row py-2.5 flex items-center justify-between gap-3 text-xs"
                     >
                       <div className="min-w-0">
-                        <div className="truncate text-slate-800 dark:text-slate-200">
+                        <div className="co-row-shift truncate text-slate-800 dark:text-slate-200">
                           <span
                             className={
                               m.winnerTeam === 1 ? 'font-bold' : 'text-slate-500'

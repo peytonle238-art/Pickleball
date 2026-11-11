@@ -39,6 +39,11 @@ import { VarsityPlayerCard } from './VarsityPlayerCard';
 import { ClubInteractivePulse } from './ClubInteractivePulse';
 import { LiveScoreKeeper } from './LiveScoreKeeper';
 import { AnnouncementsView } from './ManagementViews';
+import {
+  AnimatedNumber,
+  HudStatusBar,
+  MaskedTextReveal,
+} from './MotionPrimitives';
 
 interface MemberPortalViewProps {
   data: ClubDataState;
@@ -79,6 +84,7 @@ interface MemberPortalViewProps {
   onToggleDarkMode: () => void;
   onRequestOfficerLogin: () => void;
   onShowWelcomeScreen: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
 const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -168,6 +174,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   onToggleDarkMode,
   onRequestOfficerLogin,
   onShowWelcomeScreen,
+  onOpenCommandPalette,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAccountTab, setMenuAccountTab] = useState<
@@ -449,6 +456,12 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
 
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#090d16] text-slate-900 dark:text-slate-100 flex flex-col pb-28 md:pb-16 transition-colors duration-200">
+      <HudStatusBar
+        rosterCount={data.members.length}
+        matchesCount={data.matches.length}
+        isOfficer={false}
+        onOpenCommandPalette={onOpenCommandPalette}
+      />
       {/* Broadcast Alert Banner if active */}
       {data.settings.broadcastNotice?.enabled &&
         data.settings.broadcastNotice.text && (
@@ -510,13 +523,27 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
 
             {/* Right Controls */}
             <div className="flex items-center gap-2">
+              {onOpenCommandPalette && (
+                <button
+                  type="button"
+                  onClick={onOpenCommandPalette}
+                  className="co-interactive-btn hidden md:inline-flex min-h-[36px] px-2.5 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-mono-num font-semibold text-slate-500 dark:text-slate-400 items-center gap-1.5 cursor-pointer transition-colors shrink-0"
+                  title="Quick Command & Athlete Search (⌘K)"
+                >
+                  <span>Search</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-[10px] text-slate-700 dark:text-slate-300">
+                    ⌘K
+                  </kbd>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
                   setMenuAccountTab('signin');
                   setMenuOpen(true);
                 }}
-                className="hidden sm:inline-flex min-h-[36px] px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                className="co-interactive-btn hidden sm:inline-flex min-h-[36px] px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
               >
                 {activeMember ? (
                   <span className="font-mono-num">
@@ -533,7 +560,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 type="button"
                 onClick={onToggleDarkMode}
                 aria-label="Toggle color theme"
-                className="w-9 h-9 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                className="co-interactive-btn w-9 h-9 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center cursor-pointer transition-colors shrink-0"
               >
                 {darkMode ? (
                   <Sun className="w-4 h-4 text-amber-400" />
@@ -1076,7 +1103,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
             </div>
           </div>
 
-          {/* Lower Row: Flat Underline Section Bar (Desktop/Tablet only; Mobile uses fixed bottom bar) */}
+          {/* Lower Row: Flat Underline Section Bar with Spring layoutId (Desktop/Tablet) */}
           <div className="hidden md:flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-200 dark:border-slate-800">
             {MEMBER_NAV_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
@@ -1085,13 +1112,24 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => onNavigate(tab.id)}
-                  className={`px-3.5 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`relative px-3.5 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     isActive
-                      ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                   }`}
                 >
                   {tab.shortLabel}
+                  {isActive && (
+                    <motion.div
+                      layoutId="member-desktop-nav-underline"
+                      transition={{
+                        type: 'spring',
+                        stiffness: 420,
+                        damping: 32,
+                      }}
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"
+                    />
+                  )}
                 </button>
               );
             })}
@@ -1106,10 +1144,10 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.18, ease: SMOOTH_EASE }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.28, ease: SMOOTH_EASE }}
           >
             {/* Contextual Back Bar on Sub-Views */}
             {activeTab !== 'home' && (
@@ -1118,7 +1156,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('home')}
-                    className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors shrink-0"
+                    className="co-interactive-btn px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors shrink-0"
                   >
                     ← Home
                   </button>
@@ -1182,7 +1220,9 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       </div>
 
                       <h1 className="font-display text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-none">
-                        Welcome to {data.settings.clubName}
+                        <MaskedTextReveal>
+                          Welcome to {data.settings.clubName}
+                        </MaskedTextReveal>
                       </h1>
 
                       {hasScheduledEvents ? (
@@ -1213,7 +1253,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       <div className="grid grid-cols-3 gap-2 w-full sm:w-auto shrink-0">
                         <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
                           <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums leading-none">
-                            {String(days).padStart(2, '0')}
+                            <AnimatedNumber value={days} padStart={2} />
                           </div>
                           <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
                             Days
@@ -1221,7 +1261,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         </div>
                         <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
                           <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums leading-none">
-                            {String(hours).padStart(2, '0')}
+                            <AnimatedNumber value={hours} padStart={2} />
                           </div>
                           <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
                             Hrs
@@ -1229,7 +1269,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         </div>
                         <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
                           <div className="font-mono-num text-xl sm:text-2xl font-bold text-amber-400 tabular-nums leading-none">
-                            {String(minutes).padStart(2, '0')}
+                            <AnimatedNumber value={minutes} padStart={2} />
                           </div>
                           <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
                             Min
@@ -1245,7 +1285,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('activity')}
-                    className="p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
                     <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
                       01 · ATHLETE PROFILE
@@ -1263,7 +1303,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('ladder')}
-                    className="p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
                     <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
                       02 · STANDINGS
@@ -1272,12 +1312,15 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       Ladder & Callouts
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num truncate">
-                      {data.members.length} players ·{' '}
-                      {
-                        (data.challenges || []).filter(
-                          (c) => c.status === 'open' || c.status === 'accepted'
-                        ).length
-                      }{' '}
+                      <AnimatedNumber value={data.members.length} /> players ·{' '}
+                      <AnimatedNumber
+                        value={
+                          (data.challenges || []).filter(
+                            (c) =>
+                              c.status === 'open' || c.status === 'accepted'
+                          ).length
+                        }
+                      />{' '}
                       active
                     </div>
                   </button>
@@ -1285,7 +1328,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('tournaments')}
-                    className="p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
                     <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
                       03 · BRACKETS
@@ -1294,14 +1337,15 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       Club Tournaments
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {data.clubTournaments.length} brackets & pools
+                      <AnimatedNumber value={data.clubTournaments.length} />{' '}
+                      brackets & pools
                     </div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => onNavigate('calendar')}
-                    className="p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
                     <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400">
                       04 · SCHEDULE
@@ -2390,14 +2434,25 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
               key={tab.id}
               type="button"
               onClick={() => onNavigate(tab.id)}
-              className={`py-1.5 px-0.5 rounded-md flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer min-h-[44px] ${
+              className={`relative py-1.5 px-0.5 rounded-md flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors cursor-pointer min-h-[44px] ${
                 isActive
-                  ? 'text-blue-600 dark:text-blue-400 bg-slate-100 dark:bg-slate-800/80'
+                  ? 'text-blue-600 dark:text-blue-400'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {tab.icon}
-              <span className="truncate max-w-full text-[9px] leading-tight">
+              {isActive && (
+                <motion.div
+                  layoutId="member-mobile-nav-pill"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 420,
+                    damping: 34,
+                  }}
+                  className="absolute inset-0 rounded-md bg-slate-100 dark:bg-slate-800/80 -z-0"
+                />
+              )}
+              <span className="relative z-10">{tab.icon}</span>
+              <span className="relative z-10 truncate max-w-full text-[9px] leading-tight">
                 {tab.shortLabel}
               </span>
             </button>
