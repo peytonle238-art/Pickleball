@@ -51,9 +51,11 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
   const [taskTitle, setTaskTitle] = useState('');
   const [taskStatus, setTaskStatus] = useState<TaskStatus>('To Do');
   const [taskAssignee, setTaskAssignee] = useState(
-    officers[0]?.name || 'Marcus Vance'
+    officers[0]?.name || 'Club Officer'
   );
-  const [taskDueDate, setTaskDueDate] = useState('2026-11-05');
+  const [taskDueDate, setTaskDueDate] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  );
   const [taskCategory, setTaskCategory] = useState('Operations');
 
   const openAddOfficer = () => {
@@ -126,8 +128,8 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
     setEditingTask(null);
     setTaskTitle('');
     setTaskStatus('To Do');
-    setTaskAssignee(officers[0]?.name || 'Marcus Vance');
-    setTaskDueDate('2026-11-05');
+    setTaskAssignee(officers[0]?.name || 'Club Officer');
+    setTaskDueDate(new Date().toISOString().slice(0, 10));
     setTaskCategory('Operations');
     setShowTaskForm(true);
   };

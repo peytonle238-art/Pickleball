@@ -672,7 +672,28 @@ export function generateRoundRobinMatches(
 }
 
 /**
- * Generates a Single Elimination bracket (supports 2 to 8 participants).
+ * Builds standard tournament seed pairings for any power-of-2 bracket size (2, 4, 8, 16).
+ */
+function buildBracketSeedPairs(bracketSize: number): [number, number][] {
+  let seeds = [0, 1];
+  while (seeds.length < bracketSize) {
+    const nextSize = seeds.length * 2;
+    const expanded: number[] = [];
+    for (const s of seeds) {
+      expanded.push(s);
+      expanded.push(nextSize - 1 - s);
+    }
+    seeds = expanded;
+  }
+  const pairs: [number, number][] = [];
+  for (let i = 0; i < seeds.length; i += 2) {
+    pairs.push([seeds[i], seeds[i + 1]]);
+  }
+  return pairs;
+}
+
+/**
+ * Generates a Single Elimination bracket (supports 2 to 16 participants with automatic bye advancement).
  */
 export function generateSingleEliminationMatches(
   participants: ClubTournamentParticipant[]
@@ -680,168 +701,133 @@ export function generateSingleEliminationMatches(
   const count = participants.length;
   if (count < 2) return [];
 
+  const capped = participants.slice(0, 16);
+  const effectiveCount = capped.length;
+  const bracketSize =
+    effectiveCount <= 2
+      ? 2
+      : effectiveCount <= 4
+      ? 4
+      : effectiveCount <= 8
+      ? 8
+      : 16;
+
+  const totalRounds = Math.log2(bracketSize);
   const ts = Date.now();
 
-  if (count <= 4) {
-    // 4-slot bracket (Semifinals -> Finals)
-    const p1 = participants[0];
-    const p2 = participants[1];
-    const p3 = participants[2] || null;
-    const p4 = participants[3] || null;
+  const getRoundLabel = (roundNum: number): string => {
+    const remainingRounds = totalRounds - roundNum;
+    if (remainingRounds === 0) return 'Championship Final';
+    if (remainingRounds === 1) return 'Semifinals';
+    if (remainingRounds === 2) return 'Quarterfinals';
+    return 'Round of 16';
+  };
 
-    const finalId = `se-final-${ts}`;
-    const semi1Id = `se-s1-${ts}`;
-    const semi2Id = `se-s2-${ts}`;
+  const rounds: ClubTournamentMatch[][] = [];
 
-    const semi1: ClubTournamentMatch = {
-      id: semi1Id,
-      round: 1,
-      roundLabel: 'Semifinals',
-      court: 'Court 1',
-      team1Id: p1.id,
-      team2Id: p4 ? p4.id : null,
-      team1Name: p1.name,
-      team2Name: p4 ? p4.name : 'BYE (Auto-Advance)',
-      team1PlayerIds: p1.playerIds,
-      team2PlayerIds: p4 ? p4.playerIds : [],
-      score1: p4 ? null : 11,
-      score2: p4 ? null : 0,
-      winner: p4 ? null : 1,
-      nextMatchId: finalId,
-      nextMatchSlot: 1,
-    };
+  for (let r = 1; r <= totalRounds; r++) {
+    const matchesInRound = bracketSize / Math.pow(2, r);
+    const roundLabel = getRoundLabel(r);
+    const roundMatches: ClubTournamentMatch[] = [];
 
-    const semi2: ClubTournamentMatch = {
-      id: semi2Id,
-      round: 1,
-      roundLabel: 'Semifinals',
-      court: 'Court 2',
-      team1Id: p2.id,
-      team2Id: p3 ? p3.id : null,
-      team1Name: p2.name,
-      team2Name: p3 ? p3.name : 'BYE (Auto-Advance)',
-      team1PlayerIds: p2.playerIds,
-      team2PlayerIds: p3 ? p3.playerIds : [],
-      score1: p3 ? null : 11,
-      score2: p3 ? null : 0,
-      winner: p3 ? null : 1,
-      nextMatchId: finalId,
-      nextMatchSlot: 2,
-    };
-
-    const finalMatch: ClubTournamentMatch = {
-      id: finalId,
-      round: 2,
-      roundLabel: 'Championship Final',
-      court: 'Championship Court 1',
-      team1Id: semi1.winner === 1 ? p1.id : null,
-      team2Id: semi2.winner === 1 ? p2.id : null,
-      team1Name: semi1.winner === 1 ? p1.name : 'Winner of Semifinal 1',
-      team2Name: semi2.winner === 1 ? p2.name : 'Winner of Semifinal 2',
-      team1PlayerIds: semi1.winner === 1 ? p1.playerIds : [],
-      team2PlayerIds: semi2.winner === 1 ? p2.playerIds : [],
-      score1: null,
-      score2: null,
-      winner: null,
-    };
-
-    return [semi1, semi2, finalMatch];
+    for (let mIdx = 0; mIdx < matchesInRound; mIdx++) {
+      roundMatches.push({
+        id: `se-r${r}-m${mIdx + 1}-${ts}`,
+        round: r,
+        roundLabel,
+        court:
+          r === totalRounds
+            ? 'Championship Court 1'
+            : `Court ${(mIdx % 4) + 1}`,
+        team1Id: null,
+        team2Id: null,
+        team1Name: 'TBD',
+        team2Name: 'TBD',
+        team1PlayerIds: [],
+        team2PlayerIds: [],
+        score1: null,
+        score2: null,
+        winner: null,
+      });
+    }
+    rounds.push(roundMatches);
   }
 
-  // 8-slot bracket (Quarterfinals -> Semifinals -> Finals)
-  const finalId = `se-final-${ts}`;
-  const semi1Id = `se-s1-${ts}`;
-  const semi2Id = `se-s2-${ts}`;
+  // Link nextMatchId and nextMatchSlot across rounds
+  for (let r = 0; r < totalRounds - 1; r++) {
+    const currentRound = rounds[r];
+    const nextRound = rounds[r + 1];
+    currentRound.forEach((m, idx) => {
+      const nextMatch = nextRound[Math.floor(idx / 2)];
+      m.nextMatchId = nextMatch.id;
+      m.nextMatchSlot = idx % 2 === 0 ? 1 : 2;
+      if (m.nextMatchSlot === 1) {
+        nextMatch.team1Name = `Winner of ${m.roundLabel} ${idx + 1}`;
+      } else {
+        nextMatch.team2Name = `Winner of ${m.roundLabel} ${idx + 1}`;
+      }
+    });
+  }
 
-  const qfPairs: [number, number][] = [
-    [0, 7],
-    [3, 4],
-    [1, 6],
-    [2, 5],
-  ];
+  // Populate Round 1 with seeded participants & byes
+  const seedPairs = buildBracketSeedPairs(bracketSize);
+  rounds[0].forEach((match, idx) => {
+    const [seedA, seedB] = seedPairs[idx];
+    const pA = capped[seedA] || null;
+    const pB = capped[seedB] || null;
 
-  const qfMatches: ClubTournamentMatch[] = qfPairs.map(([idxA, idxB], i) => {
-    const pA = participants[idxA];
-    const pB = participants[idxB] || null;
-    const targetSemi = i < 2 ? semi1Id : semi2Id;
-    const targetSlot: 1 | 2 = i % 2 === 0 ? 1 : 2;
+    match.team1Id = pA ? pA.id : null;
+    match.team1Name = pA ? pA.name : 'BYE (Auto-Advance)';
+    match.team1PlayerIds = pA ? pA.playerIds : [];
 
-    return {
-      id: `se-qf-${i + 1}-${ts}`,
-      round: 1,
-      roundLabel: 'Quarterfinals',
-      court: `Court ${i + 1}`,
-      team1Id: pA.id,
-      team2Id: pB ? pB.id : null,
-      team1Name: pA.name,
-      team2Name: pB ? pB.name : 'BYE (Auto-Advance)',
-      team1PlayerIds: pA.playerIds,
-      team2PlayerIds: pB ? pB.playerIds : [],
-      score1: pB ? null : 11,
-      score2: pB ? null : 0,
-      winner: pB ? null : 1,
-      nextMatchId: targetSemi,
-      nextMatchSlot: targetSlot,
-    };
+    match.team2Id = pB ? pB.id : null;
+    match.team2Name = pB ? pB.name : 'BYE (Auto-Advance)';
+    match.team2PlayerIds = pB ? pB.playerIds : [];
+
+    if (pA && !pB) {
+      match.score1 = 11;
+      match.score2 = 0;
+      match.winner = 1;
+    } else if (!pA && pB) {
+      match.score1 = 0;
+      match.score2 = 11;
+      match.winner = 2;
+    }
   });
 
-  const semi1: ClubTournamentMatch = {
-    id: semi1Id,
-    round: 2,
-    roundLabel: 'Semifinals',
-    court: 'Court 1',
-    team1Id: qfMatches[0].winner ? qfMatches[0].team1Id : null,
-    team2Id: qfMatches[1].winner ? qfMatches[1].team1Id : null,
-    team1Name: qfMatches[0].winner ? qfMatches[0].team1Name : 'Winner QF 1',
-    team2Name: qfMatches[1].winner ? qfMatches[1].team1Name : 'Winner QF 2',
-    team1PlayerIds: qfMatches[0].winner ? qfMatches[0].team1PlayerIds : [],
-    team2PlayerIds: qfMatches[1].winner ? qfMatches[1].team1PlayerIds : [],
-    score1: null,
-    score2: null,
-    winner: null,
-    nextMatchId: finalId,
-    nextMatchSlot: 1,
-  };
+  // Propagate any Round 1 bye winners into Round 2
+  for (const r1Match of rounds[0]) {
+    if (r1Match.winner && r1Match.nextMatchId) {
+      const nextMatch = rounds[1]?.find((m) => m.id === r1Match.nextMatchId);
+      if (nextMatch) {
+        const winId =
+          r1Match.winner === 1 ? r1Match.team1Id : r1Match.team2Id;
+        const winName =
+          r1Match.winner === 1 ? r1Match.team1Name : r1Match.team2Name;
+        const winPlayers =
+          r1Match.winner === 1
+            ? r1Match.team1PlayerIds
+            : r1Match.team2PlayerIds;
 
-  const semi2: ClubTournamentMatch = {
-    id: semi2Id,
-    round: 2,
-    roundLabel: 'Semifinals',
-    court: 'Court 2',
-    team1Id: qfMatches[2].winner ? qfMatches[2].team1Id : null,
-    team2Id: qfMatches[3].winner ? qfMatches[3].team1Id : null,
-    team1Name: qfMatches[2].winner ? qfMatches[2].team1Name : 'Winner QF 3',
-    team2Name: qfMatches[3].winner ? qfMatches[3].team1Name : 'Winner QF 4',
-    team1PlayerIds: qfMatches[2].winner ? qfMatches[2].team1PlayerIds : [],
-    team2PlayerIds: qfMatches[3].winner ? qfMatches[3].team1PlayerIds : [],
-    score1: null,
-    score2: null,
-    winner: null,
-    nextMatchId: finalId,
-    nextMatchSlot: 2,
-  };
+        if (r1Match.nextMatchSlot === 1) {
+          nextMatch.team1Id = winId;
+          nextMatch.team1Name = winName;
+          nextMatch.team1PlayerIds = winPlayers;
+        } else {
+          nextMatch.team2Id = winId;
+          nextMatch.team2Name = winName;
+          nextMatch.team2PlayerIds = winPlayers;
+        }
+      }
+    }
+  }
 
-  const finalMatch: ClubTournamentMatch = {
-    id: finalId,
-    round: 3,
-    roundLabel: 'Championship Final',
-    court: 'Championship Court 1',
-    team1Id: null,
-    team2Id: null,
-    team1Name: 'Winner Semifinal 1',
-    team2Name: 'Winner Semifinal 2',
-    team1PlayerIds: [],
-    team2PlayerIds: [],
-    score1: null,
-    score2: null,
-    winner: null,
-  };
-
-  return [...qfMatches, semi1, semi2, finalMatch];
+  return rounds.flat();
 }
 
 /**
  * Propagates a match result inside a tournament's match list (including advancing in Single Elimination).
+ * Tied scores are rejected because pickleball matches require a winner.
  */
 export function updateTournamentMatchList(
   matches: ClubTournamentMatch[],
@@ -849,7 +835,8 @@ export function updateTournamentMatchList(
   score1: number,
   score2: number
 ): ClubTournamentMatch[] {
-  const winner: 1 | 2 = score1 >= score2 ? 1 : 2;
+  if (score1 === score2) return matches;
+  const winner: 1 | 2 = score1 > score2 ? 1 : 2;
   const target = matches.find((m) => m.id === matchId);
   if (!target) return matches;
 

@@ -7,6 +7,7 @@ import {
   Crown,
   Eye,
   Home,
+  Megaphone,
   Moon,
   Play,
   Settings,
@@ -63,6 +64,7 @@ import { TournamentsView } from './components/TournamentsView';
 import { OfficersTasksView } from './components/OfficersTasksView';
 import { CalendarEventsView } from './components/CalendarEventsView';
 import {
+  AnnouncementsView,
   SettingsView,
   TreasuryView,
 } from './components/ManagementViews';
@@ -88,6 +90,8 @@ const MEMBER_ALLOWED_TABS: NavTab[] = [
   'tournaments',
   'watch',
   'calendar',
+  'scorekeeper',
+  'announcements',
 ];
 
 export default function App() {
@@ -282,41 +286,6 @@ export default function App() {
         if (exists && cloudData && cloudData.members && cloudData.settings) {
           workspaceDocExistsRef.current = true;
           const cleanedCloud = sanitizeAndStripTemplateData(cloudData);
-          const ELO_ZERO_MIGRATION_KEY =
-            'bnhs_pickleball_elo_zero_varsity_removed_v1';
-          let needsZeroMigration = false;
-          try {
-            needsZeroMigration =
-              localStorage.getItem(ELO_ZERO_MIGRATION_KEY) !== 'done';
-          } catch {
-            needsZeroMigration = false;
-          }
-
-          if (needsZeroMigration) {
-            try {
-              localStorage.setItem(ELO_ZERO_MIGRATION_KEY, 'done');
-            } catch {
-              // Ignore storage error
-            }
-            const zeroedCloud: ClubDataState = {
-              ...cleanedCloud,
-              members: cleanedCloud.members.map((m) => ({
-                ...m,
-                elo: 0,
-                monthStartElo: 0,
-              })),
-            };
-            initialCloudLoadDoneRef.current = true;
-            lastSavedSerializedRef.current = JSON.stringify(zeroedCloud);
-            isApplyingRemoteSnapshotRef.current = true;
-            setData(zeroedCloud);
-            try {
-              await saveGlobalClubWorkspaceToFirestore(zeroedCloud, true);
-            } catch (err) {
-              console.error('Failed to push zeroed Elo migration to cloud:', err);
-            }
-            return;
-          }
 
           let hasMigratedLocal = false;
           try {
@@ -478,82 +447,6 @@ export default function App() {
       localStorage.setItem(THEME_KEY, 'light');
     }
   }, [darkMode]);
-
-  // Apply President inline::<original> text overrides across DOM text nodes
-  useEffect(() => {
-    const customMap = data.settings.customText || {};
-    const inlinePairs = Object.entries(customMap)
-      .filter(([k, v]) => k.startsWith('inline::') && typeof v === 'string')
-      .map(([k, v]) => [k.replace(/^inline::/, ''), v] as const)
-      .filter(([orig, rep]) => orig.length > 0 && orig !== rep);
-
-    if (inlinePairs.length === 0) return;
-
-    const applyOverridesToTree = () => {
-      const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT
-      );
-      let node: Node | null = walker.nextNode();
-      while (node) {
-        const parentTag = node.parentElement?.tagName;
-        if (
-          parentTag !== 'SCRIPT' &&
-          parentTag !== 'STYLE' &&
-          parentTag !== 'TEXTAREA' &&
-          parentTag !== 'INPUT'
-        ) {
-          const val = node.nodeValue || '';
-          const trimmed = val.trim();
-          if (trimmed) {
-            for (const [orig, rep] of inlinePairs) {
-              if (trimmed === orig) {
-                node.nodeValue = val.replace(orig, rep);
-              }
-            }
-          }
-        }
-        node = walker.nextNode();
-      }
-    };
-
-    applyOverridesToTree();
-    const timer = setTimeout(applyOverridesToTree, 120);
-    return () => clearTimeout(timer);
-  }, [data, activeTab, showWelcomeScreen, isOfficer]);
-
-  // Click listener for President Live On-Screen Text Edit Mode
-  useEffect(() => {
-    if (!isPresident || !liveTextEditMode) return;
-
-    const handleDocumentClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      if (target.closest('[data-president-live-editor="true"]')) return;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT'
-      ) {
-        return;
-      }
-
-      // Extract clean leaf text from the clicked element
-      const directText = (target.innerText || target.textContent || '').trim();
-      if (!directText || directText.length > 260) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-      setLiveTextEditModal({
-        originalText: directText,
-        replacementText: directText,
-      });
-    };
-
-    document.addEventListener('click', handleDocumentClick, true);
-    return () =>
-      document.removeEventListener('click', handleDocumentClick, true);
-  }, [isPresident, liveTextEditMode]);
 
   const handleSelectLinkedMember = async (memberId: string) => {
     setLinkedMemberId(memberId);
@@ -719,6 +612,28 @@ export default function App() {
       return linkedMember;
     }
 
+    if (currentSnapshot.settings.registrationLocked && !isOfficer) {
+      showToast('New member registration is currently locked by Club Officers.');
+      return (
+        currentSnapshot.members[0] || {
+          id: 'locked',
+          schoolId: cleanSchoolId,
+          name: cleanName,
+          grade,
+          skillLevel,
+          elo: 0,
+          wins: 0,
+          losses: 0,
+          pointsFor: 0,
+          pointsAgainst: 0,
+          streak: 0,
+          duesPaid: false,
+          duesAmount: currentSnapshot.settings.duesAmount,
+          joinDate: new Date().toISOString().slice(0, 10),
+        }
+      );
+    }
+
     // Create a brand-new Member record in the club database
     const newMember: Member = {
       id: `mem-${Date.now()}`,
@@ -831,6 +746,8 @@ export default function App() {
   const handleToggleMode = () => {
     if (isOfficer) {
       setIsOfficer(false);
+      setIsPresident(false);
+      setLiveTextEditMode(false);
       if (!MEMBER_ALLOWED_TABS.includes(activeTab)) {
         setActiveTab('home');
       }
@@ -1057,6 +974,10 @@ export default function App() {
     opponentScore: number
   ) => {
     if (!isOfficer) return;
+    if (challengerScore === opponentScore) {
+      showToast('Pickleball matches cannot end in a tie.');
+      return;
+    }
     const currentSnapshot = latestLocalDataRef.current;
     const challenge = (currentSnapshot.challenges || []).find(
       (c) => c.id === challengeId
@@ -1069,7 +990,7 @@ export default function App() {
     const opponent = currentSnapshot.members.find(
       (m) => m.id === challenge.opponentId
     );
-    const winnerTeam: 1 | 2 = challengerScore >= opponentScore ? 1 : 2;
+    const winnerTeam: 1 | 2 = challengerScore > opponentScore ? 1 : 2;
     const eloDelta = calculateEloDelta(
       [challenger?.elo ?? 0],
       [opponent?.elo ?? 0],
@@ -1383,6 +1304,12 @@ export default function App() {
       icon: <Calendar className="w-4 h-4" />,
     },
     {
+      id: 'announcements',
+      label: 'Announcements',
+      access: 'member',
+      icon: <Megaphone className="w-4 h-4" />,
+    },
+    {
       id: 'scorekeeper',
       label: 'Live Score Keeper',
       access: 'member',
@@ -1485,6 +1412,14 @@ export default function App() {
           onRegisterMember={handleRegisterMember}
           onCreateChallenge={handleCreateChallenge}
           onUpdateChallengeStatus={handleUpdateChallengeStatus}
+          onUpdateOutsideTournaments={(outsideTournaments) => {
+            const nextState = {
+              ...latestLocalDataRef.current,
+              outsideTournaments,
+            };
+            setData(nextState);
+            void persistClubDataImmediately(nextState);
+          }}
           onVoteMvp={handleVoteMvp}
           onVotePoll={handleVotePoll}
           onToggleReaction={handleToggleReaction}
@@ -1902,6 +1837,7 @@ export default function App() {
                       clubTournaments={data.clubTournaments}
                       outsideTournaments={data.outsideTournaments}
                       members={data.members}
+                      activeMember={activeMemberObj}
                       isOfficer={true}
                       onUpdateClubTournaments={(clubTournaments) =>
                         setData((prev) => ({ ...prev, clubTournaments }))
@@ -1927,6 +1863,18 @@ export default function App() {
                       }
                       onUpdateSettings={(settings) =>
                         setData((prev) => ({ ...prev, settings }))
+                      }
+                      onRequestOfficerUnlock={() => setShowPinModal(true)}
+                    />
+                  )}
+
+                  {activeTab === 'announcements' && (
+                    <AnnouncementsView
+                      announcements={data.announcements}
+                      officers={data.officers}
+                      isOfficer={true}
+                      onUpdateAnnouncements={(announcements) =>
+                        setData((prev) => ({ ...prev, announcements }))
                       }
                       onRequestOfficerUnlock={() => setShowPinModal(true)}
                     />
@@ -2193,153 +2141,20 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ================================================================= */}
-      {/* PRESIDENT FLOATING QUICK BAR & LIVE ON-SCREEN TEXT EDIT MODAL     */}
-      {/* ================================================================= */}
-      {isPresident && (
-        <div
-          data-president-live-editor="true"
-          className="fixed bottom-20 lg:bottom-5 left-4 z-50 flex items-center gap-2 no-print"
-        >
+      {isPresident && (!isOfficer || activeTab !== 'admin') && (
+        <div className="fixed bottom-20 lg:bottom-5 left-4 z-50 flex items-center gap-2 no-print">
           <button
             type="button"
             onClick={() => {
-              const next = !liveTextEditMode;
-              setLiveTextEditMode(next);
-              showToast(
-                next
-                  ? 'President Live Text Edit ON — click any text on screen to change it!'
-                  : 'President Live Text Edit OFF.'
-              );
+              setIsOfficer(true);
+              setShowWelcomeScreen(false);
+              setActiveTab('admin');
             }}
-            className={`px-3 py-2 rounded-md text-xs font-bold shadow-lg border flex items-center gap-1.5 cursor-pointer transition-colors ${
-              liveTextEditMode
-                ? 'bg-amber-400 text-slate-950 border-amber-300'
-                : 'bg-slate-900 text-white border-slate-700 hover:bg-slate-800'
-            }`}
+            className="px-3 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 text-xs font-bold shadow-lg flex items-center gap-1.5 cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>
-              {liveTextEditMode ? 'Live Text Edit: ON' : 'Edit Any Text'}
-            </span>
+            <Crown className="w-3.5 h-3.5" />
+            <span>President Console</span>
           </button>
-
-          {(!isOfficer || activeTab !== 'admin') && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsOfficer(true);
-                setShowWelcomeScreen(false);
-                setActiveTab('admin');
-              }}
-              className="px-3 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 text-xs font-bold shadow-lg flex items-center gap-1.5 cursor-pointer"
-            >
-              <Crown className="w-3.5 h-3.5" />
-              <span>President Console</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      {isPresident && liveTextEditModal && (
-        <div
-          data-president-live-editor="true"
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-        >
-          <div className="w-full max-w-md rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-              <div>
-                <div className="text-[10px] font-mono-num uppercase tracking-wider font-bold text-amber-500">
-                  President Live Text Override
-                </div>
-                <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
-                  Change On-Screen Text
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLiveTextEditModal(null)}
-                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                  Selected Original Text
-                </label>
-                <div className="p-2.5 rounded bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 break-words">
-                  {liveTextEditModal.originalText}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
-                  New Replacement Text
-                </label>
-                <textarea
-                  rows={3}
-                  autoFocus
-                  value={liveTextEditModal.replacementText}
-                  onChange={(e) =>
-                    setLiveTextEditModal({
-                      ...liveTextEditModal,
-                      replacementText: e.target.value,
-                    })
-                  }
-                  className="w-full p-2.5 rounded bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setLiveTextEditModal(null)}
-                className="px-3.5 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const orig = liveTextEditModal.originalText.trim();
-                  const rep = liveTextEditModal.replacementText;
-                  if (!orig) {
-                    setLiveTextEditModal(null);
-                    return;
-                  }
-                  // Replace across all database strings + store inline override for UI labels
-                  const { nextState } = globalReplaceTextInClubState(
-                    latestLocalDataRef.current,
-                    orig,
-                    rep,
-                    true
-                  );
-                  const updatedState: ClubDataState = {
-                    ...nextState,
-                    settings: {
-                      ...nextState.settings,
-                      customText: {
-                        ...(nextState.settings.customText || {}),
-                        [`inline::${orig}`]: rep,
-                      },
-                    },
-                  };
-                  setLiveTextEditModal(null);
-                  handleReplaceFullClubData(
-                    updatedState,
-                    `Updated text "${orig.slice(0, 28)}" across club portal!`
-                  );
-                }}
-                className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
-              >
-                Save Text Everywhere
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </>

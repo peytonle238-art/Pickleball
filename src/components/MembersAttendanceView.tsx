@@ -214,7 +214,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     setFormPhoto('');
     setFormGrade(10);
     setFormSkill('Intermediate');
-    setFormDupr('3.25');
+    setFormDupr('');
     setFormPaddle('');
     setFormJoinDate(new Date().toISOString().slice(0, 10));
     setFormElo(0);

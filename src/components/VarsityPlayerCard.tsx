@@ -1,588 +1,396 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
+  Award,
+  TrendingUp,
   Flame,
-  RotateCw,
-  ShieldCheck,
-  Sparkles,
-  Swords,
-  Trophy,
-  Zap,
+  Shield,
+  Calendar,
 } from 'lucide-react';
 import {
+  Member,
+  MatchRecord,
   AttendanceSession,
   LadderChallenge,
-  MatchRecord,
-  Member,
 } from '../types';
 import {
-  MemberAchievement,
+  getEloTierInfo,
   buildPlayerEloHistoryPoints,
   computeMemberAchievements,
-  getEloTierInfo,
 } from '../utils/clubUtils';
 
 interface VarsityPlayerCardProps {
   member: Member;
   allMembers: Member[];
   matches: MatchRecord[];
-  attendance?: AttendanceSession[];
+  attendance: AttendanceSession[];
   challenges?: LadderChallenge[];
   compact?: boolean;
-}
-
-function renderCardBadgeIcon(ach: MemberAchievement) {
-  switch (ach.category) {
-    case 'Streak':
-      return <Flame className="w-3.5 h-3.5" />;
-    case 'Attendance':
-      return <ShieldCheck className="w-3.5 h-3.5" />;
-    case 'Rating':
-      return <Zap className="w-3.5 h-3.5" />;
-    case 'Rivalry':
-      return <Swords className="w-3.5 h-3.5" />;
-    default:
-      return <Trophy className="w-3.5 h-3.5" />;
-  }
 }
 
 export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
   member,
   allMembers,
   matches,
-  attendance = [],
+  attendance,
   challenges = [],
   compact = false,
 }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState<{
-    rotateX: number;
-    rotateY: number;
-    glareX: number;
-    glareY: number;
-    isHovering: boolean;
-  }>({
-    rotateX: 0,
-    rotateY: 0,
-    glareX: 50,
-    glareY: 30,
-    isHovering: false,
-  });
-
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [selectedSparkIdx, setSelectedSparkIdx] = useState<number | null>(null);
-
-  const rankedList = useMemo(
+  const rankedLadder = useMemo(
     () => [...allMembers].sort((a, b) => b.elo - a.elo),
     [allMembers]
   );
-  const ladderRank = useMemo(() => {
-    const idx = rankedList.findIndex((m) => m.id === member.id);
+
+  const rank = useMemo(() => {
+    const idx = rankedLadder.findIndex((m) => m.id === member.id);
     return idx >= 0 ? idx + 1 : 1;
-  }, [rankedList, member.id]);
+  }, [rankedLadder, member.id]);
 
   const tierInfo = useMemo(() => getEloTierInfo(member.elo), [member.elo]);
 
-  const achievements = useMemo(
-    () =>
-      computeMemberAchievements(member, matches, attendance, challenges),
-    [member, matches, attendance, challenges]
-  );
-
-  const unlockedBadges = useMemo(
-    () => achievements.filter((a) => a.unlocked),
-    [achievements]
-  );
-
-  const showcaseBadges = useMemo(() => {
-    if (unlockedBadges.length >= 3) return unlockedBadges.slice(0, 3);
-    const remaining = achievements.filter((a) => !a.unlocked);
-    return [...unlockedBadges, ...remaining].slice(0, 3);
-  }, [unlockedBadges, achievements]);
-
-  const eloHistory = useMemo(
+  const eloPoints = useMemo(
     () => buildPlayerEloHistoryPoints(member, matches, allMembers),
     [member, matches, allMembers]
   );
 
-  const activeSparkPoint = useMemo(() => {
-    if (eloHistory.length === 0) return null;
-    if (
-      selectedSparkIdx !== null &&
-      selectedSparkIdx >= 0 &&
-      selectedSparkIdx < eloHistory.length
-    ) {
-      return eloHistory[selectedSparkIdx];
-    }
-    return eloHistory[eloHistory.length - 1];
-  }, [eloHistory, selectedSparkIdx]);
-
-  // Recent 5-match form strip (oldest -> newest of last 5)
-  const recentForm = useMemo(() => {
-    return matches
-      .filter(
-        (m) => m.team1Ids.includes(member.id) || m.team2Ids.includes(member.id)
-      )
-      .slice(0, 5)
-      .reverse()
-      .map((m) => {
-        const inT1 = m.team1Ids.includes(member.id);
-        const won =
-          (inT1 && m.winnerTeam === 1) || (!inT1 && m.winnerTeam === 2);
-        return { id: m.id, won, date: m.date };
-      });
-  }, [matches, member.id]);
-
-  const totalGames = member.wins + member.losses;
-  const winPct =
-    totalGames > 0 ? Math.round((member.wins / totalGames) * 100) : 0;
-  const monthDelta = member.elo - (member.monthStartElo ?? 0);
-  const ptDiff = (member.pointsFor || 0) - (member.pointsAgainst || 0);
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const pctX = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    const pctY = Math.max(0, Math.min(100, (y / rect.height) * 100));
-
-    const rotateY = ((pctX - 50) / 50) * 8;
-    const rotateX = ((50 - pctY) / 50) * 7;
-
-    setTilt({
-      rotateX,
-      rotateY,
-      glareX: pctX,
-      glareY: pctY,
-      isHovering: true,
-    });
-  };
-
-  const handlePointerLeave = () => {
-    setTilt({
-      rotateX: 0,
-      rotateY: 0,
-      glareX: 50,
-      glareY: 30,
-      isHovering: false,
-    });
-  };
-
-  // Compute SVG coordinates for the interactive Elo sparkline
-  const sparkCoords = useMemo(() => {
-    if (eloHistory.length === 0) return [];
-    const elos = eloHistory.map((p) => p.eloAfter);
-    const minElo = Math.min(...elos, 0);
-    const maxElo = Math.max(...elos, 50) + 10;
-    const span = Math.max(20, maxElo - minElo);
-
-    return eloHistory.map((pt, idx) => {
-      const x =
-        eloHistory.length === 1
-          ? 140
-          : 16 + (idx / (eloHistory.length - 1)) * 248;
-      const y = 76 - ((pt.eloAfter - minElo) / span) * 60;
-      return { ...pt, x, y, idx };
-    });
-  }, [eloHistory]);
-
-  const sparkPolyline = useMemo(
-    () => sparkCoords.map((c) => `${c.x},${c.y}`).join(' '),
-    [sparkCoords]
+  const achievements = useMemo(
+    () => computeMemberAchievements(member, matches, attendance, challenges),
+    [member, matches, attendance, challenges]
   );
 
+  const unlockedAchievements = useMemo(
+    () => achievements.filter((a) => a.unlocked),
+    [achievements]
+  );
+
+  const totalMatches = member.wins + member.losses;
+  const winRate =
+    totalMatches > 0 ? Math.round((member.wins / totalMatches) * 100) : 0;
+  const pointDiff = member.pointsFor - member.pointsAgainst;
+  const monthDelta = member.elo - member.monthStartElo;
+
+  // Build SVG polyline coordinates for Elo sparkline
+  const sparklineGeometry = useMemo(() => {
+    const width = 280;
+    const height = 64;
+    const padX = 10;
+    const padY = 10;
+
+    if (eloPoints.length === 0) {
+      return {
+        width,
+        height,
+        linePath: '',
+        areaPath: '',
+        dots: [] as { x: number; y: number; elo: number; label: string }[],
+        minElo: 0,
+        maxElo: 0,
+      };
+    }
+
+    const values = eloPoints.map((p) => p.eloAfter);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const span = Math.max(24, maxVal - minVal);
+
+    const dots = eloPoints.map((pt, idx) => {
+      const x =
+        eloPoints.length === 1
+          ? width / 2
+          : padX + (idx / (eloPoints.length - 1)) * (width - padX * 2);
+      const y =
+        height -
+        padY -
+        ((pt.eloAfter - minVal) / span) * (height - padY * 2);
+      return { x, y, elo: pt.eloAfter, label: `${pt.date} · ${pt.opponentLabel}` };
+    });
+
+    const linePath = dots
+      .map((d, i) => `${i === 0 ? 'M' : 'L'} ${d.x.toFixed(1)} ${d.y.toFixed(1)}`)
+      .join(' ');
+
+    const areaPath =
+      dots.length > 1
+        ? `${linePath} L ${dots[dots.length - 1].x.toFixed(1)} ${height} L ${dots[0].x.toFixed(1)} ${height} Z`
+        : '';
+
+    return {
+      width,
+      height,
+      linePath,
+      areaPath,
+      dots,
+      minElo: minVal,
+      maxElo: maxVal,
+    };
+  }, [eloPoints]);
+
+  const initials = member.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <div className="w-full select-none">
+    <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+      {/* Top Club Color Accent Bar */}
       <div
-        ref={cardRef}
-        onPointerMove={handlePointerMove}
-        onPointerLeave={handlePointerLeave}
-        style={{
-          transform: `perspective(1100px) rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg)`,
-          transition: tilt.isHovering
-            ? 'transform 60ms linear'
-            : 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-        className="relative rounded-xl bg-slate-950 text-white border border-slate-800 overflow-hidden shadow-lg"
-      >
-        {/* Dynamic Varsity Foil Specular Sheen */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-200"
-          style={{
-            opacity: tilt.isHovering ? 1 : 0.35,
-            background: `radial-gradient(circle at ${tilt.glareX}% ${tilt.glareY}%, rgba(255,255,255,0.14) 0%, rgba(59,130,246,0.07) 38%, transparent 70%)`,
-          }}
-        />
+        className="h-1.5 w-full"
+        style={{ backgroundColor: 'var(--club-primary)' }}
+      />
 
-        {/* Subtle Top-Down Court Geometry Lines */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 court-arena-surface opacity-70"
-        />
+      <div className={compact ? 'p-4 space-y-4' : 'p-5 sm:p-6 space-y-5'}>
+        {/* Header Row: Player Avatar, Identity & Primary Elo Rating */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="relative shrink-0">
+              {member.photoUrl ? (
+                <img
+                  src={member.photoUrl}
+                  alt={member.name}
+                  className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700"
+                />
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-lg flex items-center justify-center font-display text-xl font-bold text-white border border-slate-200 dark:border-slate-700"
+                  style={{ backgroundColor: 'var(--club-primary)' }}
+                >
+                  {initials}
+                </div>
+              )}
+              <span className="absolute -bottom-1.5 -right-1.5 px-1.5 py-0.5 rounded bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-mono-num text-[10px] font-bold">
+                #{rank}
+              </span>
+            </div>
 
-        {/* Top Broadcast Header Strip */}
-        <div className="relative z-20 px-4 sm:px-5 py-3 border-b border-slate-800/90 bg-slate-900/90 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className={`px-2 py-0.5 rounded text-[10px] font-mono-num font-bold uppercase tracking-wider shrink-0 ${tierInfo.badgeBgClass}`}
-            >
-              {tierInfo.shortCode}
-            </span>
-            <span className="text-xs font-semibold text-slate-300 truncate">
-              {tierInfo.name}
-            </span>
-            <span aria-hidden="true" className="text-slate-600">
-              ·
-            </span>
-            <span className="font-mono-num text-xs font-bold text-amber-400 shrink-0">
-              RANK #{ladderRank}
-            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-display text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
+                  {member.name}
+                </h3>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${tierInfo.badgeBgClass}`}
+                >
+                  {tierInfo.name}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <span>Grade {member.grade}</span>
+                <span aria-hidden="true">·</span>
+                <span>{member.skillLevel}</span>
+                {member.duprRating && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span className="font-mono-num font-semibold text-slate-700 dark:text-slate-300">
+                      {member.duprRating} DUPR
+                    </span>
+                  </>
+                )}
+                {member.schoolId && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span className="font-mono-num">ID {member.schoolId}</span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsFlipped((prev) => !prev);
-            }}
-            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
-          >
-            <RotateCw className="w-3 h-3 text-amber-400" />
-            <span>{isFlipped ? 'Card Front' : 'Elo Telemetry'}</span>
-          </button>
+          {/* Primary Elo Badge */}
+          <div className="text-right shrink-0">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Club Rating
+            </div>
+            <div className="flex items-baseline justify-end gap-2">
+              <span className="font-mono-num text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tabular-nums">
+                {member.elo}
+              </span>
+              <span
+                className={`text-xs font-mono-num font-semibold tabular-nums ${
+                  monthDelta >= 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-red-500'
+                }`}
+              >
+                {monthDelta >= 0 ? `+${monthDelta}` : monthDelta}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* CARD BODY: FRONT VS BACK */}
-        {!isFlipped ? (
-          <div
-            className={`relative z-20 ${
-              compact ? 'p-4 space-y-3.5' : 'p-4 sm:p-6 space-y-4 sm:space-y-5'
-            }`}
-          >
-            {/* Athlete Identity + Big Tabular Elo */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5 min-w-0">
-                {member.photoUrl ? (
-                  <img
-                    src={member.photoUrl}
-                    alt={member.name}
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover border-2 border-amber-400/70 shrink-0"
-                  />
-                ) : (
-                  <div
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg font-display text-xl sm:text-2xl font-bold flex items-center justify-center shrink-0 border-2 border-amber-400/60 text-white"
-                    style={{ backgroundColor: 'var(--club-primary)' }}
-                  >
-                    {member.name
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .slice(0, 2)}
-                  </div>
-                )}
-
-                <div className="min-w-0 space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono-num uppercase tracking-widest text-slate-400">
-                      BNHS CLUB PLAYER CARD
-                    </span>
-                    {member.streak >= 3 && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[10px] font-mono-num font-bold">
-                        <Flame className="w-3 h-3" /> W{member.streak} STREAK
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-display text-2xl sm:text-3xl font-bold uppercase tracking-tight text-white truncate">
-                    {member.name}
-                  </h3>
-                  <div className="text-xs text-slate-300 font-mono-num">
-                    Grade {member.grade} · {member.skillLevel}
-                    {member.paddleNotes ? ` · ${member.paddleNotes}` : ''}
-                  </div>
-                </div>
-              </div>
-
-              {/* Elo Rating Display Box */}
-              <div className="px-4 py-2.5 rounded-lg bg-slate-900/95 border border-slate-800 text-right shrink-0">
-                <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400">
-                  Official Club Elo
-                </div>
-                <div className="font-mono-num text-3xl sm:text-4xl font-bold text-white tabular-nums leading-none mt-0.5">
-                  {member.elo}
-                </div>
-                <div
-                  className={`text-[11px] font-mono-num font-semibold mt-1 tabular-nums ${
-                    monthDelta >= 0 ? 'text-emerald-400' : 'text-red-400'
-                  }`}
-                >
-                  {monthDelta >= 0 ? `+${monthDelta}` : monthDelta} this month
-                </div>
-              </div>
+        {/* Key Performance Metrics Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              Season Record
             </div>
-
-            {/* Elo Tier Progression Bar */}
-            <div className="p-3 rounded-lg bg-slate-900/80 border border-slate-800/90 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-mono-num">
-                <span className="text-slate-300 font-semibold flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Tier Progress: {tierInfo.name}</span>
-                </span>
-                <span className="text-slate-400 tabular-nums">
-                  {tierInfo.nextTierElo
-                    ? `${member.elo} / ${tierInfo.nextTierElo} Elo to ${tierInfo.nextTierName}`
-                    : 'MAX TIER UNLOCKED'}
-                </span>
-              </div>
-              <div className="h-2 w-full rounded-sm bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full transition-all duration-500"
-                  style={{
-                    width: `${tierInfo.progressPct}%`,
-                    backgroundColor: tierInfo.accentColor,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* 4-Column Season Telemetry Strip */}
-            <div className="grid grid-cols-4 gap-2">
-              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90">
-                <div className="text-[10px] font-mono-num uppercase text-slate-400">
-                  Record
-                </div>
-                <div className="font-mono-num text-base sm:text-lg font-bold text-white tabular-nums mt-0.5">
-                  {member.wins}–{member.losses}
-                </div>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90">
-                <div className="text-[10px] font-mono-num uppercase text-slate-400">
-                  Win Rate
-                </div>
-                <div className="font-mono-num text-base sm:text-lg font-bold text-emerald-400 tabular-nums mt-0.5">
-                  {winPct}%
-                </div>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90">
-                <div className="text-[10px] font-mono-num uppercase text-slate-400">
-                  Pt Diff
-                </div>
-                <div
-                  className={`font-mono-num text-base sm:text-lg font-bold tabular-nums mt-0.5 ${
-                    ptDiff >= 0 ? 'text-blue-400' : 'text-red-400'
-                  }`}
-                >
-                  {ptDiff >= 0 ? `+${ptDiff}` : ptDiff}
-                </div>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/90">
-                <div className="text-[10px] font-mono-num uppercase text-slate-400">
-                  Badges
-                </div>
-                <div className="font-mono-num text-base sm:text-lg font-bold text-amber-400 tabular-nums mt-0.5">
-                  {unlockedBadges.length}/{achievements.length}
-                </div>
-              </div>
-            </div>
-
-            {/* Pinned Varsity Badges Showcase + Recent Form */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-slate-800/80">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400">
-                  Showcase:
-                </span>
-                {showcaseBadges.map((ach) => (
-                  <div
-                    key={ach.id}
-                    className={`px-2.5 py-1 rounded text-xs font-semibold inline-flex items-center gap-1.5 border ${
-                      ach.unlocked
-                        ? 'bg-emerald-950/60 border-emerald-600/60 text-emerald-300'
-                        : 'bg-slate-900 border-slate-800 text-slate-500'
-                    }`}
-                  >
-                    {renderCardBadgeIcon(ach)}
-                    <span className="truncate max-w-[130px]">{ach.title}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mr-1">
-                  Last 5:
-                </span>
-                {recentForm.length === 0 ? (
-                  <span className="text-xs font-mono-num text-slate-500">
-                    No games yet
-                  </span>
-                ) : (
-                  recentForm.map((f) => (
-                    <span
-                      key={f.id}
-                      title={`${f.won ? 'Win' : 'Loss'} on ${f.date}`}
-                      className={`w-6 h-6 rounded text-[11px] font-mono-num font-bold flex items-center justify-center ${
-                        f.won
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-slate-800 text-slate-400 border border-slate-700'
-                      }`}
-                    >
-                      {f.won ? 'W' : 'L'}
-                    </span>
-                  ))
-                )}
-              </div>
+            <div className="font-mono-num text-base font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
+              {member.wins}W – {member.losses}L
             </div>
           </div>
-        ) : (
-          /* BACK OF CARD: INTERACTIVE ELO SPARKLINE & MATCH BREAKDOWN */
-          <div
-            className={`relative z-20 ${
-              compact ? 'p-4 space-y-3.5' : 'p-4 sm:p-6 space-y-4'
-            }`}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="text-[10px] font-mono-num uppercase tracking-wider text-amber-400 font-semibold">
-                  Interactive Elo Rating Trajectory
-                </div>
-                <h4 className="font-display text-xl font-bold uppercase text-white">
-                  {member.name} · Season Rating Curve
-                </h4>
+
+          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              Win Percentage
+            </div>
+            <div className="font-mono-num text-base font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
+              {winRate}%
+            </div>
+          </div>
+
+          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              Point Differential
+            </div>
+            <div
+              className={`font-mono-num text-base font-bold mt-0.5 tabular-nums ${
+                pointDiff >= 0
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-red-500'
+              }`}
+            >
+              {pointDiff >= 0 ? `+${pointDiff}` : pointDiff}{' '}
+              <span className="text-xs font-normal text-slate-400">
+                ({member.pointsFor}/{member.pointsAgainst})
+              </span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              Current Streak
+            </div>
+            <div className="font-mono-num text-base font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums flex items-center gap-1">
+              {member.streak >= 3 && (
+                <Flame className="w-4 h-4 text-amber-500 shrink-0" />
+              )}
+              <span>
+                {member.streak > 0
+                  ? `W${member.streak}`
+                  : member.streak < 0
+                  ? `L${Math.abs(member.streak)}`
+                  : 'Even'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Elo Rating Progression & Milestones Row */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+          {/* Rating Trend Sparkline */}
+          <div className="md:col-span-7 p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <TrendingUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Rating Progression</span>
+              </div>
+              <span className="text-[11px] font-mono-num text-slate-500 tabular-nums">
+                Range: {sparklineGeometry.minElo} – {sparklineGeometry.maxElo} Elo
+              </span>
+            </div>
+
+            <svg
+              viewBox={`0 0 ${sparklineGeometry.width} ${sparklineGeometry.height}`}
+              className="w-full h-16 overflow-visible"
+              aria-label="Player Elo rating trend chart"
+            >
+              <defs>
+                <linearGradient
+                  id={`elo-grad-${member.id}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              {sparklineGeometry.areaPath && (
+                <path
+                  d={sparklineGeometry.areaPath}
+                  fill={`url(#elo-grad-${member.id})`}
+                />
+              )}
+              {sparklineGeometry.linePath && (
+                <path
+                  d={sparklineGeometry.linePath}
+                  fill="none"
+                  stroke="#2563eb"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+              {sparklineGeometry.dots.map((d, idx) => (
+                <circle
+                  key={idx}
+                  cx={d.x}
+                  cy={d.y}
+                  r={idx === sparklineGeometry.dots.length - 1 ? 3.8 : 2.5}
+                  className={
+                    idx === sparklineGeometry.dots.length - 1
+                      ? 'fill-blue-600 dark:fill-blue-400 stroke-white dark:stroke-slate-900'
+                      : 'fill-blue-500/80'
+                  }
+                  strokeWidth={idx === sparklineGeometry.dots.length - 1 ? 1.5 : 0}
+                >
+                  <title>{`${d.label}: ${d.elo} Elo`}</title>
+                </circle>
+              ))}
+            </svg>
+          </div>
+
+          {/* Equipment & Earned Badges Summary */}
+          <div className="md:col-span-5 p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between gap-2.5">
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span className="inline-flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Unlocked Milestones</span>
+                </span>
+                <span className="font-mono-num text-slate-500">
+                  {unlockedAchievements.length}/{achievements.length}
+                </span>
               </div>
 
-              {activeSparkPoint && (
-                <div className="px-3 py-1.5 rounded bg-slate-900 border border-slate-800 text-right font-mono-num text-xs">
-                  <div className="font-bold text-white">
-                    {activeSparkPoint.eloAfter} Elo{' '}
-                    {activeSparkPoint.eloDelta !== 0 && (
-                      <span
-                        className={
-                          activeSparkPoint.eloDelta > 0
-                            ? 'text-emerald-400'
-                            : 'text-red-400'
-                        }
-                      >
-                        (
-                        {activeSparkPoint.eloDelta > 0
-                          ? `+${activeSparkPoint.eloDelta}`
-                          : activeSparkPoint.eloDelta}
-                        )
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {activeSparkPoint.opponentLabel} ·{' '}
-                    {activeSparkPoint.scoreLabel} ({activeSparkPoint.date})
-                  </div>
+              {unlockedAchievements.length === 0 ? (
+                <p className="text-xs text-slate-500 mt-1.5">
+                  Play ranked matches and attend practices to earn club badges.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {unlockedAchievements.slice(0, 6).map((ach) => (
+                    <span
+                      key={ach.id}
+                      title={ach.description}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-medium text-slate-800 dark:text-slate-200"
+                    >
+                      <Shield className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span className="truncate max-w-[120px]">{ach.title}</span>
+                    </span>
+                  ))}
+                  {unlockedAchievements.length > 6 && (
+                    <span className="px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-[11px] font-mono-num text-slate-600 dark:text-slate-300">
+                      +{unlockedAchievements.length - 6} more
+                    </span>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Interactive SVG Elo Curve */}
-            <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800">
-              <svg
-                viewBox="0 0 280 92"
-                className="w-full h-28 overflow-visible"
-                role="img"
-                aria-label="Interactive Elo rating history chart"
-              >
-                {/* Horizontal Reference Grid Lines */}
-                <line
-                  x1="12"
-                  y1="20"
-                  x2="268"
-                  y2="20"
-                  stroke="rgba(148,163,184,0.15)"
-                  strokeDasharray="3 3"
-                />
-                <line
-                  x1="12"
-                  y1="48"
-                  x2="268"
-                  y2="48"
-                  stroke="rgba(148,163,184,0.15)"
-                  strokeDasharray="3 3"
-                />
-                <line
-                  x1="12"
-                  y1="76"
-                  x2="268"
-                  y2="76"
-                  stroke="rgba(148,163,184,0.15)"
-                />
-
-                {sparkCoords.length > 1 && (
-                  <polyline
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    points={sparkPolyline}
-                  />
-                )}
-
-                {sparkCoords.map((pt) => {
-                  const isSelected =
-                    (selectedSparkIdx === null &&
-                      pt.idx === sparkCoords.length - 1) ||
-                    selectedSparkIdx === pt.idx;
-                  return (
-                    <g
-                      key={`${pt.matchId}-${pt.idx}`}
-                      className="cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSparkIdx(pt.idx);
-                      }}
-                      onMouseEnter={() => setSelectedSparkIdx(pt.idx)}
-                    >
-                      <circle
-                        cx={pt.x}
-                        cy={pt.y}
-                        r={isSelected ? 6 : 4}
-                        fill={
-                          pt.idx === 0
-                            ? '#94a3b8'
-                            : pt.won
-                            ? '#10b981'
-                            : '#ef4444'
-                        }
-                        stroke="#090d16"
-                        strokeWidth="1.5"
-                      />
-                    </g>
-                  );
-                })}
-              </svg>
-              <div className="flex items-center justify-between text-[10px] font-mono-num text-slate-400 pt-1">
-                <span>Tap or hover any match node to inspect score & Elo Δ</span>
-                <span>
-                  Career Points: {member.pointsFor || 0} PF /{' '}
-                  {member.pointsAgainst || 0} PA
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-              <span>
-                Joined {member.joinDate} · School ID:{' '}
-                <strong className="text-slate-200 font-mono-num">
-                  {member.schoolId || member.id}
-                </strong>
+            <div className="pt-2 border-t border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="truncate">
+                Paddle: {member.paddleNotes || 'Club Standard Paddle'}
               </span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsFlipped(false);
-                }}
-                className="text-amber-400 hover:underline font-semibold cursor-pointer"
-              >
-                ← Flip Back to Front
-              </button>
+              <span className="inline-flex items-center gap-1 shrink-0 font-mono-num">
+                <Calendar className="w-3 h-3" />
+                <span>{member.joinDate}</span>
+              </span>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

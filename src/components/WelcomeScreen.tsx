@@ -496,158 +496,166 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
             {/* TAB 2: ADD YOURSELF TO CLUB DATABASE */}
             {accountTab === 'register' && (
-              <form onSubmit={handleRegisterSubmit} className="space-y-3">
-                <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Register your School ID on the club roster to track matches and standings across all devices:
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              data.settings.registrationLocked ? (
+                <div className="p-4 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-2">
+                  <div className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                    Self-Registration Currently Closed
+                  </div>
+                  <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                    Club Officers have temporarily locked new member self-registration. If you are already on the roster, use the Sign In tab with your School ID, or ask an Officer at practice to add you.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleRegisterSubmit} className="space-y-3">
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Register your School ID on the club roster to track matches and standings across all devices:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <input
+                      type="text"
+                      required
+                      value={regSchoolId}
+                      onChange={(e) => {
+                        setRegFeedback(null);
+                        setRegSchoolId(e.target.value);
+                      }}
+                      placeholder="School ID (Required)"
+                      className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-mono-num text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                    />
+                    <input
+                      type="text"
+                      required
+                      value={regName}
+                      onChange={(e) => {
+                        setRegFeedback(null);
+                        setRegName(e.target.value);
+                      }}
+                      placeholder="Full Name (First & Last)"
+                      className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <select
+                      value={regGrade}
+                      onChange={(e) =>
+                        setRegGrade(Number(e.target.value) as GradeLevel)
+                      }
+                      className="h-9 px-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                    >
+                      <option value={9}>9th Grade</option>
+                      <option value={10}>10th Grade</option>
+                      <option value={11}>11th Grade</option>
+                      <option value={12}>12th Grade</option>
+                    </select>
+                    <select
+                      value={regSkill}
+                      onChange={(e) => setRegSkill(e.target.value as SkillLevel)}
+                      className="h-9 px-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                    >
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
                   <input
                     type="text"
-                    required
-                    value={regSchoolId}
-                    onChange={(e) => {
-                      setRegFeedback(null);
-                      setRegSchoolId(e.target.value);
-                    }}
-                    placeholder="School ID (Required)"
-                    className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-mono-num text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-                  />
-                  <input
-                    type="text"
-                    required
-                    value={regName}
-                    onChange={(e) => {
-                      setRegFeedback(null);
-                      setRegName(e.target.value);
-                    }}
-                    placeholder="Full Name (First & Last)"
+                    value={regNotes}
+                    onChange={(e) => setRegNotes(e.target.value)}
+                    placeholder="Paddle / Preferred Partner (Optional)"
                     className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <select
-                    value={regGrade}
-                    onChange={(e) =>
-                      setRegGrade(Number(e.target.value) as GradeLevel)
-                    }
-                    className="h-9 px-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-                  >
-                    <option value={9}>9th Grade</option>
-                    <option value={10}>10th Grade</option>
-                    <option value={11}>11th Grade</option>
-                    <option value={12}>12th Grade</option>
-                  </select>
-                  <select
-                    value={regSkill}
-                    onChange={(e) => setRegSkill(e.target.value as SkillLevel)}
-                    className="h-9 px-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                  </select>
-                </div>
-                <input
-                  type="text"
-                  value={regNotes}
-                  onChange={(e) => setRegNotes(e.target.value)}
-                  placeholder="Paddle / Preferred Partner (Optional)"
-                  className="w-full h-9 px-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-                />
 
-                {/* Profile Photo Upload Option */}
-                <div className="flex items-center gap-3 p-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                  <div className="relative w-10 h-10 rounded-md overflow-hidden bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 text-[10px] font-bold text-slate-500">
-                    {regPhoto ? (
-                      <img
-                        src={regPhoto}
-                        alt="Profile Preview"
-                        className="w-full h-full object-cover"
+                  {/* Profile Photo Upload Option */}
+                  <div className="flex items-center gap-3 p-2.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <div className="relative w-10 h-10 rounded-md overflow-hidden bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 text-[10px] font-bold text-slate-500">
+                      {regPhoto ? (
+                        <img
+                          src={regPhoto}
+                          alt="Profile Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>IMG</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                        {regPhoto ? 'Photo Added' : 'Athlete Photo'}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {photoUploading ? 'Processing image...' : 'Optional roster picture'}
+                      </div>
+                    </div>
+                    <label className="min-h-[32px] px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center cursor-pointer shrink-0 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
+                      <span>{regPhoto ? 'Change' : 'Upload'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              setPhotoUploading(true);
+                              const dataUrl = await processImageFileToDataUrl(file);
+                              setRegPhoto(dataUrl);
+                            } catch (err) {
+                              console.error('Error processing image:', err);
+                            } finally {
+                              setPhotoUploading(false);
+                            }
+                          }
+                        }}
                       />
-                    ) : (
-                      <span>IMG</span>
+                    </label>
+                    {regPhoto && (
+                      <button
+                        type="button"
+                        onClick={() => setRegPhoto('')}
+                        className="text-xs text-slate-400 hover:text-red-600 font-semibold cursor-pointer shrink-0"
+                      >
+                        Remove
+                      </button>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                      {regPhoto ? 'Photo Added' : 'Athlete Photo'}
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {photoUploading ? 'Processing image...' : 'Optional roster picture'}
-                    </div>
-                  </div>
-                  <label className="min-h-[32px] px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center cursor-pointer shrink-0 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
-                    <span>{regPhoto ? 'Change' : 'Upload'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          try {
-                            setPhotoUploading(true);
-                            const dataUrl = await processImageFileToDataUrl(file);
-                            setRegPhoto(dataUrl);
-                          } catch (err) {
-                            console.error('Error processing image:', err);
-                          } finally {
-                            setPhotoUploading(false);
-                          }
-                        }
-                      }}
-                    />
-                  </label>
-                  {regPhoto && (
-                    <button
-                      type="button"
-                      onClick={() => setRegPhoto('')}
-                      className="text-xs text-slate-400 hover:text-red-600 font-semibold cursor-pointer shrink-0"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-                <button
-                  type="submit"
-                  className="w-full h-10 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition-colors"
-                >
-                  Add Myself & Continue
-                </button>
-                {regFeedback && (
-                  <div
-                    className={`text-xs font-medium px-3 py-2 rounded-md border ${
-                      regFeedback.type === 'success'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                        : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-                    }`}
+                  <button
+                    type="submit"
+                    className="w-full h-10 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition-colors"
                   >
-                    {regFeedback.text}
-                  </div>
-                )}
-              </form>
+                    Add Myself & Continue
+                  </button>
+                  {regFeedback && (
+                    <div
+                      className={`text-xs font-medium px-3 py-2 rounded-md border ${
+                        regFeedback.type === 'success'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                      }`}
+                    >
+                      {regFeedback.text}
+                    </div>
+                  )}
+                </form>
+              )
             )}
 
             {/* TAB 3: OFFICER SIGN IN */}
             {accountTab === 'officer' && (
               <form onSubmit={handleOfficerPinSubmit} className="space-y-3">
                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Enter your 4-digit Officer PIN or President Password:
+                  Enter your Officer PIN or President Passcode:
                 </p>
                 <div className="flex items-center gap-2">
                   <input
                     type="password"
-                    inputMode="numeric"
-                    maxLength={4}
+                    maxLength={10}
                     value={pinInput}
                     onChange={(e) => {
                       setPinError('');
-                      setPinInput(
-                        e.target.value.replace(/\D/g, '').slice(0, 4)
-                      );
+                      setPinInput(e.target.value.slice(0, 10));
                     }}
                     placeholder="••••"
-                    className="flex-1 h-10 text-center font-mono-num text-lg tracking-[0.4em] rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-slate-900 dark:focus:border-amber-400"
+                    className="flex-1 h-10 text-center font-mono-num text-lg tracking-[0.25em] rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-slate-900 dark:focus:border-amber-400"
                   />
                   <button
                     type="submit"

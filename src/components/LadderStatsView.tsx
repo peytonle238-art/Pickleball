@@ -334,12 +334,25 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
     });
   };
 
+  const [manualMatchError, setManualMatchError] = useState<string | null>(null);
+
   const handleManualMatchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOfficer) return;
+    if (mScore1 === mScore2) {
+      setManualMatchError('Pickleball matches cannot end in a tie.');
+      return;
+    }
     const team1Ids = mFormat === 'doubles' ? [mT1P1, mT1P2] : [mT1P1];
     const team2Ids = mFormat === 'doubles' ? [mT2P1, mT2P2] : [mT2P1];
-    const winnerTeam: 1 | 2 = mScore1 >= mScore2 ? 1 : 2;
+    const uniquePlayers = new Set([...team1Ids, ...team2Ids]);
+    if (uniquePlayers.size < team1Ids.length + team2Ids.length) {
+      setManualMatchError('A player cannot be selected twice in the same match.');
+      return;
+    }
+
+    setManualMatchError(null);
+    const winnerTeam: 1 | 2 = mScore1 > mScore2 ? 1 : 2;
     const t1Elos = team1Ids.map(
       (id) => members.find((m) => m.id === id)?.elo ?? 0
     );
@@ -1534,10 +1547,19 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
               </div>
             </div>
 
+            {manualMatchError && (
+              <div className="text-xs font-semibold text-red-600 dark:text-red-400">
+                {manualMatchError}
+              </div>
+            )}
+
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setShowManualMatchForm(false)}
+                onClick={() => {
+                  setShowManualMatchForm(false);
+                  setManualMatchError(null);
+                }}
                 className="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 dark:text-slate-400 cursor-pointer"
               >
                 Cancel

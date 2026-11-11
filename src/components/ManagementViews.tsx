@@ -35,7 +35,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [authorName, setAuthorName] = useState(
-    officers[0]?.name || 'Marcus Vance'
+    officers[0]?.name || 'Club Officer'
   );
   const [pinned, setPinned] = useState(false);
 
@@ -736,7 +736,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       schoolName: schoolName.trim() || 'Byron Nelson High School',
       primaryColor,
       secondaryColor,
-      officerPin: officerPin.replace(/\D/g, '').slice(0, 4).padEnd(4, '0'),
+      officerPin: officerPin.trim().slice(0, 10) || '2026',
       seasonStartDate,
       duesAmount: Number(duesAmount) || 25,
     });
@@ -885,11 +885,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                4-Digit Officer PIN
+                Officer PIN (4–10 chars)
               </label>
               <input
                 type={isOfficer ? 'text' : 'password'}
-                maxLength={4}
+                maxLength={10}
                 value={isOfficer ? officerPin : '••••'}
                 onChange={(e) => setOfficerPin(e.target.value)}
                 disabled={!isOfficer}

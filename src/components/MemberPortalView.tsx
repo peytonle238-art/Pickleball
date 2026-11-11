@@ -21,6 +21,7 @@ import {
   GradeLevel,
   Member,
   NavTab,
+  OutsideTournament,
   ReactionKey,
   SkillLevel,
 } from '../types';
@@ -36,6 +37,8 @@ import { TournamentsView } from './TournamentsView';
 import { CalendarEventsView } from './CalendarEventsView';
 import { VarsityPlayerCard } from './VarsityPlayerCard';
 import { ClubInteractivePulse } from './ClubInteractivePulse';
+import { LiveScoreKeeper } from './LiveScoreKeeper';
+import { AnnouncementsView } from './ManagementViews';
 
 interface MemberPortalViewProps {
   data: ClubDataState;
@@ -66,6 +69,7 @@ interface MemberPortalViewProps {
     status: 'open' | 'accepted' | 'declined',
     remove?: boolean
   ) => void;
+  onUpdateOutsideTournaments?: (next: OutsideTournament[]) => void;
   onVoteMvp: (candidateId: string) => void;
   onVotePoll: (pollId: string, optionId: string) => void;
   onToggleReaction: (feedItemId: string, reaction: ReactionKey) => void;
@@ -154,6 +158,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   onRegisterMember,
   onCreateChallenge,
   onUpdateChallengeStatus,
+  onUpdateOutsideTournaments,
   onVoteMvp,
   onVotePoll,
   onToggleReaction,
@@ -2329,8 +2334,9 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 clubTournaments={data.clubTournaments}
                 outsideTournaments={data.outsideTournaments}
                 isOfficer={false}
+                activeMember={activeMember}
                 onUpdateClubTournaments={noop}
-                onUpdateOutsideTournaments={noop}
+                onUpdateOutsideTournaments={onUpdateOutsideTournaments || noop}
                 onLaunchScoreKeeperForTournament={noop}
                 onRequestOfficerUnlock={onRequestOfficerLogin}
               />
@@ -2343,6 +2349,29 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 isOfficer={false}
                 onUpdateEvents={noop}
                 onUpdateSettings={noop}
+                onRequestOfficerUnlock={onRequestOfficerLogin}
+              />
+            )}
+
+            {activeTab === 'scorekeeper' && (
+              <LiveScoreKeeper
+                members={data.members}
+                attendance={data.attendance}
+                isOfficer={false}
+                pendingTournamentMatch={null}
+                onClearPendingTournamentMatch={noop}
+                onSaveCompletedMatch={noop}
+                onNavigateToLadder={() => onNavigate('ladder')}
+                onRequestOfficerUnlock={onRequestOfficerLogin}
+              />
+            )}
+
+            {activeTab === 'announcements' && (
+              <AnnouncementsView
+                announcements={data.announcements}
+                officers={data.officers}
+                isOfficer={false}
+                onUpdateAnnouncements={noop}
                 onRequestOfficerUnlock={onRequestOfficerLogin}
               />
             )}

@@ -152,17 +152,6 @@ export function sanitizeAndStripTemplateData(
     Array.isArray(state.events) &&
     state.events.some((e) => TEMPLATE_RECORD_IDS.has(e.id));
 
-  let shouldResetEloToZero = false;
-  if (typeof window !== 'undefined') {
-    try {
-      if (localStorage.getItem(ELO_ZERO_VARSITY_MIGRATION_KEY) !== 'done') {
-        shouldResetEloToZero = true;
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }
-
   const rawClubName = state.settings?.clubName || 'BNHS Pickleball Club';
   const normalizedClubName =
     rawClubName === 'BNHS Pickleball Club HQ'
@@ -215,12 +204,9 @@ export function sanitizeAndStripTemplateData(
       .filter((x) => !TEMPLATE_RECORD_IDS.has(x.id))
       .map((m) => ({
         ...m,
-        elo: shouldResetEloToZero ? 0 : typeof m.elo === 'number' ? m.elo : 0,
-        monthStartElo: shouldResetEloToZero
-          ? 0
-          : typeof m.monthStartElo === 'number'
-          ? m.monthStartElo
-          : 0,
+        elo: typeof m.elo === 'number' ? m.elo : 0,
+        monthStartElo:
+          typeof m.monthStartElo === 'number' ? m.monthStartElo : 0,
       })),
     attendance: (state.attendance || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
