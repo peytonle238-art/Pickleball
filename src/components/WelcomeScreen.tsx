@@ -34,7 +34,7 @@ import {
   useScrolled,
 } from './EnodePrimitives';
 
-export const BOBCATS_LOGO_URL = '/assets/aistudio/images_25669a2b.png';
+export const BOBCATS_LOGO_URL = '/bobcats-pickleball-logo.png';
 
 interface WelcomeScreenProps {
   data: ClubDataState;
@@ -53,7 +53,7 @@ interface WelcomeScreenProps {
     skillLevel: SkillLevel;
     paddleNotes?: string;
     photoUrl?: string;
-  }) => Member;
+  }) => Member | null;
   onSignOutMember: () => void;
 }
 
@@ -136,19 +136,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
 
-  // Live clock for footer
+  // Live clock for countdown (30s interval — avoids per-second full-tree re-renders)
   const [now, setNow] = useState<Date>(() => new Date());
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
+    const t = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(t);
   }, []);
 
   const activeMember =
     data.members.find(
       (m) =>
-        m.id === linkedMemberId ||
-        (m.schoolId &&
-          m.schoolId.trim().toLowerCase() ===
+        Boolean(m.schoolId && m.schoolId.trim()) &&
+        (m.id === linkedMemberId ||
+          m.schoolId!.trim().toLowerCase() ===
             linkedMemberId.trim().toLowerCase())
     ) || null;
 
@@ -185,7 +185,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     if (found) {
       setSignInFeedback({
         type: 'success',
-        text: `Signed in as ${found.name} (ID: ${found.schoolId || found.id})`,
+        text: `Signed in as ${found.name}`,
       });
       setSchoolIdInput('');
       onEnterAsMember('activity');
@@ -216,9 +216,16 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       paddleNotes: regNotes.trim(),
       photoUrl: regPhoto,
     });
+    if (!created) {
+      setRegFeedback({
+        type: 'error',
+        text: 'An account with this School ID or name already exists. Please use the School ID tab to sign in.',
+      });
+      return;
+    }
     setRegFeedback({
       type: 'success',
-      text: `Account ready for ${created.name} (ID: ${created.schoolId})!`,
+      text: `Account ready for ${created.name}!`,
     });
     setRegSchoolId('');
     setRegName('');
@@ -287,7 +294,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     scrollToId('access');
   };
 
-  const headlineWords = ['Every', 'rally,', 'ranked', 'and', 'remembered.'];
+  const requireAuthOrEnter = (targetTab: NavTab) => {
+    if (activeMember) {
+      onEnterAsMember(targetTab);
+    } else {
+      setSelectedDestination(targetTab);
+      setAccountTab('signin');
+      setSignInFeedback({
+        type: 'error',
+        text: 'Please sign in with your School ID first to access the club console.',
+      });
+      scrollToId('access');
+    }
+  };
 
   const featureTabs: AutoTabItem[] = [
     {
@@ -472,30 +491,21 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   return (
     <div className="min-h-screen bg-paper dark:bg-slate-950 text-slate-900 dark:text-white flex flex-col transition-colors duration-300">
       {/* ================================================================= */}
-      {/* STICKY FROSTED NAV                                                */}
+      {/* STICKY FROSTED NAV (constant h-16 to prevent scroll-up shake)      */}
       {/* ================================================================= */}
       <header
-        className={`sticky top-0 z-40 w-full transition-all duration-500 ${
+        className={`sticky top-0 z-40 w-full transition-[background-color,border-color,backdrop-filter] duration-300 ${
           scrolled
-            ? 'bg-paper/75 dark:bg-slate-950/70 backdrop-blur-xl border-b border-[var(--hairline)]'
+            ? 'bg-paper/80 dark:bg-slate-950/75 backdrop-blur-xl border-b border-[var(--hairline)]'
             : 'bg-transparent border-b border-transparent'
         }`}
       >
-        <div
-          className={`max-w-6xl w-full mx-auto px-4 sm:px-6 flex items-center justify-between transition-all duration-500 ${
-            scrolled ? 'h-14' : 'h-16 sm:h-20'
-          }`}
-        >
+        <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="flex items-center gap-2.5 cursor-pointer"
           >
-            <img
-              src={BOBCATS_LOGO_URL}
-              alt="Byron Nelson Bobcats"
-              className="h-7 w-auto object-contain"
-            />
             <span className="text-[15px] font-semibold tracking-tight">
               {data.settings.clubName}
             </span>
@@ -508,10 +518,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <button type="button" onClick={() => scrollToId('stats')} className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
               Season
             </button>
-            <button type="button" onClick={() => onEnterAsMember('ladder')} className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
+            <button type="button" onClick={() => requireAuthOrEnter('ladder')} className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
               Standings
             </button>
-            <button type="button" onClick={() => onEnterAsMember('calendar')} className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
+            <button type="button" onClick={() => requireAuthOrEnter('calendar')} className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
               Calendar
             </button>
           </nav>
@@ -565,27 +575,23 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <span>Official club portal</span>
               </motion.div>
 
-              <h1
-                className="font-display font-semibold text-slate-900 dark:text-white leading-[1.02]"
-                style={{ fontSize: 'clamp(2.75rem, 6.2vw, 4.75rem)' }}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.85, delay: 0.08, ease: ENODE_EASE }}
+                className="pt-1"
               >
-                {headlineWords.map((w, i) => (
-                  <motion.span
-                    key={w + i}
-                    className="inline-block mr-[0.22em]"
-                    initial={{ opacity: 0, y: 18, filter: 'blur(10px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    transition={{ duration: 1, delay: 0.08 + i * 0.07, ease: ENODE_EASE }}
-                  >
-                    {w}
-                  </motion.span>
-                ))}
-              </h1>
+                <img
+                  src={BOBCATS_LOGO_URL}
+                  alt={data.settings.clubName}
+                  className="w-full max-w-[340px] sm:max-w-[420px] h-auto object-contain drop-shadow-sm"
+                />
+              </motion.div>
 
               <motion.p
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.9, delay: 0.45, ease: ENODE_EASE }}
+                transition={{ duration: 0.9, delay: 0.25, ease: ENODE_EASE }}
                 className="text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg"
               >
                 {getClubText(
@@ -598,7 +604,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.9, delay: 0.55, ease: ENODE_EASE }}
+                transition={{ duration: 0.9, delay: 0.35, ease: ENODE_EASE }}
                 className="flex flex-wrap items-center gap-3"
               >
                 <button
@@ -608,12 +614,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   }
                   className="pill-btn"
                 >
-                  {activeMember ? `Continue as ${activeMember.name.split(' ')[0]}` : 'Enter the portal'}
+                  {activeMember ? `Continue as ${activeMember.name.split(' ')[0]}` : 'Sign in to enter'}
                   <ArrowRight className="pill-arrow w-4 h-4" />
                 </button>
                 <button
                   type="button"
-                  onClick={() => onEnterAsMember('ladder')}
+                  onClick={() => requireAuthOrEnter('ladder')}
                   className="pill-btn-ghost"
                 >
                   See standings
@@ -879,7 +885,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   <button
                     key={row.id}
                     type="button"
-                    onClick={() => onEnterAsMember(row.id)}
+                    onClick={() => requireAuthOrEnter(row.id)}
                     className="co-index-row w-full py-3.5 flex items-center justify-between gap-3 text-left border-b border-[var(--hairline)] cursor-pointer"
                   >
                     <span className="co-row-shift text-sm font-medium text-slate-900 dark:text-white">
@@ -903,7 +909,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               </div>
               {activeMember && (
                 <span className="font-mono-num text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                  ID {activeMember.schoolId || activeMember.id}
+                  Signed in · Verified ID
                 </span>
               )}
             </div>
@@ -984,7 +990,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                             {activeMember.name}
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num">
-                            ID {activeMember.schoolId || 'Linked'} · Grade {activeMember.grade} · {activeMember.elo} Elo
+                            Verified School ID · Grade {activeMember.grade} · {activeMember.elo} Elo
                           </div>
                         </div>
                       </div>
@@ -993,7 +999,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         onClick={onSignOutMember}
                         className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer shrink-0"
                       >
-                        Switch
+                        Sign out
                       </button>
                     </div>
                     <button
@@ -1226,7 +1232,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               </form>
             )}
 
-            {/* Destination Selector */}
+            {/* Destination Selector (Only enters console once signed in) */}
             <div className="pt-3 border-t border-[var(--hairline)] space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-600 dark:text-slate-400">
@@ -1316,10 +1322,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
               <button
                 type="button"
-                onClick={() => onEnterAsMember(selectedDestination)}
+                onClick={() => requireAuthOrEnter(selectedDestination)}
                 className="pill-btn w-full"
               >
-                <span>Enter {activeDestObj.label}</span>
+                <span>
+                  {activeMember
+                    ? `Enter ${activeDestObj.label}`
+                    : `Sign in with School ID to enter ${activeDestObj.label}`}
+                </span>
                 <ArrowRight className="pill-arrow w-4 h-4" />
               </button>
             </div>
@@ -1356,7 +1366,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onEnterAsMember('calendar')}
+                    onClick={() => requireAuthOrEnter('calendar')}
                     className="inline-flex items-center gap-2 min-h-[44px] px-5 rounded-full border border-white/15 text-white text-sm font-medium hover:bg-white/10 transition-colors cursor-pointer"
                   >
                     View calendar
@@ -1375,7 +1385,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-5 gap-10">
           <div className="col-span-2 space-y-3">
             <div className="flex items-center gap-2.5">
-              <img src={BOBCATS_LOGO_URL} alt="" className="h-7 w-auto object-contain" />
               <span className="text-[15px] font-semibold tracking-tight">
                 {data.settings.clubName}
               </span>
@@ -1386,17 +1395,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             {
               h: 'Portal',
               links: [
-                { l: 'Overview', go: () => onEnterAsMember('home') },
-                { l: 'My activity', go: () => onEnterAsMember('activity') },
-                { l: 'Calendar', go: () => onEnterAsMember('calendar') },
+                { l: 'Overview', go: () => requireAuthOrEnter('home') },
+                { l: 'My activity', go: () => requireAuthOrEnter('activity') },
+                { l: 'Calendar', go: () => requireAuthOrEnter('calendar') },
               ],
             },
             {
               h: 'Compete',
               links: [
-                { l: 'Standings', go: () => onEnterAsMember('ladder') },
-                { l: 'Tournaments', go: () => onEnterAsMember('tournaments') },
-                { l: 'Regional watch', go: () => onEnterAsMember('watch') },
+                { l: 'Standings', go: () => requireAuthOrEnter('ladder') },
+                { l: 'Tournaments', go: () => requireAuthOrEnter('tournaments') },
+                { l: 'Regional watch', go: () => requireAuthOrEnter('watch') },
               ],
             },
             {

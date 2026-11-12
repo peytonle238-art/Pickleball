@@ -69,13 +69,10 @@ import {
   TreasuryView,
 } from './components/ManagementViews';
 import { PresidentAdminView } from './components/PresidentAdminView';
-import { BOBCATS_LOGO_URL, WelcomeScreen } from './components/WelcomeScreen';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import { MemberPortalView } from './components/MemberPortalView';
 import { getVoterIdentityKey } from './components/ClubInteractivePulse';
-import {
-  CommandPaletteModal,
-  ScrollProgressBar,
-} from './components/MotionPrimitives';
+import { ScrollProgressBar } from './components/MotionPrimitives';
 
 const STORAGE_KEY = 'bnhs_pickleball_hq_fresh_v2';
 const LEGACY_STORAGE_KEY = 'bnhs_pickleball_hq_v1';
@@ -129,20 +126,8 @@ export default function App() {
   const [isOfficer, setIsOfficer] = useState<boolean>(false);
   const [isPresident, setIsPresident] = useState<boolean>(false);
 
-  // Universal Dropdown Menu state ("Everything Menu") & Command-K Palette
+  // Universal Dropdown Menu state
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
-
-  useEffect(() => {
-    const onGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setCommandPaletteOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', onGlobalKeyDown);
-    return () => window.removeEventListener('keydown', onGlobalKeyDown);
-  }, []);
 
   // Firebase Auth & Global Firestore Sync state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -379,13 +364,10 @@ export default function App() {
       setCurrentUser(user);
       if (!user) return;
       try {
-        const matchedRosterMember = latestLocalDataRef.current.members.find(
-          (m) =>
-            user.displayName &&
-            m.name.toLowerCase() === user.displayName.toLowerCase()
+        const profile = await ensureUserProfileInFirestore(
+          user,
+          linkedMemberId || ''
         );
-        const defaultMemId = matchedRosterMember?.id || linkedMemberId || '';
-        const profile = await ensureUserProfileInFirestore(user, defaultMemId);
         if (profile.linkedMemberId) {
           setLinkedMemberId(profile.linkedMemberId);
         }
@@ -464,24 +446,14 @@ export default function App() {
     }
   }, [darkMode]);
 
-  const handleSelectLinkedMember = async (memberId: string) => {
-    setLinkedMemberId(memberId);
+  const linkVerifiedMemberSession = async (member: Member) => {
+    setLinkedMemberId(member.id);
     try {
-      if (memberId) {
-        localStorage.setItem(LINKED_MEMBER_KEY, memberId);
-      } else {
-        localStorage.removeItem(LINKED_MEMBER_KEY);
-      }
+      localStorage.setItem(LINKED_MEMBER_KEY, member.id);
     } catch {
       // Ignore storage quota errors
     }
-    const member = latestLocalDataRef.current.members.find(
-      (m) =>
-        m.id === memberId ||
-        (m.schoolId &&
-          m.schoolId.trim().toLowerCase() === memberId.trim().toLowerCase())
-    );
-    if (currentUser && member) {
+    if (currentUser) {
       try {
         await updateUserLinkedMember(
           currentUser.uid,
@@ -492,12 +464,9 @@ export default function App() {
         console.error('Failed to update linked member in Firestore:', err);
       }
     }
-    if (member) {
-      showToast(`Signed in as ${member.name}`);
-    }
   };
 
-  // Sign in an existing member using their School ID (checks local & refreshes global cloud roster if needed)
+  // Sign in an existing member strictly using their School ID
   const handleSignInBySchoolId = async (
     schoolId: string
   ): Promise<Member | null> => {
@@ -507,8 +476,8 @@ export default function App() {
     const findMember = (list: Member[]) =>
       list.find(
         (m) =>
-          (m.schoolId && m.schoolId.trim().toLowerCase() === cleaned) ||
-          m.id.toLowerCase() === cleaned
+          Boolean(m.schoolId && m.schoolId.trim()) &&
+          m.schoolId!.trim().toLowerCase() === cleaned
       ) || null;
 
     let found = findMember(latestLocalDataRef.current.members);
@@ -536,18 +505,14 @@ export default function App() {
     }
 
     if (found) {
-      setLinkedMemberId(found.id);
-      try {
-        localStorage.setItem(LINKED_MEMBER_KEY, found.id);
-      } catch {
-        // Ignore storage errors
-      }
+      void linkVerifiedMemberSession(found);
       showToast(`Signed in as ${found.name}`);
     }
     return found;
   };
 
-  // Let a member add themselves directly into the club database with their School ID and photo
+  // Let a new member add themselves directly into the club database with their School ID and photo
+  // Never overwrites or hijacks an existing member account by name or duplicate School ID.
   const handleRegisterMember = ({
     schoolId,
     name,
@@ -562,92 +527,39 @@ export default function App() {
     skillLevel: SkillLevel;
     paddleNotes?: string;
     photoUrl?: string;
-  }): Member => {
+  }): Member | null => {
     const cleanSchoolId = schoolId.trim();
     const cleanName = name.trim();
+    if (!cleanSchoolId || !cleanName) return null;
     const currentSnapshot = latestLocalDataRef.current;
 
-    // Check if a member with this School ID already exists
+    // Reject if a member with this School ID already exists (must sign in via School ID tab)
     const existingById = currentSnapshot.members.find(
       (m) =>
         m.schoolId &&
         m.schoolId.trim().toLowerCase() === cleanSchoolId.toLowerCase()
     );
-
     if (existingById) {
-      const updatedMember: Member = {
-        ...existingById,
-        schoolId: cleanSchoolId,
-        name: cleanName || existingById.name,
-        grade,
-        skillLevel,
-        paddleNotes:
-          paddleNotes !== undefined ? paddleNotes : existingById.paddleNotes,
-        photoUrl: photoUrl || existingById.photoUrl,
-      };
-      const nextState: ClubDataState = {
-        ...currentSnapshot,
-        members: currentSnapshot.members.map((m) =>
-          m.id === existingById.id ? updatedMember : m
-        ),
-      };
-      setData(nextState);
-      void persistClubDataImmediately(nextState);
-      handleSelectLinkedMember(updatedMember.id);
-      showToast(`Account updated & signed in as ${updatedMember.name}!`);
-      return updatedMember;
+      showToast(
+        'That School ID is already registered. Please sign in using your School ID.'
+      );
+      return null;
     }
 
-    // Or if a member with the exact same name exists without a School ID yet, link their School ID
+    // Reject if a member with the exact same name already exists (prevents impersonating an existing player)
     const existingByName = currentSnapshot.members.find(
-      (m) =>
-        !m.schoolId && m.name.trim().toLowerCase() === cleanName.toLowerCase()
+      (m) => m.name.trim().toLowerCase() === cleanName.toLowerCase()
     );
-
     if (existingByName) {
-      const linkedMember: Member = {
-        ...existingByName,
-        schoolId: cleanSchoolId,
-        grade,
-        skillLevel,
-        paddleNotes: paddleNotes || existingByName.paddleNotes,
-        photoUrl: photoUrl || existingByName.photoUrl,
-      };
-      const nextState: ClubDataState = {
-        ...currentSnapshot,
-        members: currentSnapshot.members.map((m) =>
-          m.id === existingByName.id ? linkedMember : m
-        ),
-      };
-      setData(nextState);
-      void persistClubDataImmediately(nextState);
-      handleSelectLinkedMember(linkedMember.id);
       showToast(
-        `Linked School ID ${cleanSchoolId} to ${linkedMember.name}'s account!`
+        `${existingByName.name} is already on the roster. Please sign in using your School ID.`
       );
-      return linkedMember;
+      return null;
     }
 
     if (currentSnapshot.settings.registrationLocked && !isOfficer) {
       showToast('New member registration is currently locked by Club Officers.');
-      return (
-        currentSnapshot.members[0] || {
-          id: 'locked',
-          schoolId: cleanSchoolId,
-          name: cleanName,
-          grade,
-          skillLevel,
-          elo: 0,
-          wins: 0,
-          losses: 0,
-          pointsFor: 0,
-          pointsAgainst: 0,
-          streak: 0,
-          duesPaid: false,
-          duesAmount: currentSnapshot.settings.duesAmount,
-          joinDate: new Date().toISOString().slice(0, 10),
-        }
-      );
+      return null;
     }
 
     // Create a brand-new Member record in the club database
@@ -678,17 +590,9 @@ export default function App() {
 
     setData(nextState);
     void persistClubDataImmediately(nextState);
+    void linkVerifiedMemberSession(newMember);
 
-    setLinkedMemberId(newMember.id);
-    try {
-      localStorage.setItem(LINKED_MEMBER_KEY, newMember.id);
-    } catch {
-      // Ignore storage quota errors
-    }
-
-    showToast(
-      `Welcome ${newMember.name}! Added to database (ID: ${cleanSchoolId}).`
-    );
+    showToast(`Welcome ${newMember.name}! Added to club roster.`);
     return newMember;
   };
 
@@ -698,6 +602,9 @@ export default function App() {
       localStorage.removeItem(LINKED_MEMBER_KEY);
     } catch {
       // Ignore storage errors
+    }
+    if (!isOfficer) {
+      setShowWelcomeScreen(true);
     }
     showToast('Signed out of member account');
   };
@@ -764,10 +671,21 @@ export default function App() {
       setIsOfficer(false);
       setIsPresident(false);
       setLiveTextEditMode(false);
-      if (!MEMBER_ALLOWED_TABS.includes(activeTab)) {
+      const hasValidMember = data.members.some(
+        (m) =>
+          Boolean(m.schoolId && m.schoolId.trim()) &&
+          (m.id === linkedMemberId ||
+            m.schoolId!.trim().toLowerCase() ===
+              linkedMemberId.trim().toLowerCase())
+      );
+      if (!hasValidMember) {
+        setShowWelcomeScreen(true);
+      } else if (!MEMBER_ALLOWED_TABS.includes(activeTab)) {
         setActiveTab('home');
       }
-      showToast('Switched to Member Mode');
+      showToast(
+        hasValidMember ? 'Switched to Member Mode' : 'Exited Officer Mode'
+      );
     } else {
       setPendingOfficerTab(null);
       setPinInput('');
@@ -1073,11 +991,11 @@ export default function App() {
   const activeMemberObj =
     data.members.find(
       (m) =>
-        m.id === linkedMemberId ||
-        (m.schoolId &&
-          linkedMemberId &&
-          m.schoolId.trim().toLowerCase() ===
-            linkedMemberId.trim().toLowerCase())
+        Boolean(m.schoolId && m.schoolId.trim()) &&
+        (m.id === linkedMemberId ||
+          (linkedMemberId &&
+            m.schoolId!.trim().toLowerCase() ===
+              linkedMemberId.trim().toLowerCase()))
     ) || null;
   const voterKey = getVoterIdentityKey(activeMemberObj);
 
@@ -1369,8 +1287,10 @@ export default function App() {
   const activeNavItem =
     allNavItems.find((i) => i.id === activeTab) || allNavItems[0];
 
-  // If Welcome Screen is active, render the animated full-screen Welcome Hub
-  if (showWelcomeScreen) {
+  const isAuthenticated = Boolean(activeMemberObj) || isOfficer;
+
+  // Render the Welcome Hub whenever showWelcomeScreen is active OR no member/officer is signed in
+  if (showWelcomeScreen || !isAuthenticated) {
     return (
       <>
         <ScrollProgressBar />
@@ -1429,7 +1349,6 @@ export default function App() {
           activeTab={activeTab}
           darkMode={darkMode}
           linkedMemberId={linkedMemberId}
-          onSelectLinkedMember={handleSelectLinkedMember}
           onSignInBySchoolId={handleSignInBySchoolId}
           onRegisterMember={handleRegisterMember}
           onCreateChallenge={handleCreateChallenge}
@@ -1456,7 +1375,6 @@ export default function App() {
             setShowPinModal(true);
           }}
           onShowWelcomeScreen={() => setShowWelcomeScreen(true)}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         />
       ) : (
         /* =============================================================== */
@@ -1489,34 +1407,27 @@ export default function App() {
             </aside>
           )}
 
-          {/* Officer Command Header */}
-          <header className="sticky top-0 z-30 h-14 sm:h-16 bg-slate-900/90 backdrop-blur-xl text-white border-b border-white/10 px-3.5 sm:px-6 no-print">
+          {/* Officer Command Header (No top-bar logo) */}
+          <header className="sticky top-0 z-30 h-16 bg-paper/85 dark:bg-slate-950/80 backdrop-blur-xl text-slate-900 dark:text-white border-b border-[var(--hairline)] px-4 sm:px-6 no-print">
             <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-2 sm:gap-4">
-              {/* Zone 1: Bobcats Emblem + Officer Console Brand */}
+              {/* Zone 1: Officer Console Brand */}
               <button
                 type="button"
                 onClick={() => handleNavigate('home')}
-                className="flex items-center gap-2 sm:gap-3 text-left cursor-pointer min-w-0"
+                className="flex items-center gap-2.5 text-left cursor-pointer min-w-0"
               >
-                <div className="bg-white px-1.5 sm:px-2 py-1 rounded-md border border-white/20 flex items-center justify-center shrink-0">
-                  <img
-                    src={BOBCATS_LOGO_URL}
-                    alt="Byron Nelson Bobcats"
-                    className="h-5 sm:h-7 w-auto object-contain"
-                  />
-                </div>
-                <span className="font-display text-base sm:text-xl font-semibold tracking-tight text-white truncate">
-                  {data.settings.clubName}
-                  <span className="hidden md:inline text-slate-400 font-normal">
-                    {' '}
-                    ·{' '}
+                <div className="min-w-0">
+                  <div className="font-display text-sm sm:text-base font-semibold tracking-tight text-slate-900 dark:text-white truncate leading-tight">
+                    {data.settings.clubName}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate leading-tight">
                     {getClubText(
                       data.settings,
                       'officerConsoleSubtitle',
                       'Officer Console'
                     )}
-                  </span>
-                </span>
+                  </div>
+                </div>
               </button>
 
               {/* Zone 2: Unified Dropdown Menu */}
@@ -1524,13 +1435,13 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="min-h-[36px] sm:min-h-[38px] px-2.5 sm:px-3.5 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-white inline-flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                  className="min-h-[36px] px-3.5 py-1.5 rounded-full bg-paper-deep/65 hover:bg-paper-deep dark:bg-slate-900 dark:hover:bg-slate-800 border border-[var(--hairline)] text-xs font-medium text-slate-900 dark:text-white inline-flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap shrink-0"
                 >
-                  <span className="max-w-[110px] sm:max-w-none truncate">
+                  <span className="max-w-[120px] sm:max-w-none truncate">
                     {activeNavItem.label}
                   </span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 transition-transform duration-150 shrink-0 ${
+                    className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 shrink-0 ${
                       menuOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -1548,31 +1459,22 @@ export default function App() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -6 }}
                         transition={{ duration: 0.15 }}
-                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-xl p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
+                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-2xl bg-paper dark:bg-slate-900 text-slate-900 dark:text-white border border-[var(--hairline)] shadow-[0_24px_60px_-20px_rgba(28,27,24,0.18)] p-4 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
                       >
-                        <div className="p-3 rounded-md bg-slate-900 text-white flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="bg-white px-2 py-1 rounded shrink-0">
-                              <img
-                                src={BOBCATS_LOGO_URL}
-                                alt="Byron Nelson Bobcats"
-                                className="h-5 w-auto object-contain"
-                              />
+                        <div className="p-3.5 rounded-xl bg-paper-subtle dark:bg-slate-950 border border-[var(--hairline)] flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                              {data.settings.clubName}
                             </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-white truncate">
-                                {data.settings.clubName}
-                              </div>
-                              <div className="text-[11px] text-amber-400 truncate">
-                                Officer Console · All Modules Unlocked
-                              </div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                              Officer Console · All modules unlocked
                             </div>
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-slate-400">
-                            Match & Competition Ops
+                        <div className="space-y-1.5">
+                          <div className="px-2 py-0.5 text-[11px] font-mono-num uppercase tracking-wider text-slate-400">
+                            Competition & live ops
                           </div>
                           <div className="grid grid-cols-2 gap-1">
                             {memberNavItems.map((item) => {
@@ -1582,10 +1484,10 @@ export default function App() {
                                   key={item.id}
                                   type="button"
                                   onClick={() => handleNavigate(item.id)}
-                                  className={`px-3 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
+                                  className={`px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer ${
                                     isSelected
-                                      ? 'bg-blue-600 text-white'
-                                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                      ? 'bg-slate-900 text-white dark:bg-court dark:text-slate-900'
+                                      : 'text-slate-700 dark:text-slate-200 hover:bg-paper-deep/60 dark:hover:bg-slate-800'
                                   }`}
                                 >
                                   <span className="truncate">{item.label}</span>
@@ -1595,9 +1497,9 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
-                          <div className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-amber-500">
-                            Officer Administration
+                        <div className="space-y-1.5 pt-2.5 border-t border-[var(--hairline)]">
+                          <div className="px-2 py-0.5 text-[11px] font-mono-num uppercase tracking-wider text-slate-400">
+                            Club administration
                           </div>
                           <div className="grid grid-cols-2 gap-1">
                             {officerNavItems.map((item) => {
@@ -1607,10 +1509,10 @@ export default function App() {
                                   key={item.id}
                                   type="button"
                                   onClick={() => handleNavigate(item.id)}
-                                  className={`px-3 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
+                                  className={`px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer ${
                                     isSelected
-                                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                      ? 'bg-slate-900 text-white dark:bg-court dark:text-slate-900'
+                                      : 'text-slate-700 dark:text-slate-300 hover:bg-paper-deep/60 dark:hover:bg-slate-800'
                                   }`}
                                 >
                                   <span className="truncate">{item.label}</span>
@@ -1620,21 +1522,21 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                        <div className="pt-2.5 border-t border-[var(--hairline)] space-y-2">
                           <button
                             type="button"
                             onClick={() => setDarkMode(!darkMode)}
-                            className="w-full px-3 py-2 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="w-full px-3 py-2 rounded-xl bg-paper-deep/60 hover:bg-paper-deep dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer"
                           >
                             {darkMode ? (
                               <>
                                 <Sun className="w-3.5 h-3.5 text-amber-400" />
-                                <span>Light Theme</span>
+                                <span>Light theme</span>
                               </>
                             ) : (
                               <>
                                 <Moon className="w-3.5 h-3.5" />
-                                <span>Dark Theme</span>
+                                <span>Dark theme</span>
                               </>
                             )}
                           </button>
@@ -1646,12 +1548,12 @@ export default function App() {
                                 setMenuOpen(false);
                                 handleExportJSON();
                               }}
-                              className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                              className="px-3 py-1.5 rounded-xl bg-paper-deep/60 hover:bg-paper-deep dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <span>Export JSON</span>
                             </button>
 
-                            <label className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
+                            <label className="px-3 py-1.5 rounded-xl bg-paper-deep/60 hover:bg-paper-deep dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
                               <span>Import JSON</span>
                               <input
                                 type="file"
@@ -1675,9 +1577,9 @@ export default function App() {
                                 setMenuOpen(false);
                                 setShowWelcomeScreen(true);
                               }}
-                              className="font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                              className="font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                             >
-                              Welcome Screen
+                              ← Welcome screen
                             </button>
                           </div>
                         </div>
@@ -1690,8 +1592,9 @@ export default function App() {
               {/* Zone 3: Officer Mode Switch & President Status */}
               <div className="flex items-center gap-2 shrink-0">
                 {isPresident ? (
-                  <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-md bg-amber-400/15 text-amber-300 border border-amber-400/30 text-xs font-bold">
-                    President Admin
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-court/60 dark:bg-court/15 text-slate-900 dark:text-court border border-court-deep/25 text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    President admin
                   </span>
                 ) : (
                   <button
@@ -1702,17 +1605,17 @@ export default function App() {
                       setPinError('');
                       setShowPinModal(true);
                     }}
-                    className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 cursor-pointer"
+                    className="hidden sm:inline-flex items-center px-3.5 py-1.5 rounded-full bg-paper-deep/65 hover:bg-paper-deep dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium border border-[var(--hairline)] cursor-pointer transition-colors"
                   >
-                    Unlock President
+                    Unlock president
                   </button>
                 )}
                 <button
                   onClick={handleToggleMode}
-                  className="min-h-[36px] px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-md bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  className="min-h-[36px] px-3.5 py-1.5 text-xs font-medium rounded-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-court dark:text-slate-900 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <span>Exit</span>
-                  <span className="hidden sm:inline"> Officer Mode</span>
+                  <span className="hidden sm:inline"> officer mode</span>
                 </button>
               </div>
             </div>
@@ -1721,11 +1624,11 @@ export default function App() {
           {/* Officer Executive Workspace: Left Command Sidebar + Main Viewport */}
           <div className="flex-1 max-w-[1440px] w-full mx-auto flex">
             {/* Desktop Command Sidebar */}
-            <aside className="hidden lg:flex w-60 shrink-0 flex-col justify-between border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 no-print">
+            <aside className="hidden lg:flex w-60 shrink-0 flex-col justify-between border-r border-[var(--hairline)] bg-paper/60 dark:bg-slate-900/60 p-4 no-print">
               <div className="space-y-6">
                 <div className="space-y-1">
-                  <div className="px-3 py-1 text-[11px] font-bold tracking-wider uppercase text-slate-400">
-                    Competition & Live Ops
+                  <div className="px-3 py-1 text-[11px] font-mono-num uppercase tracking-wider text-slate-400">
+                    Competition & live ops
                   </div>
                   {memberNavItems.map((item) => {
                     const isSelected = activeTab === item.id;
@@ -1734,10 +1637,10 @@ export default function App() {
                         key={item.id}
                         type="button"
                         onClick={() => handleNavigate(item.id)}
-                        className={`relative w-full px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`relative w-full px-3.5 py-2 rounded-full text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
                             ? 'text-white dark:text-slate-900'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-paper-deep/50 dark:hover:bg-slate-800'
                         }`}
                       >
                         {isSelected && (
@@ -1748,7 +1651,7 @@ export default function App() {
                               stiffness: 420,
                               damping: 34,
                             }}
-                            className="absolute inset-0 rounded-md bg-slate-900 dark:bg-white -z-0"
+                            className="absolute inset-0 rounded-full bg-slate-900 dark:bg-court -z-0"
                           />
                         )}
                         <span className="relative z-10">{item.label}</span>
@@ -1757,9 +1660,9 @@ export default function App() {
                   })}
                 </div>
 
-                <div className="space-y-1 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <div className="px-3 py-1 text-[11px] font-bold tracking-wider uppercase text-amber-500">
-                    Club Administration
+                <div className="space-y-1 pt-4 border-t border-[var(--hairline)]">
+                  <div className="px-3 py-1 text-[11px] font-mono-num uppercase tracking-wider text-slate-400">
+                    Club administration
                   </div>
                   {officerNavItems.map((item) => {
                     const isSelected = activeTab === item.id;
@@ -1768,10 +1671,10 @@ export default function App() {
                         key={item.id}
                         type="button"
                         onClick={() => handleNavigate(item.id)}
-                        className={`relative w-full px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`relative w-full px-3.5 py-2 rounded-full text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
                             ? 'text-white dark:text-slate-900'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-paper-deep/50 dark:hover:bg-slate-800'
                         }`}
                       >
                         {isSelected && (
@@ -1782,7 +1685,7 @@ export default function App() {
                               stiffness: 420,
                               damping: 34,
                             }}
-                            className="absolute inset-0 rounded-md bg-slate-900 dark:bg-white -z-0"
+                            className="absolute inset-0 rounded-full bg-slate-900 dark:bg-court -z-0"
                           />
                         )}
                         <span className="relative z-10">{item.label}</span>
@@ -1792,16 +1695,16 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+              <div className="pt-4 border-t border-[var(--hairline)] space-y-2">
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
                     onClick={handleExportJSON}
-                    className="py-2 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-200"
+                    className="py-2 px-2.5 rounded-full bg-paper-deep/60 dark:bg-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-paper-deep"
                   >
                     Export JSON
                   </button>
-                  <label className="py-2 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-200">
+                  <label className="py-2 px-2.5 rounded-full bg-paper-deep/60 dark:bg-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-paper-deep">
                     <span>Import JSON</span>
                     <input
                       type="file"
@@ -2093,27 +1996,6 @@ export default function App() {
           </nav>
         </div>
       )}
-
-      {/* Global Command-K (⌘K / Ctrl+K) Quick Command & Athlete Search Palette */}
-      <CommandPaletteModal
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        members={data.members}
-        darkMode={darkMode}
-        isOfficer={isOfficer}
-        onNavigate={handleNavigate}
-        onToggleDarkMode={() => setDarkMode(!darkMode)}
-        onSelectMember={(member) => {
-          handleSelectLinkedMember(member.id);
-          handleNavigate(isOfficer ? 'ladder' : 'activity');
-        }}
-        onRequestOfficerLogin={() => {
-          setPendingOfficerTab(null);
-          setPinInput('');
-          setPinError('');
-          setShowPinModal(true);
-        }}
-      />
 
       {/* Global Toast Notification */}
       <AnimatePresence>

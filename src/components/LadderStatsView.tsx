@@ -435,49 +435,58 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Mobile & Tablet Segmented View Switcher (Eliminates vertical clutter on phones) */}
-      <div className="lg:hidden grid grid-cols-4 gap-1 p-1 rounded-lg bg-slate-200/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-        {(
-          [
-            { id: 'ladder', label: `Ladder (${rankedLadder.length})` },
-            {
-              id: 'challenges',
-              label: `Callouts (${activeChallengesCount})`,
-            },
-            { id: 'h2h', label: 'H2H Odds' },
-            { id: 'leaders', label: 'Top 3' },
-          ] as const
-        ).map((tab) => {
-          const active = mobileSection === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setMobileSection(tab.id)}
-              className={`relative min-h-[38px] px-1.5 py-1.5 rounded-md text-[11px] font-bold transition-colors cursor-pointer truncate ${
-                active
-                  ? 'text-white dark:text-slate-900'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {active && (
-                <motion.div
-                  layoutId="ladder-mobile-section-pill"
-                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                  className="absolute inset-0 rounded-md bg-slate-900 dark:bg-white shadow-xs"
-                />
-              )}
-              <span className="relative z-10 truncate">{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* Unified Segmented Pill Switcher (keeps desktop & mobile focused on one calm workspace at a time) */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <span className="eyebrow">Club standings & matchups</span>
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-white mt-0.5">
+            Official Elo ladder
+          </h2>
+        </div>
+
+        <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-full bg-paper-deep/70 dark:bg-slate-900 border border-[var(--hairline)]">
+          {(
+            [
+              { id: 'ladder', label: `Standings (${rankedLadder.length})` },
+              {
+                id: 'challenges',
+                label: `Challenges (${activeChallengesCount})`,
+              },
+              { id: 'h2h', label: 'Head-to-head' },
+              { id: 'leaders', label: 'Season leaders' },
+            ] as const
+          ).map((tab) => {
+            const active = mobileSection === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setMobileSection(tab.id)}
+                className={`relative px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                  active
+                    ? 'text-white dark:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {active && (
+                  <motion.div
+                    layoutId="ladder-mobile-section-pill"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    className="absolute inset-0 rounded-full bg-slate-900 dark:bg-court shadow-xs"
+                  />
+                )}
+                <span className="relative z-10">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 3 Leaderboard Cards: Most Wins, Best Win %, Most Improved This Month */}
       <div
         className={`${
-          mobileSection === 'leaders' ? 'grid' : 'hidden lg:grid'
-        } grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4`}
+          mobileSection === 'leaders' ? 'grid' : 'hidden'
+        } grid-cols-1 md:grid-cols-3 gap-4`}
       >
         {/* Most Wins */}
         <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-5">
@@ -626,23 +635,23 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       <div
         className={`${
           mobileSection === 'h2h' || mobileSection === 'challenges'
-            ? 'grid'
-            : 'hidden lg:grid'
-        } grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start`}
+            ? 'block'
+            : 'hidden'
+        }`}
       >
-        {/* LEFT (6 COLS): HEAD-TO-HEAD RIVALRY & WIN PROBABILITY CALCULATOR */}
+        {/* HEAD-TO-HEAD RIVALRY & WIN PROBABILITY CALCULATOR */}
         <div
           className={`${
-            mobileSection === 'h2h' ? 'block' : 'hidden lg:block'
-          } lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4 sm:space-y-5`}
+            mobileSection === 'h2h' ? 'block' : 'hidden'
+          } rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-7 space-y-4 sm:space-y-5`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--hairline)]">
             <div>
-              <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
-                Matchup Scouting & K=32 Elo Stakes
+              <div className="text-[11px] font-mono-num uppercase tracking-wider font-medium text-slate-500 dark:text-slate-400">
+                Matchup scouting · K=32 Elo stakes
               </div>
-              <h3 className="font-display text-xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
-                Head-to-Head & Win Probability
+              <h3 className="font-display text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                Head-to-head & win probability
               </h3>
             </div>
             {playerA && playerB && playerA.id !== playerB.id && (
@@ -896,19 +905,19 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
           )}
         </div>
 
-        {/* RIGHT (6 COLS): LIVE CLUB RIVALRY CHALLENGE BOARD */}
+        {/* LIVE CLUB RIVALRY CHALLENGE BOARD */}
         <div
           className={`${
-            mobileSection === 'challenges' ? 'block' : 'hidden lg:block'
-          } lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4 sm:space-y-5`}
+            mobileSection === 'challenges' ? 'block' : 'hidden'
+          } rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-7 space-y-4 sm:space-y-5`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--hairline)]">
             <div>
-              <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
-                Official Ladder Callouts · {activeChallengesCount} Active
+              <div className="text-[11px] font-mono-num uppercase tracking-wider font-medium text-slate-500 dark:text-slate-400">
+                Official ladder callouts · {activeChallengesCount} active
               </div>
-              <h3 className="font-display text-xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
-                Player Challenge Board
+              <h3 className="font-display text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                Player challenge board
               </h3>
             </div>
 
@@ -1342,17 +1351,17 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       {/* Main Club Ladder Table */}
       <div
         className={`${
-          mobileSection === 'ladder' ? 'block' : 'hidden lg:block'
-        } rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6`}
+          mobileSection === 'ladder' ? 'block' : 'hidden'
+        } rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-7`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5">
           <div>
-            <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Official BNHS Elo Club Ladder
-            </h2>
+            <h3 className="font-display text-lg sm:text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+              Standings & player metrics
+            </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Tap any player row to inspect their unlocked club badges,
-              streak milestones & recent matches
+              Select any player row to inspect their unlocked club badges,
+              streak milestones, and recent matches
             </p>
           </div>
 
@@ -2299,7 +2308,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       {/* Match History Log */}
       <div
         className={`${
-          mobileSection === 'ladder' ? 'block' : 'hidden lg:block'
+          mobileSection === 'ladder' ? 'block' : 'hidden'
         } rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6`}
       >
         <div className="flex items-center justify-between mb-4">

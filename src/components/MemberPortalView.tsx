@@ -31,7 +31,6 @@ import {
   getNextUpcomingEvent,
   processImageFileToDataUrl,
 } from '../utils/clubUtils';
-import { BOBCATS_LOGO_URL } from './WelcomeScreen';
 import { LadderStatsView } from './LadderStatsView';
 import { TournamentsView } from './TournamentsView';
 import { CalendarEventsView } from './CalendarEventsView';
@@ -49,7 +48,6 @@ interface MemberPortalViewProps {
   activeTab: NavTab;
   darkMode: boolean;
   linkedMemberId: string;
-  onSelectLinkedMember: (memberId: string) => void;
   onSignInBySchoolId: (
     schoolId: string
   ) => Promise<Member | null> | Member | null;
@@ -60,7 +58,7 @@ interface MemberPortalViewProps {
     skillLevel: SkillLevel;
     paddleNotes?: string;
     photoUrl?: string;
-  }) => Member;
+  }) => Member | null;
   onCreateChallenge: (payload: {
     challengerId: string;
     opponentId: string;
@@ -83,7 +81,6 @@ interface MemberPortalViewProps {
   onToggleDarkMode: () => void;
   onRequestOfficerLogin: () => void;
   onShowWelcomeScreen: () => void;
-  onOpenCommandPalette?: () => void;
 }
 
 const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -173,7 +170,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   onToggleDarkMode,
   onRequestOfficerLogin,
   onShowWelcomeScreen,
-  onOpenCommandPalette,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAccountTab, setMenuAccountTab] = useState<
@@ -207,21 +203,18 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   const [now, setNow] = useState<Date>(() => new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
+    const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
   }, []);
 
-  const currentNav =
-    MEMBER_NAV_TABS.find((t) => t.id === activeTab) || MEMBER_NAV_TABS[0];
-
-  // Resolve the active member profile strictly from the signed-in member ID / School ID
+  // Resolve the active member profile strictly from the signed-in member with a valid School ID
   const activeMember = useMemo(() => {
     if (!linkedMemberId) return null;
     const byId = data.members.find(
       (m) =>
-        m.id === linkedMemberId ||
-        (m.schoolId &&
-          m.schoolId.trim().toLowerCase() ===
+        Boolean(m.schoolId && m.schoolId.trim()) &&
+        (m.id === linkedMemberId ||
+          m.schoolId!.trim().toLowerCase() ===
             linkedMemberId.trim().toLowerCase())
     );
     return byId || null;
@@ -411,7 +404,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       return;
     }
 
-    onRegisterMember({
+    const created = onRegisterMember({
       schoolId: cleanId,
       name: cleanName,
       grade: regGrade,
@@ -419,6 +412,13 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       paddleNotes: regPaddle.trim() || 'Personal Paddle',
       photoUrl: regPhoto,
     });
+
+    if (!created) {
+      setRegError(
+        'An account with this School ID or name already exists. Please sign in with your School ID.'
+      );
+      return;
+    }
 
     setRegSchoolId('');
     setRegName('');
@@ -485,80 +485,76 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
         )}
 
       {/* ================================================================= */}
-      {/* STICKY MASTHEAD + FLAT VARSITY NAVIGATION                         */}
+      {/* SINGLE-ROW ENODE FROSTED HEADER + CENTERED PILL NAVIGATION        */}
       {/* ================================================================= */}
       <header className="sticky top-0 z-30 bg-paper/80 dark:bg-slate-950/75 backdrop-blur-xl border-b border-[var(--hairline)] no-print">
         <div className="max-w-6xl w-full mx-auto px-4 sm:px-6">
-          {/* Upper Row: Brand + Quick Actions */}
-          <div className="h-14 flex items-center justify-between gap-3">
-            {/* Brand Identity */}
-            <button
-              type="button"
-              onClick={() => onNavigate('home')}
-              className="flex items-center gap-3 text-left cursor-pointer shrink-0"
-            >
-              <div className="bg-white px-2 py-1 rounded border border-slate-200 flex items-center justify-center">
-                <img
-                  src={BOBCATS_LOGO_URL}
-                  alt="Byron Nelson Bobcats"
-                  className="h-6 w-auto object-contain"
-                />
-              </div>
-              <div>
-                <div className="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none">
-                  {data.settings.clubName}
-                </div>
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-                  Member Athlete Portal
-                </div>
-              </div>
-            </button>
-
-            {/* Right Controls */}
-            <div className="flex items-center gap-2">
-              {onOpenCommandPalette && (
-                <button
-                  type="button"
-                  onClick={onOpenCommandPalette}
-                  className="co-interactive-btn hidden md:inline-flex min-h-[36px] px-2.5 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-mono-num font-semibold text-slate-500 dark:text-slate-400 items-center gap-1.5 cursor-pointer transition-colors shrink-0"
-                  title="Quick Command & Athlete Search (⌘K)"
-                >
-                  <span>Search</span>
-                  <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-[10px] text-slate-700 dark:text-slate-300">
-                    ⌘K
-                  </kbd>
-                </button>
-              )}
-
+          <div className="h-16 flex items-center justify-between gap-3">
+            {/* Brand Identity (No top-bar logo) */}
+            <div className="flex items-center gap-3 shrink-0">
               <button
                 type="button"
-                onClick={() => {
-                  setMenuAccountTab('signin');
-                  setMenuOpen(true);
-                }}
-                className="co-interactive-btn hidden sm:inline-flex min-h-[36px] px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                onClick={() => onNavigate('home')}
+                className="flex items-center gap-2.5 text-left cursor-pointer"
               >
-                {activeMember ? (
-                  <span className="font-mono-num">
-                    {activeMember.name.split(' ')[0]} · ID:{' '}
-                    {activeMember.schoolId || activeMember.id}
-                  </span>
-                ) : (
-                  <span>School ID Sign In / Join</span>
-                )}
+                <span className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                  {data.settings.clubName}
+                </span>
               </button>
+              <button
+                type="button"
+                onClick={onShowWelcomeScreen}
+                className="hidden lg:inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white border border-[var(--hairline)] bg-white/60 dark:bg-white/[0.03] transition-colors cursor-pointer"
+              >
+                Welcome page
+              </button>
+            </div>
 
+            {/* Center: Desktop Pill Navigation */}
+            <nav className="hidden md:flex items-center gap-1 p-1 rounded-full bg-slate-100/80 dark:bg-slate-900/80 border border-[var(--hairline)]">
+              {MEMBER_NAV_TABS.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => onNavigate(tab.id)}
+                    className={`relative px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                      isActive
+                        ? 'text-white dark:text-slate-900'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="member-desktop-nav-underline"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 420,
+                          damping: 34,
+                        }}
+                        className="absolute inset-0 rounded-full bg-slate-900 dark:bg-court"
+                      />
+                    )}
+                    <span className="relative z-10">{tab.shortLabel}</span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Right Controls */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Dark/Light Mode Button */}
               <button
                 type="button"
                 onClick={onToggleDarkMode}
                 aria-label="Toggle color theme"
-                className="co-interactive-btn w-9 h-9 rounded-md bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                className="w-9 h-9 rounded-full hover:bg-slate-900/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 flex items-center justify-center cursor-pointer transition-colors shrink-0"
               >
                 {darkMode ? (
-                  <Sun className="w-4 h-4 text-amber-400" />
+                  <Sun className="w-4 h-4" />
                 ) : (
-                  <Moon className="w-4 h-4 text-slate-600" />
+                  <Moon className="w-4 h-4" />
                 )}
               </button>
 
@@ -567,16 +563,15 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="min-h-[36px] px-3 py-1.5 rounded-md bg-slate-900 text-white sm:bg-slate-50 sm:text-slate-800 hover:bg-slate-800 sm:hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 border border-slate-800 sm:border-slate-200 dark:border-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                  className="pill-btn !min-h-[36px] !px-3.5 !text-xs"
                 >
-                  <span className="sm:hidden">
+                  <span>
                     {activeMember
                       ? activeMember.name.split(' ')[0]
-                      : 'Sign In / Menu'}
+                      : 'Sign in'}
                   </span>
-                  <span className="hidden sm:inline">Menu</span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                    className={`w-3.5 h-3.5 opacity-75 transition-transform duration-200 ${
                       menuOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -597,20 +592,13 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] shadow-lg p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
                       >
                         {/* Header inside Dropdown */}
-                        <div className="p-3 rounded-md bg-slate-900 text-white border border-slate-800 flex items-center gap-3">
-                          <div className="bg-white px-2 py-1 rounded shrink-0">
-                            <img
-                              src={BOBCATS_LOGO_URL}
-                              alt="Byron Nelson Bobcats"
-                              className="h-5 w-auto object-contain"
-                            />
-                          </div>
+                        <div className="p-3 rounded-xl bg-paper-subtle dark:bg-slate-950 border border-[var(--hairline)] flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-xs font-bold truncate">
+                            <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                               {data.settings.clubName}
                             </div>
-                            <div className="text-[11px] text-slate-400 truncate">
-                              Member Account, Database & Navigation
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                              Member Account & Navigation
                             </div>
                           </div>
                         </div>
@@ -687,9 +675,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                                       )}
                                       <div className="min-w-0">
                                         <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 font-mono-num">
-                                          ID:{' '}
-                                          {activeMember.schoolId ||
-                                            activeMember.id}
+                                          Verified School ID
                                         </div>
                                         <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
                                           {activeMember.name}
@@ -708,9 +694,9 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                                         setSchoolIdInput('');
                                       }}
                                       className="px-2.5 py-1.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-300 cursor-pointer shrink-0"
-                                      title="Sign out or switch School ID"
+                                      title="Sign out"
                                     >
-                                      Switch ID
+                                      Sign out
                                     </button>
                                   </div>
 
@@ -1084,48 +1070,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   )}
                 </AnimatePresence>
               </div>
-
-              {/* Officer Sign In Button (Desktop/Tablet only; on Mobile it lives inside the Menu) */}
-              <button
-                type="button"
-                onClick={onRequestOfficerLogin}
-                className="hidden sm:inline-flex min-h-[36px] px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 items-center"
-              >
-                Officer Sign In
-              </button>
             </div>
-          </div>
-
-          {/* Lower Row: Flat Underline Section Bar with Spring layoutId (Desktop/Tablet) */}
-          <div className="hidden md:flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-200 dark:border-slate-800">
-            {MEMBER_NAV_TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => onNavigate(tab.id)}
-                  className={`relative px-3.5 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    isActive
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                  }`}
-                >
-                  {tab.shortLabel}
-                  {isActive && (
-                    <motion.div
-                      layoutId="member-desktop-nav-underline"
-                      transition={{
-                        type: 'spring',
-                        stiffness: 420,
-                        damping: 32,
-                      }}
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"
-                    />
-                  )}
-                </button>
-              );
-            })}
           </div>
         </div>
       </header>
@@ -1133,7 +1078,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       {/* ================================================================= */}
       {/* MEMBER PORTAL CONTENT VIEWPORT                                    */}
       {/* ================================================================= */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -1142,130 +1087,102 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.28, ease: SMOOTH_EASE }}
           >
-            {/* Contextual Back Bar on Sub-Views */}
-            {activeTab !== 'home' && (
-              <div className="mb-4 sm:mb-6 flex items-center justify-between gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2.5 sm:px-4 sm:py-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('home')}
-                    className="co-interactive-btn px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors shrink-0"
-                  >
-                    ← Home
-                  </button>
-                  <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
-                  <div className="min-w-0">
-                    <h1 className="font-display text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-none truncate">
-                      {currentNav.label}
-                    </h1>
-                    <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                      {currentNav.description}
-                    </p>
-                  </div>
-                </div>
-
-                {activeMember ? (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="hidden sm:inline text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      {activeMember.name}{' '}
-                      <span className="font-mono-num text-blue-600 dark:text-blue-400">
-                        (ID: {activeMember.schoolId || activeMember.id})
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuAccountTab('signin');
-                        setMenuOpen(true);
-                      }}
-                      className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
-                    >
-                      Switch ID
-                    </button>
-                  </div>
-                ) : (
-                  activeTab !== 'activity' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuAccountTab('signin');
-                        setMenuOpen(true);
-                      }}
-                      className="px-2.5 sm:px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer shrink-0"
-                    >
-                      Sign In
-                    </button>
-                  )
-                )}
-              </div>
-            )}
-
             {/* ============================================================= */}
-            {/* OVERVIEW TAB: WELCOME BANNER + QUICK MOBILE NAVIGATION        */}
+            {/* OVERVIEW TAB: COZY ENODE HERO + QUICK MODULE CARDS            */}
             {/* ============================================================= */}
             {activeTab === 'home' && (
-              <div className="enode-stagger space-y-4 sm:space-y-6">
-                <div className="rounded-2xl bg-slate-900 text-white border border-slate-800 p-5 sm:p-8 relative overflow-hidden">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6">
-                    <div className="space-y-2.5 sm:space-y-3 max-w-xl">
-                      <div className="text-[11px] font-mono-num uppercase tracking-widest text-amber-400 font-semibold">
-                        {data.settings.schoolName} · Official Member Hub
+              <div className="enode-stagger space-y-6 sm:space-y-8">
+                <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 sm:p-10">
+                  <div className="dot-grid absolute inset-0 pointer-events-none" />
+                  <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-court/45 dark:bg-court/10 blur-3xl pointer-events-none" />
+
+                  <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                    <div className="space-y-4 max-w-xl">
+                      <div className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border border-[var(--hairline)] bg-paper/80 dark:bg-white/[0.04] text-xs text-slate-600 dark:text-slate-300">
+                        <span className="px-2 py-0.5 rounded-full bg-court text-slate-900 font-medium">
+                          {data.settings.schoolName}
+                        </span>
+                        <span>Member portal</span>
                       </div>
 
-                      <h1 className="font-display text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-none">
+                      <h1 className="font-display text-3xl sm:text-5xl font-semibold tracking-tight leading-[1.05] text-slate-900 dark:text-white">
                         <MaskedTextReveal>
-                          Welcome to {data.settings.clubName}
+                          {activeMember
+                            ? `Welcome back, ${activeMember.name.split(' ')[0]}.`
+                            : `Welcome to ${data.settings.clubName}.`}
                         </MaskedTextReveal>
                       </h1>
 
                       {hasScheduledEvents ? (
-                        <div className="space-y-1 pt-1">
-                          <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                            Next Club Session: {nextEvent.title}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-y-1 gap-x-2 text-xs sm:text-sm text-slate-300 font-mono-num">
-                            <span className="font-bold text-white">
-                              {nextEvent.date}
-                            </span>
-                            <span aria-hidden="true">·</span>
-                            <span>{nextEvent.time}</span>
-                            <span aria-hidden="true">·</span>
-                            <span>{nextEvent.location}</span>
-                          </div>
-                        </div>
+                        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed">
+                          Next session:{' '}
+                          <span className="font-medium text-slate-900 dark:text-white">
+                            {nextEvent.title}
+                          </span>{' '}
+                          on {nextEvent.date} · {nextEvent.time} ({nextEvent.location}).
+                        </p>
                       ) : (
-                        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
+                        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg">
                           Sign in with your School ID or add yourself to the
-                          club database to track your matches, attendance, and
-                          club achievement badges.
+                          roster to track your matches, attendance, and
+                          achievement badges.
                         </p>
                       )}
+
+                      <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => onNavigate('activity')}
+                          className="pill-btn !min-h-[40px] !px-4 !text-xs"
+                        >
+                          <span>
+                            {activeMember
+                              ? 'View my activity'
+                              : 'Sign in with School ID'}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onNavigate('ladder')}
+                          className="pill-btn-ghost !min-h-[40px] !px-4 !text-xs"
+                        >
+                          <span>Explore standings</span>
+                        </button>
+                      </div>
                     </div>
 
                     {hasScheduledEvents && (
-                      <div className="grid grid-cols-3 gap-2 w-full sm:w-auto shrink-0">
-                        <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
-                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums leading-none">
-                            <AnimatedNumber value={days} padStart={2} />
-                          </div>
-                          <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
-                            Days
-                          </div>
+                      <div className="glass-card rounded-2xl p-5 sm:p-6 shrink-0 min-w-[240px] space-y-3">
+                        <div className="flex items-center justify-between text-xs text-slate-500">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="live-dot" /> Next session in
+                          </span>
+                          <span className="font-mono-num">{nextEvent.date}</span>
                         </div>
-                        <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
-                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums leading-none">
-                            <AnimatedNumber value={hours} padStart={2} />
+                        <div className="grid grid-cols-3 gap-2.5 text-center">
+                          <div className="p-2.5 rounded-xl bg-paper dark:bg-slate-950 border border-[var(--hairline)]">
+                            <div className="font-mono-num text-2xl font-semibold text-slate-900 dark:text-white tabular-nums leading-none">
+                              <AnimatedNumber value={days} padStart={2} />
+                            </div>
+                            <div className="text-[11px] text-slate-500 mt-1">
+                              Days
+                            </div>
                           </div>
-                          <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
-                            Hrs
+                          <div className="p-2.5 rounded-xl bg-paper dark:bg-slate-950 border border-[var(--hairline)]">
+                            <div className="font-mono-num text-2xl font-semibold text-slate-900 dark:text-white tabular-nums leading-none">
+                              <AnimatedNumber value={hours} padStart={2} />
+                            </div>
+                            <div className="text-[11px] text-slate-500 mt-1">
+                              Hours
+                            </div>
                           </div>
-                        </div>
-                        <div className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-md bg-slate-950 border border-slate-800 text-center min-w-[60px]">
-                          <div className="font-mono-num text-xl sm:text-2xl font-bold text-amber-400 tabular-nums leading-none">
-                            <AnimatedNumber value={minutes} padStart={2} />
-                          </div>
-                          <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400 mt-1">
-                            Min
+                          <div className="p-2.5 rounded-xl bg-court/60 dark:bg-court/15 border border-[var(--hairline)]">
+                            <div className="font-mono-num text-2xl font-semibold text-slate-900 dark:text-court tabular-nums leading-none">
+                              <AnimatedNumber value={minutes} padStart={2} />
+                            </div>
+                            <div className="text-[11px] text-slate-700 dark:text-slate-300 mt-1">
+                              Min
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1273,22 +1190,22 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   </div>
                 </div>
 
-                {/* Quick 2x2 Action Strip for Mobile & Desktop */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+                {/* Cozy 4-Card Section Strip */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <button
                     type="button"
                     onClick={() => onNavigate('activity')}
-                    className="co-interactive-btn p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
-                    <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
-                      01 · ATHLETE PROFILE
+                    <div className="text-xs font-medium text-olive dark:text-court">
+                      Athlete profile
                     </div>
-                    <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
-                      My Activity & Badges
+                    <div className="font-display text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+                      My activity & badges
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {activeMember
-                        ? `${unlockedAchievementsCount}/10 badges unlocked`
+                        ? `${unlockedAchievementsCount} of 10 badges unlocked`
                         : 'Sign in with School ID'}
                     </div>
                   </button>
@@ -1296,16 +1213,16 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('ladder')}
-                    className="co-interactive-btn p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
-                    <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
-                      02 · STANDINGS
+                    <div className="text-xs font-medium text-olive dark:text-court">
+                      Live Elo ladder
                     </div>
-                    <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
-                      Ladder & Callouts
+                    <div className="font-display text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+                      Standings & callouts
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono-num truncate">
-                      <AnimatedNumber value={data.members.length} /> players ·{' '}
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num truncate">
+                      <AnimatedNumber value={data.members.length} /> ranked ·{' '}
                       <AnimatedNumber
                         value={
                           (data.challenges || []).filter(
@@ -1314,22 +1231,22 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           ).length
                         }
                       />{' '}
-                      active
+                      active callouts
                     </div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => onNavigate('tournaments')}
-                    className="co-interactive-btn p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
-                    <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
-                      03 · BRACKETS
+                    <div className="text-xs font-medium text-olive dark:text-court">
+                      In-club & regional
                     </div>
-                    <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
-                      Club Tournaments
+                    <div className="font-display text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+                      Tournament brackets
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       <AnimatedNumber value={data.clubTournaments.length} />{' '}
                       brackets & pools
                     </div>
@@ -1338,21 +1255,21 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('calendar')}
-                    className="co-interactive-btn p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
-                    <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400">
-                      04 · SCHEDULE
+                    <div className="text-xs font-medium text-olive dark:text-court">
+                      Court schedule
                     </div>
-                    <div className="font-display text-base sm:text-lg font-bold uppercase text-slate-900 dark:text-white leading-tight">
-                      Practice Calendar
+                    <div className="font-display text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+                      Practice calendar
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      Dates, times & courts
+                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      Dates, times & locations
                     </div>
                   </button>
                 </div>
 
-                {/* Interactive Club Pulse: Weekly MVP Voting, Club Polls & Live Activity Feed with Reactions */}
+                {/* Club Pulse: Recent Activity & Polls */}
                 <ClubInteractivePulse
                   data={data}
                   activeMember={activeMember}
@@ -1773,10 +1690,10 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       </div>
 
                       {/* Segmented Activity Filter */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-scroll pt-1 border-t border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar touch-scroll pt-3 border-t border-[var(--hairline)]">
                         {(
                           [
-                            { id: 'all', label: 'All Activity' },
+                            { id: 'all', label: 'All activity' },
                             {
                               id: 'achievements',
                               label: `Badges (${unlockedAchievementsCount}/${myAchievements.length})`,
@@ -1797,20 +1714,34 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                               label: `Tasks (${myTasks.length})`,
                             },
                           ] as const
-                        ).map((tab) => (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => setActivityFilter(tab.id)}
-                            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-                              activityFilter === tab.id
-                                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                            }`}
-                          >
-                            {tab.label}
-                          </button>
-                        ))}
+                        ).map((tab) => {
+                          const isSelected = activityFilter === tab.id;
+                          return (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setActivityFilter(tab.id)}
+                              className={`relative px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                                isSelected
+                                  ? 'text-white dark:text-slate-900'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              {isSelected && (
+                                <motion.div
+                                  layoutId="member-activity-filter-pill"
+                                  transition={{
+                                    type: 'spring',
+                                    stiffness: 420,
+                                    damping: 34,
+                                  }}
+                                  className="absolute inset-0 rounded-full bg-slate-900 dark:bg-court"
+                                />
+                              )}
+                              <span className="relative z-10">{tab.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 

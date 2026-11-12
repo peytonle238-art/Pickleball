@@ -9,15 +9,16 @@ import {
 /**
  * Enode-inspired (enode.com) motion primitives.
  *
- * The language here is deliberately calm: soft blur-fade reveals, slow idle
- * floats, odometer-style digits and auto-advancing tabs. Everything degrades
- * to static content when the user prefers reduced motion.
+ * Designed for zero layout shift and butter-smooth scrolling:
+ * - No persistent `filter: blur()` compositing layers on scroll containers
+ * - No height-accordion animations that fight browser scroll anchoring
+ * - Scroll-threshold hysteresis (`useScrolled`) to prevent top-of-page oscillation
  */
 
 export const ENODE_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 /* ------------------------------------------------------------------------- */
-/* Reveal — in-view blur + fade + rise                                        */
+/* Reveal — in-view fade + rise (transform/opacity only for 120fps scroll)    */
 /* ------------------------------------------------------------------------- */
 export const Reveal: React.FC<{
   children: React.ReactNode;
@@ -25,7 +26,7 @@ export const Reveal: React.FC<{
   y?: number;
   className?: string;
   as?: 'div' | 'section' | 'li' | 'span';
-}> = ({ children, delay = 0, y = 24, className = '', as = 'div' }) => {
+}> = ({ children, delay = 0, y = 18, className = '', as = 'div' }) => {
   const reduce = useReducedMotion();
   const MotionTag = motion[as] as typeof motion.div;
   if (reduce) {
@@ -35,10 +36,10 @@ export const Reveal: React.FC<{
   return (
     <MotionTag
       className={className}
-      initial={{ opacity: 0, y, filter: 'blur(8px)' }}
-      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      viewport={{ once: true, margin: '0px 0px -10% 0px' }}
-      transition={{ duration: 0.9, delay, ease: ENODE_EASE }}
+      initial={{ opacity: 0, y }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '0px 0px -8% 0px' }}
+      transition={{ duration: 0.75, delay, ease: ENODE_EASE }}
     >
       {children}
     </MotionTag>
@@ -51,7 +52,7 @@ export const RevealGroup: React.FC<{
   className?: string;
   stagger?: number;
   delay?: number;
-}> = ({ children, className = '', stagger = 0.08, delay = 0 }) => {
+}> = ({ children, className = '', stagger = 0.07, delay = 0 }) => {
   const reduce = useReducedMotion();
   if (reduce) return <div className={className}>{children}</div>;
   return (
@@ -59,7 +60,7 @@ export const RevealGroup: React.FC<{
       className={className}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+      viewport={{ once: true, margin: '0px 0px -8% 0px' }}
       variants={{
         hidden: {},
         show: { transition: { staggerChildren: stagger, delayChildren: delay } },
@@ -77,12 +78,11 @@ export const RevealItem: React.FC<{
   <motion.div
     className={className}
     variants={{
-      hidden: { opacity: 0, y: 20, filter: 'blur(6px)' },
+      hidden: { opacity: 0, y: 16 },
       show: {
         opacity: 1,
         y: 0,
-        filter: 'blur(0px)',
-        transition: { duration: 0.8, ease: ENODE_EASE },
+        transition: { duration: 0.7, ease: ENODE_EASE },
       },
     }}
   >
@@ -108,7 +108,7 @@ const RollingDigit: React.FC<{ digit: number; active: boolean; index: number }> 
       className="absolute left-0 top-0 flex flex-col"
       initial={false}
       animate={{ y: active ? `-${digit}em` : '0em' }}
-      transition={{ duration: 1.4, delay: index * 0.06, ease: ENODE_EASE }}
+      transition={{ duration: 1.25, delay: index * 0.05, ease: ENODE_EASE }}
     >
       {DIGITS.map((d) => (
         <span key={d} style={{ height: '1em', lineHeight: 1 }} className="block text-center">
@@ -128,7 +128,7 @@ export const RollingNumber: React.FC<{
   grouped?: boolean;
 }> = ({ value, prefix = '', suffix = '', className = '', grouped = true }) => {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: '0px 0px -10% 0px' });
+  const inView = useInView(ref, { once: true, margin: '0px 0px -8% 0px' });
   const reduce = useReducedMotion();
   const safe = Math.max(0, Math.round(value || 0));
   const text = grouped ? safe.toLocaleString('en-US') : String(safe);
@@ -181,23 +181,23 @@ export const FloatingWidget: React.FC<{
   /** Seconds for one float cycle. Varying this per card avoids lock-step. */
   period?: number;
   amplitude?: number;
-}> = ({ children, className = '', delay = 0, period = 6, amplitude = 5 }) => {
+}> = ({ children, className = '', delay = 0, period = 6, amplitude = 4 }) => {
   const reduce = useReducedMotion();
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 24, scale: 0.97, filter: 'blur(8px)' }}
-      animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-      transition={{ duration: 1.1, delay, ease: ENODE_EASE }}
+      initial={{ opacity: 0, y: 18, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.9, delay, ease: ENODE_EASE }}
     >
       <motion.div
         animate={reduce ? undefined : { y: [0, -amplitude, 0] }}
         transition={
           reduce
             ? undefined
-            : { duration: period, repeat: Infinity, ease: 'easeInOut', delay: delay + 1 }
+            : { duration: period, repeat: Infinity, ease: 'easeInOut', delay: delay + 0.8 }
         }
-        className="glass-card rounded-2xl"
+        className="glass-card rounded-2xl will-change-transform"
       >
         {children}
       </motion.div>
@@ -215,10 +215,10 @@ export const TickingValue: React.FC<{
     <AnimatePresence mode="popLayout" initial={false}>
       <motion.span
         key={valueKey}
-        initial={{ y: '60%', opacity: 0, filter: 'blur(4px)' }}
-        animate={{ y: '0%', opacity: 1, filter: 'blur(0px)' }}
-        exit={{ y: '-60%', opacity: 0, filter: 'blur(4px)' }}
-        transition={{ duration: 0.6, ease: ENODE_EASE }}
+        initial={{ y: '55%', opacity: 0 }}
+        animate={{ y: '0%', opacity: 1 }}
+        exit={{ y: '-55%', opacity: 0 }}
+        transition={{ duration: 0.5, ease: ENODE_EASE }}
         className="inline-block"
       >
         {value}
@@ -249,7 +249,7 @@ export const Marquee: React.FC<{
 );
 
 /* ------------------------------------------------------------------------- */
-/* AutoTabs — auto-advancing tabs with a filling progress bar                 */
+/* AutoTabs — auto-advancing tabs with constant height (zero scroll shift)    */
 /* ------------------------------------------------------------------------- */
 export interface AutoTabItem {
   id: string;
@@ -263,13 +263,13 @@ export const AutoTabs: React.FC<{
   items: AutoTabItem[];
   intervalMs?: number;
   layoutIdPrefix?: string;
-}> = ({ items, intervalMs = 6500, layoutIdPrefix = 'auto-tabs' }) => {
+}> = ({ items, intervalMs = 6500 }) => {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [cycle, setCycle] = useState(0);
   const reduce = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(containerRef, { margin: '-20% 0px -20% 0px' });
+  const inView = useInView(containerRef, { margin: '-15% 0px -15% 0px' });
 
   const running = !paused && !reduce && inView && items.length > 1;
 
@@ -298,7 +298,7 @@ export const AutoTabs: React.FC<{
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
     >
-      <div className="lg:col-span-5 flex flex-col" role="tablist" aria-orientation="vertical">
+      <div className="lg:col-span-5 flex flex-col justify-between" role="tablist" aria-orientation="vertical">
         {items.map((item, i) => {
           const isActive = i === active;
           return (
@@ -308,14 +308,14 @@ export const AutoTabs: React.FC<{
               role="tab"
               aria-selected={isActive}
               onClick={() => select(i)}
-              className={`relative text-left py-5 pl-5 pr-3 border-l transition-colors cursor-pointer ${
+              className={`relative text-left py-4 pl-5 pr-4 rounded-r-2xl transition-colors cursor-pointer ${
                 isActive
-                  ? 'border-transparent'
-                  : 'border-[var(--hairline)] hover:bg-white/50 dark:hover:bg-white/[0.02]'
+                  ? 'bg-white/75 dark:bg-white/[0.04]'
+                  : 'hover:bg-white/40 dark:hover:bg-white/[0.02]'
               }`}
             >
               {/* progress rail */}
-              <span className="absolute left-[-1px] top-0 bottom-0 w-[2px] bg-[var(--hairline)] overflow-hidden">
+              <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-[var(--hairline)] overflow-hidden">
                 {isActive && (
                   <motion.span
                     key={`${item.id}-${cycle}`}
@@ -338,25 +338,21 @@ export const AutoTabs: React.FC<{
                 {item.label}
               </div>
               <div
-                className={`text-lg font-semibold tracking-tight transition-colors ${
+                className={`text-base sm:text-lg font-semibold tracking-tight transition-colors ${
                   isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500'
                 }`}
               >
                 {item.title}
               </div>
-              <AnimatePresence initial={false}>
-                {isActive && (
-                  <motion.p
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.5, ease: ENODE_EASE }}
-                    className="overflow-hidden text-sm text-slate-600 dark:text-slate-400 leading-relaxed"
-                  >
-                    <span className="block pt-2 max-w-sm">{item.description}</span>
-                  </motion.p>
-                )}
-              </AnimatePresence>
+              <p
+                className={`text-xs sm:text-sm leading-relaxed pt-1.5 max-w-sm transition-colors ${
+                  isActive
+                    ? 'text-slate-600 dark:text-slate-300'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`}
+              >
+                {item.description}
+              </p>
             </button>
           );
         })}
@@ -367,10 +363,10 @@ export const AutoTabs: React.FC<{
         <AnimatePresence mode="wait">
           <motion.div
             key={current.id}
-            initial={{ opacity: 0, y: 16, scale: 0.98, filter: 'blur(6px)' }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -10, scale: 0.99, filter: 'blur(6px)' }}
-            transition={{ duration: 0.55, ease: ENODE_EASE }}
+            initial={{ opacity: 0, y: 12, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={{ duration: 0.45, ease: ENODE_EASE }}
             className="relative w-full max-w-md"
           >
             {current.panel}
@@ -382,15 +378,32 @@ export const AutoTabs: React.FC<{
 };
 
 /* ------------------------------------------------------------------------- */
-/* useScrolled — true once the page has scrolled past a threshold             */
+/* useScrolled — hysteresis-protected scroll detector (no threshold jitter)   */
 /* ------------------------------------------------------------------------- */
-export function useScrolled(threshold = 16): boolean {
+export function useScrolled(enterThreshold = 24, exitThreshold = 8): boolean {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > threshold);
-    onScroll();
+    let rafId = 0;
+    const update = () => {
+      rafId = 0;
+      const y = window.scrollY;
+      setScrolled((prev) => {
+        if (!prev && y > enterThreshold) return true;
+        if (prev && y < exitThreshold) return false;
+        return prev;
+      });
+    };
+    const onScroll = () => {
+      if (!rafId) {
+        rafId = window.requestAnimationFrame(update);
+      }
+    };
+    update();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [threshold]);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
+  }, [enterThreshold, exitThreshold]);
   return scrolled;
 }

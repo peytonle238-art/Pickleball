@@ -159,128 +159,129 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       {/* Hero Section & Next Practice Countdown */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Main Club Banner (7 cols) */}
-        <div className="lg:col-span-7 rounded-2xl bg-slate-900 text-white relative overflow-hidden p-5 sm:p-7 flex flex-col justify-between border border-slate-800">
-          <div className="space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-400">
-              <span className="text-amber-400 font-semibold">
-                {settings.schoolName}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span>Official Club Portal</span>
+        <div className="lg:col-span-7 relative rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-[var(--hairline)] shadow-[0_24px_60px_-30px_rgba(28,27,24,0.12)] overflow-hidden p-6 sm:p-8 flex flex-col justify-between">
+          <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" />
+          <div className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-court/35 blur-3xl" />
+
+          <div className="relative space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-court/60 dark:bg-court/15 border border-court-deep/20 text-[12px] font-medium text-slate-800 dark:text-court">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>{settings.schoolName} · Officer Console</span>
             </div>
 
-            <h2 className="font-display text-2xl sm:text-4xl font-bold tracking-tight leading-tight text-white">
+            <h2 className="font-display text-2xl sm:text-4xl font-semibold tracking-[-0.03em] leading-[1.08] text-slate-900 dark:text-white">
               <MaskedTextReveal>{settings.clubName}</MaskedTextReveal>
             </h2>
 
-            <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
-              {settings.schoolName} — Track official ladder standings, tournament
-              brackets, practice check-ins, and live court scores.
+            <p className="text-slate-600 dark:text-slate-400 text-sm max-w-xl leading-relaxed">
+              Manage official Elo ladder standings, tournament brackets,
+              practice check-ins, and live court scores from one calm workspace.
             </p>
           </div>
 
-          <div className="pt-5 mt-5 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
+          <div className="relative pt-6 mt-6 border-t border-[var(--hairline)] flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-5 sm:gap-7">
               <div>
-                <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
+                <div className="font-mono-num text-xl sm:text-2xl font-semibold text-slate-900 dark:text-white tabular-nums">
                   <RollingNumber value={members.length} />
                 </div>
-                <div className="text-[11px] text-slate-400">Active Roster</div>
+                <div className="text-[11px] text-slate-500">Active roster</div>
               </div>
-              <div className="h-7 w-px bg-slate-800" />
+              <div className="h-7 w-px bg-[var(--hairline)]" />
               <div>
-                <div className="font-mono-num text-xl sm:text-2xl font-bold text-amber-400 tabular-nums">
+                <div className="font-mono-num text-xl sm:text-2xl font-semibold text-slate-900 dark:text-white tabular-nums">
                   <RollingNumber value={matches.length} />
                 </div>
-                <div className="text-[11px] text-slate-400">Matches Played</div>
+                <div className="text-[11px] text-slate-500">Matches logged</div>
               </div>
-              <div className="h-7 w-px bg-slate-800" />
+              <div className="h-7 w-px bg-[var(--hairline)]" />
               <div>
-                <div className="font-mono-num text-xl sm:text-2xl font-bold text-emerald-400 tabular-nums">
+                <div className="font-mono-num text-xl sm:text-2xl font-semibold text-emerald-700 dark:text-court tabular-nums">
                   <RollingNumber value={avgAttendance} suffix="%" />
                 </div>
-                <div className="text-[11px] text-slate-400">Avg Attendance</div>
+                <div className="text-[11px] text-slate-500">Avg attendance</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
               <button
                 onClick={() => onNavigate('scorekeeper')}
-                className="co-interactive-btn flex-1 sm:flex-initial min-h-[38px] px-4 py-2 rounded-md font-semibold text-xs bg-amber-400 hover:bg-amber-300 text-slate-950 transition-colors cursor-pointer"
+                className="pill-btn pill-btn-primary text-xs px-4 py-2.5 flex-1 sm:flex-initial justify-center cursor-pointer"
               >
-                Live Scoreboard
+                Live scoreboard
               </button>
               <button
                 onClick={() => onNavigate('ladder')}
-                className="co-interactive-btn flex-1 sm:flex-initial min-h-[38px] px-4 py-2 rounded-md font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-colors cursor-pointer"
+                className="pill-btn pill-btn-ghost text-xs px-4 py-2.5 flex-1 sm:flex-initial justify-center cursor-pointer"
               >
-                View Standings
+                View standings
               </button>
             </div>
           </div>
         </div>
 
         {/* Next Practice / Event Card (5 cols) */}
-        <div className="lg:col-span-5 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6 flex flex-col justify-between">
-          <div className="space-y-3">
+        <div className="lg:col-span-5 rounded-3xl bg-paper-subtle/90 dark:bg-slate-900/90 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 sm:p-7 flex flex-col justify-between">
+          <div className="space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                Next Scheduled Session
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-mono-num uppercase tracking-wider text-slate-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Next scheduled session
               </span>
               <button
                 onClick={() => onNavigate('calendar')}
-                className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:underline cursor-pointer"
+                className="text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
               >
-                Full Schedule →
+                Full schedule →
               </button>
             </div>
 
             <div>
-              <h3 className="font-display text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-snug">
+              <h3 className="font-display text-xl sm:text-2xl font-semibold tracking-tight text-slate-900 dark:text-white leading-snug">
                 {nextEventInfo.event.title}
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 {nextEventInfo.event.location} · {nextEventInfo.event.time}
               </p>
             </div>
 
             <div className="grid grid-cols-3 gap-2.5 pt-1">
-              <div className="rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 text-center">
-                <div className="font-mono-num text-xl font-bold text-slate-900 dark:text-white tabular-nums">
+              <div className="rounded-xl bg-white dark:bg-slate-950 border border-[var(--hairline)] p-2.5 text-center">
+                <div className="font-mono-num text-xl font-semibold text-slate-900 dark:text-white tabular-nums">
                   <AnimatedNumber value={countdown.days} />
                 </div>
-                <div className="text-[10px] font-medium uppercase text-slate-500">
+                <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400">
                   Days
                 </div>
               </div>
-              <div className="rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 text-center">
-                <div className="font-mono-num text-xl font-bold text-slate-900 dark:text-white tabular-nums">
+              <div className="rounded-xl bg-white dark:bg-slate-950 border border-[var(--hairline)] p-2.5 text-center">
+                <div className="font-mono-num text-xl font-semibold text-slate-900 dark:text-white tabular-nums">
                   <AnimatedNumber value={countdown.hours} />
                 </div>
-                <div className="text-[10px] font-medium uppercase text-slate-500">
+                <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-400">
                   Hours
                 </div>
               </div>
-              <div className="rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 text-center">
-                <div className="font-mono-num text-xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+              <div className="rounded-xl bg-court/45 dark:bg-court/15 border border-court-deep/20 p-2.5 text-center">
+                <div className="font-mono-num text-xl font-semibold text-slate-900 dark:text-court tabular-nums">
                   <AnimatedNumber value={countdown.minutes} />
                 </div>
-                <div className="text-[10px] font-medium uppercase text-slate-500">
-                  Minutes
+                <div className="text-[10px] font-mono-num uppercase tracking-wider text-slate-600 dark:text-court/80">
+                  Min
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
+          <div className="pt-4 mt-4 border-t border-[var(--hairline)] flex items-center justify-between gap-2 text-xs">
             <span className="text-slate-500 dark:text-slate-400 truncate">
               {nextEventInfo.event.description}
             </span>
             <button
               onClick={() => onNavigate('members')}
-              className="font-semibold text-blue-600 dark:text-blue-400 hover:underline shrink-0 cursor-pointer"
+              className="font-medium text-slate-900 dark:text-court hover:underline shrink-0 cursor-pointer"
             >
-              Check In →
+              Check in →
             </button>
           </div>
         </div>

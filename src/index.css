@@ -27,11 +27,24 @@
   --color-court: #e1fdae;
   --color-court-deep: #c9f27a;
   --color-olive: #5d770d;
+
+  /* Harmonize legacy blue accents across all portal views to Enode olive/lime */
+  --color-blue-50: #f5fce2;
+  --color-blue-100: #e9f9c2;
+  --color-blue-200: #d5f293;
+  --color-blue-300: #bde765;
+  --color-blue-400: #b7eb52;
+  --color-blue-500: #6f8f10;
+  --color-blue-600: #4b610b;
+  --color-blue-700: #3a4c08;
+  --color-blue-800: #2d3b07;
+  --color-blue-900: #232e06;
+  --color-blue-950: #151c03;
 }
 
 :root {
-  --club-primary: #1d4ed8;
-  --club-secondary: #eab308;
+  --club-primary: #1c1b18;
+  --club-secondary: #5d770d;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
   --hairline: rgba(28, 27, 24, 0.09);
@@ -406,23 +419,21 @@ body:has(.dark) {
 
 /* Mount-time staggered rise for dashboard sections */
 .enode-stagger > * {
-  animation: enode-rise 0.9s var(--ease-out-expo) both;
+  animation: enode-rise 0.65s var(--ease-out-expo) both;
 }
-.enode-stagger > *:nth-child(2) { animation-delay: 0.06s; }
-.enode-stagger > *:nth-child(3) { animation-delay: 0.12s; }
-.enode-stagger > *:nth-child(4) { animation-delay: 0.18s; }
-.enode-stagger > *:nth-child(5) { animation-delay: 0.24s; }
-.enode-stagger > *:nth-child(n + 6) { animation-delay: 0.3s; }
+.enode-stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.enode-stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.enode-stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.enode-stagger > *:nth-child(5) { animation-delay: 0.2s; }
+.enode-stagger > *:nth-child(n + 6) { animation-delay: 0.25s; }
 @keyframes enode-rise {
   from {
     opacity: 0;
-    transform: translateY(16px);
-    filter: blur(6px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
-    transform: none;
-    filter: blur(0);
+    transform: translateY(0);
   }
 }
 
