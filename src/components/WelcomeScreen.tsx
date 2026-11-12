@@ -34,7 +34,7 @@ import {
   useScrolled,
 } from './EnodePrimitives';
 
-export const BOBCATS_LOGO_URL = '/bobcats-pickleball-logo.png';
+export const BOBCATS_LOGO_URL = '/bobcats-menu-logo.png';
 
 interface WelcomeScreenProps {
   data: ClubDataState;
