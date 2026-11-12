@@ -21,7 +21,6 @@ import {
   GradeLevel,
   Member,
   NavTab,
-  OutsideTournament,
   ReactionKey,
   SkillLevel,
 } from '../types';
@@ -71,7 +70,6 @@ interface MemberPortalViewProps {
     status: 'open' | 'accepted' | 'declined',
     remove?: boolean
   ) => void;
-  onUpdateOutsideTournaments?: (next: OutsideTournament[]) => void;
   onVoteMvp: (candidateId: string) => void;
   onVotePoll: (pollId: string, optionId: string) => void;
   onToggleReaction: (feedItemId: string, reaction: ReactionKey) => void;
@@ -121,13 +119,6 @@ const MEMBER_NAV_TABS: {
     icon: <Trophy className="w-4 h-4" />,
   },
   {
-    id: 'watch',
-    label: 'Outside Watch',
-    shortLabel: 'Watch List',
-    description: 'Regional tournaments & registered club pairs',
-    icon: <Eye className="w-4 h-4" />,
-  },
-  {
     id: 'calendar',
     label: 'Calendar',
     shortLabel: 'Calendar',
@@ -160,7 +151,6 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   onRegisterMember,
   onCreateChallenge,
   onUpdateChallengeStatus,
-  onUpdateOutsideTournaments,
   onVoteMvp,
   onVotePoll,
   onToggleReaction,
@@ -1588,7 +1578,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           )}
                           <div className="min-w-0">
                             <div className="text-[10px] sm:text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
-                              ID: {activeMember.schoolId || activeMember.id}
+                              Verified Member
                             </div>
                             <h2 className="font-display text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
                               {activeMember.name}
@@ -2294,17 +2284,13 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
               />
             )}
 
-            {(activeTab === 'tournaments' || activeTab === 'watch') && (
+            {activeTab === 'tournaments' && (
               <TournamentsView
-                activeSubTab={activeTab}
-                onSwitchSubTab={(sub: NavTab) => onNavigate(sub)}
                 members={data.members}
                 clubTournaments={data.clubTournaments}
-                outsideTournaments={data.outsideTournaments}
                 isOfficer={false}
                 activeMember={activeMember}
                 onUpdateClubTournaments={noop}
-                onUpdateOutsideTournaments={onUpdateOutsideTournaments || noop}
                 onLaunchScoreKeeperForTournament={noop}
                 onRequestOfficerUnlock={onRequestOfficerLogin}
               />

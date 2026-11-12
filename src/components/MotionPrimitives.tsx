@@ -475,23 +475,11 @@ export const CommandPaletteModal: React.FC<{
         },
       },
       {
-        id: 'nav-watch',
-        category: 'Navigation',
-        title: 'Regional Tournament Watchlist',
-        subtitle: 'Outside DUPR & USA Pickleball events',
-        badge: '05',
-        icon: <Eye className="w-4 h-4" />,
-        onSelect: () => {
-          onNavigate('watch');
-          onClose();
-        },
-      },
-      {
         id: 'nav-calendar',
         category: 'Navigation',
         title: 'Practice & Event Calendar',
         subtitle: 'Upcoming court dates, times & locations',
-        badge: '06',
+        badge: '05',
         icon: <Calendar className="w-4 h-4" />,
         onSelect: () => {
           onNavigate('calendar');
@@ -503,7 +491,7 @@ export const CommandPaletteModal: React.FC<{
         category: 'Navigation',
         title: 'Live Court Scoreboard',
         subtitle: 'Real-time match scoring & multi-court rotation',
-        badge: '07',
+        badge: '06',
         icon: <Play className="w-4 h-4" />,
         onSelect: () => {
           onNavigate('scorekeeper');
@@ -515,7 +503,7 @@ export const CommandPaletteModal: React.FC<{
         category: 'Navigation',
         title: 'Club Bulletin & Announcements',
         subtitle: 'Official updates from BNHS Club Officers',
-        badge: '08',
+        badge: '07',
         icon: <Megaphone className="w-4 h-4" />,
         onSelect: () => {
           onNavigate('announcements');
@@ -563,9 +551,7 @@ export const CommandPaletteModal: React.FC<{
       id: `member-${m.id}`,
       category: 'Roster',
       title: m.name,
-      subtitle: `Rank #${idx + 1} · Grade ${m.grade} · ${m.skillLevel}${
-        m.schoolId ? ` · ID ${m.schoolId}` : ''
-      }`,
+      subtitle: `Rank #${idx + 1} · Grade ${m.grade} · ${m.skillLevel}`,
       badge: `${m.elo} ELO`,
       icon: <UserCheck className="w-4 h-4" />,
       onSelect: () => {

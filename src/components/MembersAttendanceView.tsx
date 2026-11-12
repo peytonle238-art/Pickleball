@@ -235,7 +235,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
       return;
     }
     setEditingMember(m);
-    setFormSchoolId(m.schoolId || '');
+    setFormSchoolId('');
     setFormName(m.name);
     setFormPhoto(m.photoUrl || '');
     setFormGrade(m.grade);
@@ -300,7 +300,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
           m.id === editingMember.id
             ? {
                 ...m,
-                schoolId: cleanedSchoolId,
+                schoolId: cleanedSchoolId || m.schoolId,
                 name: formName.trim(),
                 photoUrl: formPhoto.trim() || undefined,
                 grade: formGrade,
@@ -477,8 +477,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   const filteredMembers = members.filter((m) => {
     const matchesSearch =
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (m.schoolId &&
-        m.schoolId.toLowerCase().includes(searchQuery.toLowerCase())) ||
       m.paddleNotes.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.duprRating && m.duprRating.includes(searchQuery));
     const matchesGrade = gradeFilter === 'all' || m.grade === gradeFilter;
@@ -1309,11 +1307,6 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
                         <div className="min-w-0">
                           <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
                             <span>{member.name}</span>
-                            {member.schoolId && (
-                              <span className="font-mono-num text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                                ({member.schoolId})
-                              </span>
-                            )}
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400 font-mono-num tabular-nums">
                             Joined {member.joinDate} · {member.elo} Elo

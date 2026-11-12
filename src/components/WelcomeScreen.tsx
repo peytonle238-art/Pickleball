@@ -83,11 +83,6 @@ const MEMBER_DESTINATIONS: {
     description: 'In-club brackets, round robins & court schedules',
   },
   {
-    id: 'watch',
-    label: 'Outside Watch',
-    description: 'Regional tournaments, deadlines & club pairs',
-  },
-  {
     id: 'calendar',
     label: 'Practice Calendar',
     description: 'Monthly practice schedule & club event dates',
@@ -842,7 +837,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               { v: data.matches.length, l: 'Matches logged this season', s: '' },
               { v: data.attendance.length, l: 'Practices held', s: '' },
               {
-                v: data.clubTournaments.length + data.outsideTournaments.length,
+                v: data.clubTournaments.length,
                 l: 'Tournaments tracked',
                 s: '',
               },
@@ -1405,7 +1400,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               links: [
                 { l: 'Standings', go: () => requireAuthOrEnter('ladder') },
                 { l: 'Tournaments', go: () => requireAuthOrEnter('tournaments') },
-                { l: 'Regional watch', go: () => requireAuthOrEnter('watch') },
               ],
             },
             {

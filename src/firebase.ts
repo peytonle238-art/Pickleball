@@ -241,10 +241,6 @@ export function mergeClubDataStates(
       primary.clubTournaments,
       secondary.clubTournaments
     ),
-    outsideTournaments: mergeById(
-      primary.outsideTournaments,
-      secondary.outsideTournaments
-    ),
     officers: mergeById(primary.officers, secondary.officers),
     tasks: mergeById(primary.tasks, secondary.tasks),
     events: mergeById(primary.events, secondary.events),

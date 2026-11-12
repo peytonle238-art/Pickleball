@@ -31,7 +31,6 @@ import {
   Officer,
   OfficerRole,
   OfficerTask,
-  OutsideTournament,
   ReactionKey,
   SeasonArchive,
   SkillLevel,
@@ -87,7 +86,6 @@ type CollectionKey =
   | 'mvpVotes'
   | 'activityReactions'
   | 'clubTournaments'
-  | 'outsideTournaments'
   | 'events'
   | 'announcements'
   | 'officers'
@@ -292,13 +290,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
           'In-club Round Robin and Single-Elimination brackets, participants, and court matches.',
       },
       {
-        key: 'outsideTournaments',
-        label: 'Outside Tournaments',
-        count: data.outsideTournaments.length,
-        description:
-          'Regional tournament watchlist, entry fees, deadlines, venues, and registered club pairs.',
-      },
-      {
         key: 'events',
         label: 'Calendar Events',
         count: data.events.length,
@@ -426,7 +417,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       mvpVotes: {},
       activityReactions: {},
       clubTournaments: [],
-      outsideTournaments: [],
       events: [],
       announcements: [],
       transactions: [],
@@ -608,22 +598,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
           participants: [],
           matches: [],
         } satisfies ClubTournament);
-        break;
-      case 'outsideTournaments':
-        setEditingDraft({
-          id: newId,
-          name: 'DFW Regional Open',
-          dates: today,
-          startDateISO: today,
-          cityVenue: 'Trophy Club Courts, TX',
-          divisions: '3.0, 3.5, 4.0+',
-          entryFee: '$45',
-          prizeMoney: 'Medals & Trophies',
-          registrationDeadline: today,
-          link: 'https://pickleballbrackets.com',
-          status: 'Watching',
-          attendees: [],
-        } satisfies OutsideTournament);
         break;
       case 'events':
         setEditingDraft({
@@ -996,7 +970,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
     .filter(
       (m) =>
         m.name.toLowerCase().includes(eloSearch.toLowerCase()) ||
-        (m.schoolId && m.schoolId.includes(eloSearch)) ||
         m.skillLevel.toLowerCase().includes(eloSearch.toLowerCase())
     )
     .sort((a, b) => b.elo - a.elo);
@@ -1020,7 +993,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
         return {
           id: item.id,
           title: item.name || 'Unnamed Member',
-          subtitle: `ID: ${item.schoolId || 'None'} · Grade ${item.grade} · ${
+          subtitle: `Grade ${item.grade} · ${
             item.elo
           } Elo · ${item.wins}W–${item.losses}L · Streak ${item.streak}`,
           badge: item.skillLevel,
@@ -1114,13 +1087,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
           id: item.id,
           title: item.name || 'Tournament',
           subtitle: `${item.date} · ${item.format} (${item.playStyle}) · ${(item.participants || []).length} entries · ${(item.matches || []).length} matches`,
-          badge: item.status,
-        };
-      case 'outsideTournaments':
-        return {
-          id: item.id,
-          title: item.name || 'Outside Tournament',
-          subtitle: `${item.dates} · ${item.cityVenue || ''} · Fee: ${item.entryFee} · ${(item.attendees || []).length} club attendees`,
           badge: item.status,
         };
       case 'events':
@@ -2758,11 +2724,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
                       <td className="py-2.5 px-3">
                         <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                           <span>{member.name}</span>
-                          {member.schoolId && (
-                            <span className="font-mono-num text-[10px] text-blue-600 dark:text-blue-400 font-bold">
-                              ({member.schoolId})
-                            </span>
-                          )}
                         </div>
                         <div className="text-[11px] text-slate-500 font-mono-num">
                           {member.wins}W–{member.losses}L · Grade {member.grade}
@@ -2938,7 +2899,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-mono-num uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     <th className="py-2.5 px-3">Member</th>
-                    <th className="py-2.5 px-3">School ID</th>
                     <th className="py-2.5 px-3">Grade</th>
                     <th className="py-2.5 px-3">Status</th>
                     <th className="py-2.5 pl-3 text-right">Action</th>
@@ -2952,9 +2912,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
                     >
                       <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
                         {member.name}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono-num text-slate-500">
-                        {member.schoolId || '—'}
                       </td>
                       <td className="py-2.5 px-3 font-mono-num text-slate-600 dark:text-slate-300">
                         {member.grade}th

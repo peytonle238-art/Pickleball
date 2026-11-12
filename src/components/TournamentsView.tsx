@@ -1,22 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
 import {
   Trophy,
   Plus,
   Trash2,
-  MapPin,
-  Calendar,
-  ExternalLink,
-  Users,
-  CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
 import {
   ClubTournament,
   ClubTournamentParticipant,
   ClubTournamentMatch,
-  OutsideTournament,
-  OutsideTournamentAttendee,
   Member,
   PendingTournamentScoreContext,
 } from '../types';
@@ -24,21 +16,16 @@ import {
   generateRoundRobinMatches,
   generateSingleEliminationMatches,
   updateTournamentMatchList,
-  getDaysUntil,
 } from '../utils/clubUtils';
 
 type ClubTournamentFormat = 'round_robin' | 'single_elimination';
 
 interface TournamentsViewProps {
-  activeSubTab: 'tournaments' | 'watch';
-  onSwitchSubTab: (sub: 'tournaments' | 'watch') => void;
   clubTournaments: ClubTournament[];
-  outsideTournaments: OutsideTournament[];
   members: Member[];
   isOfficer: boolean;
   activeMember?: Member | null;
   onUpdateClubTournaments: (next: ClubTournament[]) => void;
-  onUpdateOutsideTournaments: (next: OutsideTournament[]) => void;
   onLaunchScoreKeeperForTournament: (
     ctx: PendingTournamentScoreContext
   ) => void;
@@ -46,15 +33,10 @@ interface TournamentsViewProps {
 }
 
 export const TournamentsView: React.FC<TournamentsViewProps> = ({
-  activeSubTab,
-  onSwitchSubTab,
   clubTournaments,
-  outsideTournaments,
   members,
   isOfficer,
-  activeMember = null,
   onUpdateClubTournaments,
-  onUpdateOutsideTournaments,
   onLaunchScoreKeeperForTournament,
   onRequestOfficerUnlock,
 }) => {
@@ -84,23 +66,6 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   const [editScore1, setEditScore1] = useState<string>('11');
   const [editScore2, setEditScore2] = useState<string>('8');
   const [scoreError, setScoreError] = useState<string | null>(null);
-
-  // Regional Watchlist State
-  const [skillFilter, setSkillFilter] = useState<string>('All');
-  const [showAddOutsideForm, setShowAddOutsideForm] = useState(false);
-  const [outName, setOutName] = useState('');
-  const [outLocation, setOutLocation] = useState('');
-  const [outCityDistance, setOutCityDistance] = useState('');
-  const [outDate, setOutDate] = useState(
-    new Date().toISOString().split('T')[0]
-  );
-  const [outSkillLevels, setOutSkillLevels] = useState('3.0, 3.5, 4.0');
-  const [outEntryFee, setOutEntryFee] = useState('$35');
-  const [outRegUrl, setOutRegUrl] = useState('');
-  const [outNotes, setOutNotes] = useState('');
-  const [memberSelectByTournament, setMemberSelectByTournament] = useState<
-    Record<string, string>
-  >({});
 
   const activeTournament = useMemo(
     () =>
@@ -306,90 +271,6 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     return Array.from(roundMap.values()).sort((a, b) => a.round - b.round);
   }, [activeTournament]);
 
-  // Outside Tournament Filtering & Handlers
-  const filteredOutsideTournaments = useMemo(() => {
-    const sorted = [...outsideTournaments].sort((a, b) =>
-      (a.startDateISO || a.dates).localeCompare(b.startDateISO || b.dates)
-    );
-    if (skillFilter === 'All') return sorted;
-    return sorted.filter((t) =>
-      (t.divisions || '').toLowerCase().includes(skillFilter.toLowerCase())
-    );
-  }, [outsideTournaments, skillFilter]);
-
-  const handleAddOutsideTournament = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!outName.trim() || !outLocation.trim()) return;
-
-    const newEntry: OutsideTournament = {
-      id: `out-${Date.now()}`,
-      name: outName.trim(),
-      dates: outDate,
-      startDateISO: outDate,
-      cityVenue: outCityDistance.trim()
-        ? `${outLocation.trim()} (${outCityDistance.trim()})`
-        : outLocation.trim(),
-      divisions: outSkillLevels.trim() || '3.0, 3.5, 4.0',
-      entryFee: outEntryFee.trim() || 'TBD',
-      prizeMoney: outNotes.trim() || 'Medals & Bracket Points',
-      registrationDeadline: outDate,
-      link: outRegUrl.trim() || 'https://usapickleball.org',
-      status: 'Watching',
-      attendees: [],
-    };
-
-    onUpdateOutsideTournaments([...outsideTournaments, newEntry]);
-    setOutName('');
-    setOutLocation('');
-    setOutCityDistance('');
-    setOutNotes('');
-    setShowAddOutsideForm(false);
-  };
-
-  const handleDeleteOutsideTournament = (id: string) => {
-    onUpdateOutsideTournaments(outsideTournaments.filter((t) => t.id !== id));
-  };
-
-  const handleToggleAttendingMember = (
-    tournamentId: string,
-    memberId: string
-  ) => {
-    const memberObj = members.find((m) => m.id === memberId);
-    if (!memberObj) return;
-    onUpdateOutsideTournaments(
-      outsideTournaments.map((t) => {
-        if (t.id !== tournamentId) return t;
-        const attendees = t.attendees || [];
-        const exists = attendees.some(
-          (a) =>
-            a.id === memberObj.id ||
-            a.memberName.toLowerCase() === memberObj.name.toLowerCase()
-        );
-        const nextAttendees: OutsideTournamentAttendee[] = exists
-          ? attendees.filter(
-              (a) =>
-                a.id !== memberObj.id &&
-                a.memberName.toLowerCase() !== memberObj.name.toLowerCase()
-            )
-          : [
-              ...attendees,
-              {
-                id: memberObj.id,
-                memberName: memberObj.name,
-                partnerName: 'TBD',
-                division: memberObj.duprRating
-                  ? `${memberObj.duprRating} DUPR`
-                  : memberObj.skillLevel,
-              },
-            ];
-        return {
-          ...t,
-          attendees: nextAttendees,
-        };
-      })
-    );
-  };
-
   const getMemberName = (id: string) =>
     members.find((m) => m.id === id)?.name || 'Club Member';
 
@@ -544,70 +425,20 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Sub-Navigation Bar: In-Club Brackets vs Regional Tournament Watchlist */}
+      {/* Header Bar: In-Club Brackets */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
-            {activeSubTab === 'watch'
-              ? 'Regional Tournament Watchlist'
-              : 'In-Club Tournament Brackets'}
+            In-Club Tournament Brackets
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {activeSubTab === 'watch'
-              ? 'Upcoming regional USA Pickleball & DUPR events where club members are competing'
-              : 'Single Elimination & Round Robin brackets seeded by live Club Ladder Elo'}
+            Single Elimination & Round Robin brackets seeded by live Club Ladder Elo
           </p>
-        </div>
-
-        <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() => onSwitchSubTab('tournaments')}
-            className={`relative px-3.5 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
-              activeSubTab === 'tournaments'
-                ? 'text-slate-900 dark:text-white'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            {activeSubTab === 'tournaments' && (
-              <motion.div
-                layoutId="tournaments-subtab-pill"
-                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                className="absolute inset-0 rounded bg-white dark:bg-slate-900 shadow-2xs"
-              />
-            )}
-            <span className="relative z-10">
-              In-Club Brackets ({clubTournaments.length})
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onSwitchSubTab('watch')}
-            className={`relative px-3.5 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer ${
-              activeSubTab === 'watch'
-                ? 'text-slate-900 dark:text-white'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            {activeSubTab === 'watch' && (
-              <motion.div
-                layoutId="tournaments-subtab-pill"
-                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                className="absolute inset-0 rounded bg-white dark:bg-slate-900 shadow-2xs"
-              />
-            )}
-            <span className="relative z-10">
-              Regional Watchlist ({outsideTournaments.length})
-            </span>
-          </button>
         </div>
       </div>
 
-      {/* ================================================================= */}
-      {/* TAB 1: IN-CLUB TOURNAMENT BRACKETS                                */}
-      {/* ================================================================= */}
-      {activeSubTab === 'tournaments' && (
-        <div className="space-y-6">
+      {/* IN-CLUB TOURNAMENT BRACKETS */}
+      <div className="space-y-6">
           {/* Tournament Selector + Create Button */}
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -932,401 +763,6 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             </div>
           )}
         </div>
-      )}
-
-      {/* ================================================================= */}
-      {/* TAB 2: REGIONAL TOURNAMENT WATCHLIST                              */}
-      {/* ================================================================= */}
-      {activeSubTab === 'watch' && (
-        <div className="space-y-6">
-          {/* Filter & Add Event Bar */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500 mr-1">
-                Filter Division:
-              </span>
-              {(['All', '2.5', '3.0', '3.5', '4.0', '4.5+'] as const).map(
-                (lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setSkillFilter(lvl)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
-                      skillFilter === lvl
-                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    {lvl === 'All' ? 'All Skill Tiers' : `${lvl} DUPR`}
-                  </button>
-                )
-              )}
-            </div>
-
-            {isOfficer ? (
-              <button
-                type="button"
-                onClick={() => setShowAddOutsideForm(!showAddOutsideForm)}
-                className="px-3.5 py-2 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>
-                  {showAddOutsideForm ? 'Close Form' : 'Add Regional Event'}
-                </span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onRequestOfficerUnlock}
-                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-              >
-                Officer Sign-In to Post Events →
-              </button>
-            )}
-          </div>
-
-          {/* Officer Add Outside Tournament Form */}
-          {isOfficer && showAddOutsideForm && (
-            <form
-              onSubmit={handleAddOutsideTournament}
-              className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
-                  Add Regional Tournament to Club Watchlist
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowAddOutsideForm(false)}
-                  className="text-xs font-semibold text-slate-500 cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Tournament Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={outName}
-                    onChange={(e) => setOutName(e.target.value)}
-                    placeholder="e.g. North Texas High School Open"
-                    className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Venue / Location
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={outLocation}
-                    onChange={(e) => setOutLocation(e.target.value)}
-                    placeholder="e.g. Oasis Pickleball Club, Rockwall"
-                    className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Distance / Area
-                  </label>
-                  <input
-                    type="text"
-                    value={outCityDistance}
-                    onChange={(e) => setOutCityDistance(e.target.value)}
-                    placeholder="e.g. 15 miles away"
-                    className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Event Date
-                  </label>
-                  <input
-                    type="date"
-                    value={outDate}
-                    onChange={(e) => setOutDate(e.target.value)}
-                    className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Skill Divisions (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    value={outSkillLevels}
-                    onChange={(e) => setOutSkillLevels(e.target.value)}
-                    placeholder="3.0, 3.5, 4.0"
-                    className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Entry Fee
-                  </label>
-                  <input
-                    type="text"
-                    value={outEntryFee}
-                    onChange={(e) => setOutEntryFee(e.target.value)}
-                    placeholder="e.g. $35 / player"
-                    className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Registration URL
-                  </label>
-                  <input
-                    type="url"
-                    value={outRegUrl}
-                    onChange={(e) => setOutRegUrl(e.target.value)}
-                    placeholder="https://pickleballbrackets.com/..."
-                    className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Club Carpool / Notes
-                  </label>
-                  <input
-                    type="text"
-                    value={outNotes}
-                    onChange={(e) => setOutNotes(e.target.value)}
-                    placeholder="Optional notes for travelling players"
-                    className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-md text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-                >
-                  Save Regional Tournament
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Regional Tournament Cards */}
-          {filteredOutsideTournaments.length === 0 ? (
-            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-10 text-center space-y-2">
-              <div className="text-base font-bold text-slate-900 dark:text-white">
-                No Regional Tournaments Listed Yet
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                {skillFilter !== 'All'
-                  ? `No tournaments match the ${skillFilter} division filter. Try viewing All Skill Tiers.`
-                  : 'Club Officers can post upcoming local and regional tournaments here so members can coordinate registration and carpools.'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {filteredOutsideTournaments.map((t) => {
-                const daysUntil = getDaysUntil(t.startDateISO || t.dates);
-                const attendees = t.attendees || [];
-                const isActiveMemberAttending =
-                  activeMember &&
-                  attendees.some(
-                    (a) =>
-                      a.id === activeMember.id ||
-                      a.memberName.toLowerCase() ===
-                        activeMember.name.toLowerCase()
-                  );
-                const selectedRosterMember =
-                  memberSelectByTournament[t.id] || members[0]?.id || '';
-                const divisionTags = (t.divisions || '')
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean);
-
-                return (
-                  <div
-                    key={t.id}
-                    className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-col justify-between gap-4"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs font-mono-num text-slate-500">
-                            <span className="inline-flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                              <span>{t.dates}</span>
-                            </span>
-                            <span>·</span>
-                            <span
-                              className={
-                                daysUntil >= 0 && daysUntil <= 14
-                                  ? 'text-amber-600 dark:text-amber-400 font-semibold'
-                                  : ''
-                              }
-                            >
-                              {daysUntil > 0
-                                ? `In ${daysUntil} days`
-                                : daysUntil === 0
-                                ? 'Today'
-                                : 'Completed'}
-                            </span>
-                            <span>·</span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              Entry: {t.entryFee}
-                            </span>
-                          </div>
-
-                          <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white mt-1">
-                            {t.name}
-                          </h3>
-                        </div>
-
-                        {isOfficer && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteOutsideTournament(t.id)}
-                            className="p-1.5 rounded text-slate-400 hover:text-red-600 cursor-pointer"
-                            title="Delete regional tournament"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{t.cityVenue}</span>
-                      </div>
-
-                      {divisionTags.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {divisionTags.map((lvl) => (
-                            <span
-                              key={lvl}
-                              className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-mono-num font-semibold text-slate-700 dark:text-slate-300"
-                            >
-                              {lvl}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {t.prizeMoney && (
-                        <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-2.5 rounded border border-slate-200/70 dark:border-slate-800">
-                          {t.prizeMoney}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Attending Club Members & RSVP Controls */}
-                    <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-700 dark:text-slate-300 inline-flex items-center gap-1.5">
-                          <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                          <span>
-                            Club Squad Attending ({attendees.length})
-                          </span>
-                        </span>
-
-                        {t.link && (
-                          <a
-                            href={t.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                          >
-                            <span>Event Registration</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
-
-                      {attendees.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {attendees.map((att) => (
-                            <span
-                              key={att.id}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-[11px] font-medium text-emerald-800 dark:text-emerald-300"
-                            >
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>{att.memberName}</span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Member Self-RSVP or Officer Roster Tagging */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        {activeMember && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleToggleAttendingMember(t.id, activeMember.id)
-                            }
-                            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
-                              isActiveMemberAttending
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                            }`}
-                          >
-                            {isActiveMemberAttending
-                              ? 'Going ✓ (Click to Remove)'
-                              : 'Mark Me as Going'}
-                          </button>
-                        )}
-
-                        {isOfficer && members.length > 0 && (
-                          <div className="flex items-center gap-1.5 flex-1 max-w-xs">
-                            <select
-                              value={selectedRosterMember}
-                              onChange={(e) =>
-                                setMemberSelectByTournament((prev) => ({
-                                  ...prev,
-                                  [t.id]: e.target.value,
-                                }))
-                              }
-                              className="flex-1 px-2.5 py-1.5 rounded text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
-                            >
-                              {members.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                  {m.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleToggleAttendingMember(
-                                  t.id,
-                                  selectedRosterMember
-                                )
-                              }
-                              className="px-2.5 py-1.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer shrink-0"
-                            >
-                              Toggle Player
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

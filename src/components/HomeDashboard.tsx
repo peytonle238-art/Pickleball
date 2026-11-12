@@ -44,7 +44,6 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     matches,
     events,
     attendance,
-    outsideTournaments,
     announcements = [],
     settings,
   } = data;
@@ -454,19 +453,13 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             )}
           </div>
 
-          {/* Upcoming Schedule & Regional Watchlist Summary */}
+          {/* Upcoming Schedule */}
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
                 Upcoming Schedule
               </h3>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => onNavigate('watch')}
-                  className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 cursor-pointer"
-                >
-                  Regional Watch ({outsideTournaments.length})
-                </button>
                 <button
                   onClick={() => onNavigate('calendar')}
                   className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"

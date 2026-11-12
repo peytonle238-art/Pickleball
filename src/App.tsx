@@ -89,7 +89,6 @@ const MEMBER_ALLOWED_TABS: NavTab[] = [
   'activity',
   'ladder',
   'tournaments',
-  'watch',
   'calendar',
   'scorekeeper',
   'announcements',
@@ -1226,12 +1225,6 @@ export default function App() {
       icon: <Trophy className="w-4 h-4" />,
     },
     {
-      id: 'watch',
-      label: 'Tournament Watch',
-      access: 'member',
-      icon: <Eye className="w-4 h-4" />,
-    },
-    {
       id: 'calendar',
       label: 'Calendar & Events',
       access: 'member',
@@ -1353,14 +1346,6 @@ export default function App() {
           onRegisterMember={handleRegisterMember}
           onCreateChallenge={handleCreateChallenge}
           onUpdateChallengeStatus={handleUpdateChallengeStatus}
-          onUpdateOutsideTournaments={(outsideTournaments) => {
-            const nextState = {
-              ...latestLocalDataRef.current,
-              outsideTournaments,
-            };
-            setData(nextState);
-            void persistClubDataImmediately(nextState);
-          }}
           onVoteMvp={handleVoteMvp}
           onVotePoll={handleVotePoll}
           onToggleReaction={handleToggleReaction}
@@ -1778,20 +1763,14 @@ export default function App() {
                     />
                   )}
 
-                  {(activeTab === 'tournaments' || activeTab === 'watch') && (
+                  {activeTab === 'tournaments' && (
                     <TournamentsView
-                      activeSubTab={activeTab}
-                      onSwitchSubTab={(sub: NavTab) => handleNavigate(sub)}
                       clubTournaments={data.clubTournaments}
-                      outsideTournaments={data.outsideTournaments}
                       members={data.members}
                       activeMember={activeMemberObj}
                       isOfficer={true}
                       onUpdateClubTournaments={(clubTournaments) =>
                         setData((prev) => ({ ...prev, clubTournaments }))
-                      }
-                      onUpdateOutsideTournaments={(outsideTournaments) =>
-                        setData((prev) => ({ ...prev, outsideTournaments }))
                       }
                       onLaunchScoreKeeperForTournament={(ctx) => {
                         setPendingTournamentMatch(ctx);

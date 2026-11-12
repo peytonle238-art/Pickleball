@@ -145,28 +145,6 @@ export interface ClubTournament {
   matches: ClubTournamentMatch[];
 }
 
-export interface OutsideTournamentAttendee {
-  id: string;
-  memberName: string;
-  partnerName: string;
-  division: string;
-}
-
-export interface OutsideTournament {
-  id: string;
-  name: string;
-  dates: string;
-  startDateISO: string;
-  cityVenue: string;
-  divisions: string;
-  entryFee: string;
-  prizeMoney: string;
-  registrationDeadline: string;
-  link: string;
-  status: 'Watching' | 'Registered' | 'Done';
-  attendees: OutsideTournamentAttendee[];
-}
-
 export type EventCategory = 'Practice' | 'Meeting' | 'Tournament' | 'Social';
 
 export interface CalendarEvent {
@@ -281,7 +259,6 @@ export interface ClubDataState {
   mvpVotes?: Record<string, string>; // voterKey -> memberId
   activityReactions?: Record<string, ActivityReactionCounts>; // activityId -> reaction voter arrays
   clubTournaments: ClubTournament[];
-  outsideTournaments: OutsideTournament[];
   events: CalendarEvent[];
   announcements: Announcement[];
   transactions: TreasuryTransaction[];
@@ -296,7 +273,6 @@ export type NavTab =
   | 'ladder'
   | 'members'
   | 'tournaments'
-  | 'watch'
   | 'calendar'
   | 'officers'
   | 'announcements'

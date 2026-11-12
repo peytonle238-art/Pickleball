@@ -194,12 +194,6 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
                     </span>
                   </>
                 )}
-                {member.schoolId && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span className="font-mono-num">ID {member.schoolId}</span>
-                  </>
-                )}
               </div>
             </div>
           </div>

@@ -47,7 +47,6 @@ export const INITIAL_CLUB_DATA: ClubDataState = {
   mvpVotes: {},
   activityReactions: {},
   clubTournaments: [],
-  outsideTournaments: [],
   events: [],
   announcements: [],
   transactions: [],
@@ -232,9 +231,6 @@ export function sanitizeAndStripTemplateData(
     mvpVotes: state.mvpVotes || {},
     activityReactions: state.activityReactions || {},
     clubTournaments: (state.clubTournaments || []).filter(
-      (x) => !TEMPLATE_RECORD_IDS.has(x.id)
-    ),
-    outsideTournaments: (state.outsideTournaments || []).filter(
       (x) => !TEMPLATE_RECORD_IDS.has(x.id)
     ),
     events: (state.events || [])
