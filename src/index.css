@@ -3,9 +3,30 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Barlow Condensed", "Plus Jakarta Sans", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Warm, paper-like neutral scale (Enode-inspired). Remapping slate lets
+     every existing view inherit the calmer palette without markup changes. */
+  --color-slate-50: #f7f6f1;
+  --color-slate-100: #efede6;
+  --color-slate-200: #e4e1d7;
+  --color-slate-300: #d0ccbf;
+  --color-slate-400: #a29e90;
+  --color-slate-500: #78756a;
+  --color-slate-600: #5b5850;
+  --color-slate-700: #45433b;
+  --color-slate-800: #2c2b26;
+  --color-slate-900: #1c1b18;
+  --color-slate-950: #11110f;
+
+  /* Brand accents */
+  --color-paper: #fbfaf6;
+  --color-ink: #1c1b18;
+  --color-court: #e1fdae;
+  --color-court-deep: #c9f27a;
+  --color-olive: #5d770d;
 }
 
 :root {
@@ -13,6 +34,11 @@
   --club-secondary: #eab308;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --hairline: rgba(28, 27, 24, 0.09);
+}
+
+.dark {
+  --hairline: rgba(255, 255, 255, 0.08);
 }
 
 html {
@@ -26,9 +52,21 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
   min-height: 100%;
   overflow-x: clip;
   -webkit-tap-highlight-color: transparent;
+}
+
+.dark body,
+body:has(.dark) {
+  background-color: var(--color-slate-950);
+}
+
+::selection {
+  background: var(--color-court);
+  color: var(--color-ink);
 }
 
 #root {
@@ -68,6 +106,10 @@ body {
 
 .font-display {
   font-family: var(--font-display);
+  /* Sentence-case, tightly tracked headlines (Enode-style) instead of
+     condensed all-caps athletic headers. */
+  text-transform: none;
+  letter-spacing: -0.025em;
 }
 
 .font-mono-num {
@@ -89,7 +131,7 @@ body {
 
 /* Broadcast Varsity Arena Court Architectural Surfaces */
 .court-arena-surface {
-  background-color: #0b1120;
+  background-color: #161613;
   background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
@@ -176,6 +218,214 @@ body {
   transform: translateY(0px) scale(0.985);
 }
 
+
+/* ========================================================================= */
+/* ENODE (enode.com) INSPIRED PREMIUM SURFACES                               */
+/* ========================================================================= */
+.dot-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(28, 27, 24, 0.14) 1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 100%);
+}
+.dark .dot-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(255, 255, 255, 0.1) 1px,
+    transparent 0
+  );
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--hairline);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 2px rgba(28, 27, 24, 0.04),
+    0 12px 32px -12px rgba(28, 27, 24, 0.14);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+.dark .glass-card {
+  background: rgba(28, 27, 24, 0.66);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 12px 32px -12px rgba(0, 0, 0, 0.6);
+}
+
+.hairline-card {
+  background: #ffffff;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 1px 2px rgba(28, 27, 24, 0.04);
+}
+.dark .hairline-card {
+  background: var(--color-slate-900);
+}
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border-radius: 9999px;
+  background: var(--color-ink);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    transform 0.4s var(--ease-out-expo),
+    background-color 0.25s ease,
+    box-shadow 0.4s var(--ease-out-expo);
+}
+.pill-btn:hover {
+  background: #000;
+  box-shadow: 0 8px 24px -10px rgba(28, 27, 24, 0.5);
+}
+.pill-btn:active {
+  transform: scale(0.98);
+}
+.dark .pill-btn {
+  background: var(--color-court);
+  color: var(--color-ink);
+}
+.dark .pill-btn:hover {
+  background: var(--color-court-deep);
+}
+
+.pill-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--hairline);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    transform 0.4s var(--ease-out-expo),
+    background-color 0.25s ease;
+}
+.pill-btn-ghost:hover {
+  background: #fff;
+}
+.pill-btn-ghost:active {
+  transform: scale(0.98);
+}
+.dark .pill-btn-ghost {
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+.dark .pill-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pill-btn .pill-arrow,
+.pill-btn-ghost .pill-arrow {
+  transition: transform 0.4s var(--ease-out-expo);
+}
+.pill-btn:hover .pill-arrow,
+.pill-btn-ghost:hover .pill-arrow {
+  transform: translateX(3px);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--color-slate-500);
+}
+
+/* Infinite marquee with soft edge fade */
+.marquee {
+  position: relative;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll var(--marquee-duration, 40s) linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Live pulse dot */
+.live-dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #22c55e;
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: #22c55e;
+  opacity: 0.35;
+  animation: live-pulse 1.8s var(--ease-out-expo) infinite;
+}
+@keyframes live-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Mount-time staggered rise for dashboard sections */
+.enode-stagger > * {
+  animation: enode-rise 0.9s var(--ease-out-expo) both;
+}
+.enode-stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.enode-stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.enode-stagger > *:nth-child(4) { animation-delay: 0.18s; }
+.enode-stagger > *:nth-child(5) { animation-delay: 0.24s; }
+.enode-stagger > *:nth-child(n + 6) { animation-delay: 0.3s; }
+@keyframes enode-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -193,6 +443,12 @@ body {
   .co-index-row:hover .co-row-shift,
   .co-row-arrow {
     transform: none !important;
+  }
+
+  .marquee-track,
+  .live-dot::after,
+  .enode-stagger > * {
+    animation: none !important;
   }
 }
 

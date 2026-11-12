@@ -480,7 +480,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         } grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4`}
       >
         {/* Most Wins */}
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
               01 · Most Wins
@@ -524,7 +524,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         </div>
 
         {/* Best Win Percentage */}
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
               02 · Best Win Percentage
@@ -573,7 +573,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         </div>
 
         {/* Most Improved This Month */}
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">
               03 · Most Improved (Month)
@@ -634,7 +634,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         <div
           className={`${
             mobileSection === 'h2h' ? 'block' : 'hidden lg:block'
-          } lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4 sm:space-y-5`}
+          } lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4 sm:space-y-5`}
         >
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
             <div>
@@ -900,7 +900,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
         <div
           className={`${
             mobileSection === 'challenges' ? 'block' : 'hidden lg:block'
-          } lg:col-span-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4 sm:space-y-5`}
+          } lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4 sm:space-y-5`}
         >
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
             <div>
@@ -1343,7 +1343,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       <div
         className={`${
           mobileSection === 'ladder' ? 'block' : 'hidden lg:block'
-        } rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6`}
+        } rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6`}
       >
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-5">
           <div>
@@ -2300,7 +2300,7 @@ export const LadderStatsView: React.FC<LadderStatsViewProps> = ({
       <div
         className={`${
           mobileSection === 'ladder' ? 'block' : 'hidden lg:block'
-        } rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6`}
+        } rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6`}
       >
         <div className="flex items-center justify-between mb-4">
           <div>

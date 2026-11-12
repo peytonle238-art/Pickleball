@@ -1364,7 +1364,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {activeAdminTab === 'master_data' && (
         <div className="space-y-6">
           {/* Top Bar: Collection Selector Grid + Wipe All Collections Button */}
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 space-y-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
@@ -1455,7 +1455,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
           </div>
 
           {/* Selected Collection Workspace */}
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-5">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <div className="flex items-center gap-2">
@@ -2027,7 +2027,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
           {/* Global Find & Replace Engine */}
           <form
             onSubmit={handleExecuteGlobalReplace}
-            className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+            className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4"
           >
             <div className="pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="text-[10px] font-mono-num uppercase tracking-wider font-bold text-blue-600 dark:text-amber-400 flex items-center gap-1.5">
@@ -2102,7 +2102,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
           {/* Site Copy & Headings Editor */}
           <form
             onSubmit={handleSaveTextStudio}
-            className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6"
+            className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
@@ -2365,7 +2365,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {/* MODULE 0C: RAW JSON / UNIVERSAL STATE INSPECTOR                   */}
       {/* ================================================================= */}
       {activeAdminTab === 'raw_json' && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
@@ -2429,7 +2429,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {/* MODULE 1: LIVE BROADCAST ALERT                                   */}
       {/* ================================================================= */}
       {activeAdminTab === 'broadcast' && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
@@ -2584,7 +2584,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {/* MODULE 2: SECURITY & PIN GOVERNANCE                               */}
       {/* ================================================================= */}
       {activeAdminTab === 'security' && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
           <div className="pb-4 border-b border-slate-200 dark:border-slate-800">
             <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
               Security PINs & Registration Permissions
@@ -2673,7 +2673,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {/* MODULE 3: ELO CALIBRATION & SEEDING OVERRIDE                      */}
       {/* ================================================================= */}
       {activeAdminTab === 'elo' && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
@@ -2840,7 +2840,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {/* MODULE 4: DUES & TREASURY MASTER CONTROLS                         */}
       {/* ================================================================= */}
       {activeAdminTab === 'dues' && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
@@ -2997,7 +2997,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {/* MODULE 5: MATCH INTEGRITY & VOIDING                               */}
       {/* ================================================================= */}
       {activeAdminTab === 'matches' && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
@@ -3136,7 +3136,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {/* MODULE 6: OFFICER ROLES & EXECUTIVE BOARD                         */}
       {/* ================================================================= */}
       {activeAdminTab === 'officers' && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
@@ -3215,7 +3215,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       {/* MODULE 7: SYSTEM BACKUP & RECOVERY                                */}
       {/* ================================================================= */}
       {activeAdminTab === 'system' && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
           <div className="pb-4 border-b border-slate-200 dark:border-slate-800">
             <h2 className="text-lg font-display font-bold text-slate-900 dark:text-white">
               Club Database Backup & Recovery

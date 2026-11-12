@@ -12,6 +12,7 @@ import {
 } from '../utils/clubUtils';
 import { ClubInteractivePulse } from './ClubInteractivePulse';
 import { AnimatedNumber, MaskedTextReveal } from './MotionPrimitives';
+import { RollingNumber } from './EnodePrimitives';
 
 interface HomeDashboardProps {
   data: ClubDataState;
@@ -112,10 +113,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     members.find((m) => m.id === id)?.name ?? 'Club Player';
 
   return (
-    <div className="space-y-6">
+    <div className="enode-stagger space-y-6">
       {/* Pinned Club Announcements Banner (if any exist) */}
       {pinnedAnnouncements.length > 0 && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-3">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
               <Megaphone className="w-4 h-4" />
@@ -158,7 +159,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       {/* Hero Section & Next Practice Countdown */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Main Club Banner (7 cols) */}
-        <div className="lg:col-span-7 rounded-lg bg-slate-900 text-white p-5 sm:p-7 flex flex-col justify-between border border-slate-800">
+        <div className="lg:col-span-7 rounded-2xl bg-slate-900 text-white relative overflow-hidden p-5 sm:p-7 flex flex-col justify-between border border-slate-800">
           <div className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-400">
               <span className="text-amber-400 font-semibold">
@@ -182,21 +183,21 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             <div className="flex items-center gap-5 sm:gap-7">
               <div>
                 <div className="font-mono-num text-xl sm:text-2xl font-bold text-white tabular-nums">
-                  <AnimatedNumber value={members.length} />
+                  <RollingNumber value={members.length} />
                 </div>
                 <div className="text-[11px] text-slate-400">Active Roster</div>
               </div>
               <div className="h-7 w-px bg-slate-800" />
               <div>
                 <div className="font-mono-num text-xl sm:text-2xl font-bold text-amber-400 tabular-nums">
-                  <AnimatedNumber value={matches.length} />
+                  <RollingNumber value={matches.length} />
                 </div>
                 <div className="text-[11px] text-slate-400">Matches Played</div>
               </div>
               <div className="h-7 w-px bg-slate-800" />
               <div>
                 <div className="font-mono-num text-xl sm:text-2xl font-bold text-emerald-400 tabular-nums">
-                  <AnimatedNumber value={avgAttendance} suffix="%" />
+                  <RollingNumber value={avgAttendance} suffix="%" />
                 </div>
                 <div className="text-[11px] text-slate-400">Avg Attendance</div>
               </div>
@@ -220,7 +221,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         </div>
 
         {/* Next Practice / Event Card (5 cols) */}
-        <div className="lg:col-span-5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 flex flex-col justify-between">
+        <div className="lg:col-span-5 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6 flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
@@ -288,7 +289,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       {/* Main Content Grid: Standings + Recent Matches / Schedule */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left 7 Cols: Top 5 Ladder Standings */}
-        <div className="lg:col-span-7 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6">
+        <div className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -378,7 +379,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         {/* Right 5 Cols: Recent Matches & Upcoming Events */}
         <div className="lg:col-span-5 space-y-6">
           {/* Recent Match Results */}
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
                 Recent Match Results
@@ -453,7 +454,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
 
           {/* Upcoming Schedule & Regional Watchlist Summary */}
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
                 Upcoming Schedule

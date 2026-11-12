@@ -489,7 +489,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Practice Attendance & Member Roster Control Header */}
-      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -644,7 +644,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
 
       {/* BULK CSV / SPREADSHEET ROSTER IMPORT DRAWER */}
       {showBulkImport && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -771,7 +771,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
 
       {/* Add / Edit Member Modal Drawer */}
       {isAddingMember && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6">
           <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white mb-4">
             {editingMember
               ? `Edit Member: ${editingMember.name}`
@@ -1195,7 +1195,7 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
       )}
 
       {/* Search & Filter Bar + Roster Table */}
-      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200 dark:border-slate-800">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">

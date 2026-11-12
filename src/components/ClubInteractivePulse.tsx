@@ -270,7 +270,7 @@ export const ClubInteractivePulse: React.FC<ClubInteractivePulseProps> = ({
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT (5 COLS): MATCHUP WIN-ODDS & ELO STAKES CALCULATOR */}
-        <div className="lg:col-span-5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-4">
+        <div className="lg:col-span-5 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2">
               <Scale className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -442,7 +442,7 @@ export const ClubInteractivePulse: React.FC<ClubInteractivePulseProps> = ({
         {/* RIGHT (7 COLS): CLUB POLLS & RECENT ACTIVITY FEED */}
         <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Interactive Club Polls */}
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Vote className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -592,7 +592,7 @@ export const ClubInteractivePulse: React.FC<ClubInteractivePulseProps> = ({
           </div>
 
           {/* Live Club Activity Feed */}
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />

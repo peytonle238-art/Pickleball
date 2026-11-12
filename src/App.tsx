@@ -74,8 +74,6 @@ import { MemberPortalView } from './components/MemberPortalView';
 import { getVoterIdentityKey } from './components/ClubInteractivePulse';
 import {
   CommandPaletteModal,
-  HudStatusBar,
-  PreloaderCurtain,
   ScrollProgressBar,
 } from './components/MotionPrimitives';
 
@@ -1375,10 +1373,6 @@ export default function App() {
   if (showWelcomeScreen) {
     return (
       <>
-        <PreloaderCurtain
-          clubName={data.settings.clubName}
-          schoolName={data.settings.schoolName}
-        />
         <ScrollProgressBar />
         <WelcomeScreen
           data={data}
@@ -1425,10 +1419,6 @@ export default function App() {
 
   return (
     <>
-      <PreloaderCurtain
-        clubName={data.settings.clubName}
-        schoolName={data.settings.schoolName}
-      />
       <ScrollProgressBar />
       {!isOfficer ? (
         /* =============================================================== */
@@ -1472,13 +1462,7 @@ export default function App() {
         /* =============================================================== */
         /* VIEW 2: FULL-FEATURED OFFICER EXECUTIVE COMMAND CONSOLE         */
         /* =============================================================== */
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 transition-colors duration-200">
-          <HudStatusBar
-            rosterCount={data.members.length}
-            matchesCount={data.matches.length}
-            isOfficer={true}
-            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-          />
+        <div className="min-h-screen bg-paper dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 transition-colors duration-200">
           {/* President Broadcast Notice Alert Banner if active */}
           {data.settings.broadcastNotice?.enabled && data.settings.broadcastNotice.text && (
             <aside
@@ -1506,7 +1490,7 @@ export default function App() {
           )}
 
           {/* Officer Command Header */}
-          <header className="sticky top-0 z-30 h-14 sm:h-16 bg-slate-900 text-white border-b border-slate-800 px-3.5 sm:px-6 no-print">
+          <header className="sticky top-0 z-30 h-14 sm:h-16 bg-slate-900/90 backdrop-blur-xl text-white border-b border-white/10 px-3.5 sm:px-6 no-print">
             <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-2 sm:gap-4">
               {/* Zone 1: Bobcats Emblem + Officer Console Brand */}
               <button
@@ -1521,9 +1505,9 @@ export default function App() {
                     className="h-5 sm:h-7 w-auto object-contain"
                   />
                 </div>
-                <span className="font-display text-base sm:text-xl font-bold uppercase tracking-tight text-white truncate">
+                <span className="font-display text-base sm:text-xl font-semibold tracking-tight text-white truncate">
                   {data.settings.clubName}
-                  <span className="hidden md:inline">
+                  <span className="hidden md:inline text-slate-400 font-normal">
                     {' '}
                     ·{' '}
                     {getClubText(
@@ -2168,7 +2152,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
               transition={{ duration: 0.18 }}
-              className="w-full max-w-sm rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-xl"
+              className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4 shadow-xl"
             >
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="font-display text-xl font-bold uppercase text-slate-900 dark:text-white">

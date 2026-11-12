@@ -206,7 +206,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Recurring Practices Banner & Color Legend */}
-      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -282,7 +282,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
       {isOfficer && showEventForm && (
         <form
           onSubmit={handleSaveEvent}
-          className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+          className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4"
         >
           <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
             {editingEvent ? 'Edit Event' : 'Add Club Event'}
@@ -388,7 +388,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
       {/* Main Calendar Month Grid + Selected Day Details */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Month View Calendar Grid */}
-        <div className="lg:col-span-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+        <div className="lg:col-span-8 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
               {monthLabel}
@@ -489,7 +489,7 @@ export const CalendarEventsView: React.FC<CalendarEventsViewProps> = ({
 
         {/* Selected Date Schedule */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[11px] font-mono-num uppercase tracking-wider text-slate-500">

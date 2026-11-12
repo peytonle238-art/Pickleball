@@ -221,7 +221,7 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
         {showOfficerForm && (
           <form
             onSubmit={handleSaveOfficer}
-            className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+            className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4"
           >
             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
               {editingOfficer
@@ -327,7 +327,7 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
           {officers.map((officer) => (
             <div
               key={officer.id}
-              className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between"
+              className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
@@ -402,7 +402,7 @@ export const OfficersTasksView: React.FC<OfficersTasksViewProps> = ({
         {showTaskForm && (
           <form
             onSubmit={handleSaveTask}
-            className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+            className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4"
           >
             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
               {editingTask ? 'Edit Officer Task' : 'Create Officer Task'}

@@ -41,7 +41,6 @@ import { LiveScoreKeeper } from './LiveScoreKeeper';
 import { AnnouncementsView } from './ManagementViews';
 import {
   AnimatedNumber,
-  HudStatusBar,
   MaskedTextReveal,
 } from './MotionPrimitives';
 
@@ -455,13 +454,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       : 0;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#090d16] text-slate-900 dark:text-slate-100 flex flex-col pb-28 md:pb-16 transition-colors duration-200">
-      <HudStatusBar
-        rosterCount={data.members.length}
-        matchesCount={data.matches.length}
-        isOfficer={false}
-        onOpenCommandPalette={onOpenCommandPalette}
-      />
+    <div className="min-h-screen bg-paper dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-28 md:pb-16 transition-colors duration-200">
       {/* Broadcast Alert Banner if active */}
       {data.settings.broadcastNotice?.enabled &&
         data.settings.broadcastNotice.text && (
@@ -494,7 +487,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       {/* ================================================================= */}
       {/* STICKY MASTHEAD + FLAT VARSITY NAVIGATION                         */}
       {/* ================================================================= */}
-      <header className="sticky top-0 z-30 bg-white dark:bg-[#0b1120] border-b border-slate-200 dark:border-slate-800 no-print">
+      <header className="sticky top-0 z-30 bg-paper/80 dark:bg-slate-950/75 backdrop-blur-xl border-b border-[var(--hairline)] no-print">
         <div className="max-w-6xl w-full mx-auto px-4 sm:px-6">
           {/* Upper Row: Brand + Quick Actions */}
           <div className="h-14 flex items-center justify-between gap-3">
@@ -601,7 +594,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
                         transition={{ duration: 0.16, ease: SMOOTH_EASE }}
-                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
+                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] shadow-lg p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
                       >
                         {/* Header inside Dropdown */}
                         <div className="p-3 rounded-md bg-slate-900 text-white border border-slate-800 flex items-center gap-3">
@@ -1211,8 +1204,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
             {/* OVERVIEW TAB: WELCOME BANNER + QUICK MOBILE NAVIGATION        */}
             {/* ============================================================= */}
             {activeTab === 'home' && (
-              <div className="space-y-4 sm:space-y-6">
-                <div className="rounded-lg bg-slate-900 text-white border border-slate-800 p-5 sm:p-8">
+              <div className="enode-stagger space-y-4 sm:space-y-6">
+                <div className="rounded-2xl bg-slate-900 text-white border border-slate-800 p-5 sm:p-8 relative overflow-hidden">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6">
                     <div className="space-y-2.5 sm:space-y-3 max-w-xl">
                       <div className="text-[11px] font-mono-num uppercase tracking-widest text-amber-400 font-semibold">
@@ -1285,7 +1278,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('activity')}
-                    className="co-interactive-btn p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
                     <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
                       01 · ATHLETE PROFILE
@@ -1303,7 +1296,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('ladder')}
-                    className="co-interactive-btn p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
                     <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
                       02 · STANDINGS
@@ -1328,7 +1321,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('tournaments')}
-                    className="co-interactive-btn p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
                     <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
                       03 · BRACKETS
@@ -1345,7 +1338,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('calendar')}
-                    className="co-interactive-btn p-3.5 sm:p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
                     <div className="text-[10px] font-mono-num uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400">
                       04 · SCHEDULE
@@ -1379,7 +1372,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
               <div className="space-y-4 sm:space-y-6">
                 {!activeMember ? (
                   /* Prompt to Sign In with School ID or Add Yourself */
-                  <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-8 space-y-4 sm:space-y-6">
+                  <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-8 space-y-4 sm:space-y-6">
                     <div className="max-w-xl space-y-1">
                       <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
                         Member School ID Account
@@ -1658,7 +1651,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     />
 
                     {/* Personal Metrics & Season Performance Card */}
-                    <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5">
+                    <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5">
                       <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 sm:pb-4 border-b border-slate-200 dark:border-slate-800">
                         <div className="flex items-center gap-3 min-w-0">
                           {activeMember.photoUrl ? (
@@ -1823,7 +1816,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
 
                     {/* ACTIVE RIVALRY CALLOUTS FOR SIGNED-IN MEMBER */}
                     {myActiveChallenges.length > 0 && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-3.5 sm:space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-3.5 sm:space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
@@ -1941,7 +1934,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 0: ACHIEVEMENT BADGES & MILESTONES */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'achievements') && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -2054,7 +2047,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 1: MY MATCHES HISTORY */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'matches') && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -2232,7 +2225,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 2: MY ATTENDANCE HISTORY */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'attendance') && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -2289,7 +2282,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 3: TASKS INVOLVED IN */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'tasks') && (
-                      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -2426,7 +2419,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       {/* ================================================================= */}
       {/* MOBILE BOTTOM NAVIGATION BAR (ALL 6 TABS)                         */}
       {/* ================================================================= */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-[#0b1120] border-t border-slate-200 dark:border-slate-800 px-1 pt-1 pb-safe grid grid-cols-6 gap-0.5 no-print">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-paper/85 dark:bg-slate-950/80 backdrop-blur-xl border-t border-[var(--hairline)] px-1 pt-1 pb-safe grid grid-cols-6 gap-0.5 no-print">
         {MEMBER_NAV_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (

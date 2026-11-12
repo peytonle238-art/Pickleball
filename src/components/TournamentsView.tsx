@@ -545,7 +545,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Sub-Navigation Bar: In-Club Brackets vs Regional Tournament Watchlist */}
-      <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
             {activeSubTab === 'watch'
@@ -609,7 +609,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
       {activeSubTab === 'tournaments' && (
         <div className="space-y-6">
           {/* Tournament Selector + Create Button */}
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
               {clubTournaments.map((t) => (
                 <button
@@ -654,7 +654,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           {isOfficer && isCreating && (
             <form
               onSubmit={handleGenerateTournament}
-              className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5"
+              className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-5"
             >
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -803,7 +803,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
           {/* Active Club Tournament Display */}
           {activeTournament ? (
-            <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -920,7 +920,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               )}
             </div>
           ) : (
-            <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-10 text-center space-y-3">
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-10 text-center space-y-3">
               <div className="text-base font-bold text-slate-900 dark:text-white">
                 No Club Tournament Brackets Created Yet
               </div>
@@ -940,7 +940,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
       {activeSubTab === 'watch' && (
         <div className="space-y-6">
           {/* Filter & Add Event Bar */}
-          <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-slate-500 mr-1">
                 Filter Division:
@@ -989,7 +989,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           {isOfficer && showAddOutsideForm && (
             <form
               onSubmit={handleAddOutsideTournament}
-              className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+              className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                 <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -1124,7 +1124,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
           {/* Regional Tournament Cards */}
           {filteredOutsideTournaments.length === 0 ? (
-            <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-10 text-center space-y-2">
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-10 text-center space-y-2">
               <div className="text-base font-bold text-slate-900 dark:text-white">
                 No Regional Tournaments Listed Yet
               </div>
@@ -1157,7 +1157,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                 return (
                   <div
                     key={t.id}
-                    className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between gap-4"
+                    className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-col justify-between gap-4"
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">

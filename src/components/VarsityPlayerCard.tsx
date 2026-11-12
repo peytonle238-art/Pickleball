@@ -19,6 +19,7 @@ import {
   computeMemberAchievements,
 } from '../utils/clubUtils';
 import { AnimatedNumber, EXPO_OUT } from './MotionPrimitives';
+import { RevealGroup, RevealItem, RollingNumber } from './EnodePrimitives';
 
 interface VarsityPlayerCardProps {
   member: Member;
@@ -138,7 +139,7 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: EXPO_OUT }}
-      className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden"
+      className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] shadow-2xs overflow-hidden"
     >
       {/* Top Club Color Accent Bar */}
       <div
@@ -210,7 +211,7 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
             </div>
             <div className="flex items-baseline justify-end gap-2">
               <span className="font-mono-num text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tabular-nums">
-                <AnimatedNumber value={member.elo} />
+                <RollingNumber value={member.elo} />
               </span>
               <span
                 className={`text-xs font-mono-num font-semibold tabular-nums ${
@@ -226,26 +227,26 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
         </div>
 
         {/* Key Performance Metrics Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+        <RevealGroup className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <RevealItem className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[var(--hairline)]">
             <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               Season Record
             </div>
             <div className="font-mono-num text-base font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
               {member.wins}W – {member.losses}L
             </div>
-          </div>
+          </RevealItem>
 
-          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+          <RevealItem className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[var(--hairline)]">
             <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               Win Percentage
             </div>
             <div className="font-mono-num text-base font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
-              <AnimatedNumber value={winRate} suffix="%" />
+              <RollingNumber value={winRate} suffix="%" />
             </div>
-          </div>
+          </RevealItem>
 
-          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+          <RevealItem className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[var(--hairline)]">
             <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               Point Differential
             </div>
@@ -261,9 +262,9 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
                 ({member.pointsFor}/{member.pointsAgainst})
               </span>
             </div>
-          </div>
+          </RevealItem>
 
-          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+          <RevealItem className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-[var(--hairline)]">
             <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               Current Streak
             </div>
@@ -279,8 +280,8 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
                   : 'Even'}
               </span>
             </div>
-          </div>
-        </div>
+          </RevealItem>
+        </RevealGroup>
 
         {/* Elo Rating Progression & Milestones Row */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
