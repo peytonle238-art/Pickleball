@@ -139,7 +139,7 @@ export const VarsityPlayerCard: React.FC<VarsityPlayerCardProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: EXPO_OUT }}
-      className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] shadow-2xs overflow-hidden"
+      className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm shadow-2xs overflow-hidden"
     >
       {/* Top Club Color Accent Bar */}
       <div

@@ -11,7 +11,7 @@ import {
   getDaysUntil,
 } from '../utils/clubUtils';
 import { ClubInteractivePulse } from './ClubInteractivePulse';
-import { AnimatedNumber, MaskedTextReveal } from './MotionPrimitives';
+import { AnimatedNumber } from './MotionPrimitives';
 import { RollingNumber } from './EnodePrimitives';
 
 interface HomeDashboardProps {
@@ -112,10 +112,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
     members.find((m) => m.id === id)?.name ?? 'Club Player';
 
   return (
-    <div className="enode-stagger space-y-6">
+    <div className="space-y-6">
       {/* Pinned Club Announcements Banner (if any exist) */}
       {pinnedAnnouncements.length > 0 && (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-5 space-y-3">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 sm:p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
               <Megaphone className="w-4 h-4" />
@@ -158,24 +158,17 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       {/* Hero Section & Next Practice Countdown */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Main Club Banner (7 cols) */}
-        <div className="lg:col-span-7 relative rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-[var(--hairline)] shadow-[0_24px_60px_-30px_rgba(28,27,24,0.12)] overflow-hidden p-6 sm:p-8 flex flex-col justify-between">
-          <div className="pointer-events-none absolute inset-0 dot-grid opacity-30" />
-          <div className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-court/35 blur-3xl" />
+        <div className="lg:col-span-7 relative rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm overflow-hidden p-6 sm:p-8 flex flex-col justify-between">
 
           <div className="relative space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-court/60 dark:bg-court/15 border border-court-deep/20 text-[12px] font-medium text-slate-800 dark:text-court">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>{settings.schoolName} · Officer Console</span>
+            <div className="text-xs font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300">
+              {settings.schoolName} · Officer Console
             </div>
 
             <h2 className="font-display text-2xl sm:text-4xl font-semibold tracking-[-0.03em] leading-[1.08] text-slate-900 dark:text-white">
-              <MaskedTextReveal>{settings.clubName}</MaskedTextReveal>
+              {settings.clubName}
             </h2>
 
-            <p className="text-slate-600 dark:text-slate-400 text-sm max-w-xl leading-relaxed">
-              Manage official Elo ladder standings, tournament brackets,
-              practice check-ins, and live court scores from one calm workspace.
-            </p>
           </div>
 
           <div className="relative pt-6 mt-6 border-t border-[var(--hairline)] flex flex-wrap items-center justify-between gap-4">
@@ -220,7 +213,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         </div>
 
         {/* Next Practice / Event Card (5 cols) */}
-        <div className="lg:col-span-5 rounded-3xl bg-paper-subtle/90 dark:bg-slate-900/90 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 sm:p-7 flex flex-col justify-between">
+        <div className="lg:col-span-5 rounded-xl bg-paper-subtle/90 dark:bg-slate-900/90 border border-[var(--hairline)] shadow-sm p-6 sm:p-7 flex flex-col justify-between">
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 text-[11px] font-mono-num uppercase tracking-wider text-slate-500">
@@ -289,7 +282,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       {/* Main Content Grid: Standings + Recent Matches / Schedule */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left 7 Cols: Top 5 Ladder Standings */}
-        <div className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6">
+        <div className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5 sm:p-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -318,7 +311,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </p>
             </div>
           ) : (
-            <div className="co-index-list divide-y divide-slate-200 dark:divide-slate-800 mt-1">
+            <div className="divide-y divide-slate-200 dark:divide-slate-800 mt-1">
               {topFiveMembers.map((player, index) => {
                 const total = player.wins + player.losses;
                 const winRate =
@@ -379,7 +372,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         {/* Right 5 Cols: Recent Matches & Upcoming Events */}
         <div className="lg:col-span-5 space-y-6">
           {/* Recent Match Results */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5 sm:p-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
                 Recent Match Results
@@ -398,7 +391,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 tab to log official matches.
               </div>
             ) : (
-              <div className="co-index-list divide-y divide-slate-200 dark:divide-slate-800 mt-1">
+              <div className="divide-y divide-slate-200 dark:divide-slate-800 mt-1">
                 {recentMatches.map((m) => {
                   const team1Label = m.team1Ids
                     .map((id) => getMemberName(id).split(' ')[0])
@@ -454,7 +447,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
 
           {/* Upcoming Schedule */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 sm:p-6">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5 sm:p-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
                 Upcoming Schedule

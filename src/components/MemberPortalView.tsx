@@ -39,7 +39,6 @@ import { LiveScoreKeeper } from './LiveScoreKeeper';
 import { AnnouncementsView } from './ManagementViews';
 import {
   AnimatedNumber,
-  MaskedTextReveal,
 } from './MotionPrimitives';
 
 interface MemberPortalViewProps {
@@ -477,7 +476,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       {/* ================================================================= */}
       {/* SINGLE-ROW ENODE FROSTED HEADER + CENTERED PILL NAVIGATION        */}
       {/* ================================================================= */}
-      <header className="sticky top-0 z-30 bg-paper/80 dark:bg-slate-950/75 backdrop-blur-xl border-b border-[var(--hairline)] no-print">
+      <header className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-[var(--hairline)] no-print">
         <div className="max-w-6xl w-full mx-auto px-4 sm:px-6">
           <div className="h-16 flex items-center justify-between gap-3">
             {/* Brand Identity (No top-bar logo) */}
@@ -579,7 +578,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
                         transition={{ duration: 0.16, ease: SMOOTH_EASE }}
-                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] shadow-lg p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
+                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm shadow-lg p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
                       >
                         {/* Header inside Dropdown */}
                         <div className="p-3 rounded-xl bg-paper-subtle dark:bg-slate-950 border border-[var(--hairline)] flex items-center justify-between gap-3">
@@ -1078,29 +1077,22 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
             transition={{ duration: 0.28, ease: SMOOTH_EASE }}
           >
             {/* ============================================================= */}
-            {/* OVERVIEW TAB: COZY ENODE HERO + QUICK MODULE CARDS            */}
+            {/* OVERVIEW TAB: HEADER + QUICK MODULE CARDS                       */}
             {/* ============================================================= */}
             {activeTab === 'home' && (
-              <div className="enode-stagger space-y-6 sm:space-y-8">
-                <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 sm:p-10">
-                  <div className="dot-grid absolute inset-0 pointer-events-none" />
-                  <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-court/45 dark:bg-court/10 blur-3xl pointer-events-none" />
+              <div className="space-y-6 sm:space-y-8">
+                <div className="relative overflow-hidden rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 sm:p-10">
 
                   <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                     <div className="space-y-4 max-w-xl">
-                      <div className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border border-[var(--hairline)] bg-paper/80 dark:bg-white/[0.04] text-xs text-slate-600 dark:text-slate-300">
-                        <span className="px-2 py-0.5 rounded-full bg-court text-slate-900 font-medium">
-                          {data.settings.schoolName}
-                        </span>
-                        <span>Member portal</span>
+                      <div className="text-xs font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300">
+                        {data.settings.schoolName}
                       </div>
 
                       <h1 className="font-display text-3xl sm:text-5xl font-semibold tracking-tight leading-[1.05] text-slate-900 dark:text-white">
-                        <MaskedTextReveal>
-                          {activeMember
-                            ? `Welcome back, ${activeMember.name.split(' ')[0]}.`
-                            : `Welcome to ${data.settings.clubName}.`}
-                        </MaskedTextReveal>
+                        {activeMember
+                          ? `Welcome back, ${activeMember.name.split(' ')[0]}`
+                          : data.settings.clubName}
                       </h1>
 
                       {hasScheduledEvents ? (
@@ -1113,9 +1105,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         </p>
                       ) : (
                         <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg">
-                          Sign in with your School ID or add yourself to the
-                          roster to track your matches, attendance, and
-                          achievement badges.
+                          No sessions scheduled.
                         </p>
                       )}
 
@@ -1136,16 +1126,16 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                           onClick={() => onNavigate('ladder')}
                           className="pill-btn-ghost !min-h-[40px] !px-4 !text-xs"
                         >
-                          <span>Explore standings</span>
+                          <span>Standings</span>
                         </button>
                       </div>
                     </div>
 
                     {hasScheduledEvents && (
-                      <div className="glass-card rounded-2xl p-5 sm:p-6 shrink-0 min-w-[240px] space-y-3">
+                      <div className="glass-card rounded-xl p-5 sm:p-6 shrink-0 min-w-[240px] space-y-3">
                         <div className="flex items-center justify-between text-xs text-slate-500">
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="live-dot" /> Next session in
+                            Next session in
                           </span>
                           <span className="font-mono-num">{nextEvent.date}</span>
                         </div>
@@ -1166,8 +1156,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                               Hours
                             </div>
                           </div>
-                          <div className="p-2.5 rounded-xl bg-court/60 dark:bg-court/15 border border-[var(--hairline)]">
-                            <div className="font-mono-num text-2xl font-semibold text-slate-900 dark:text-court tabular-nums leading-none">
+                          <div className="p-2.5 rounded-xl bg-paper dark:bg-slate-950 border border-[var(--hairline)]">
+                            <div className="font-mono-num text-2xl font-semibold text-slate-900 dark:text-white tabular-nums leading-none">
                               <AnimatedNumber value={minutes} padStart={2} />
                             </div>
                             <div className="text-[11px] text-slate-700 dark:text-slate-300 mt-1">
@@ -1185,7 +1175,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('activity')}
-                    className="co-interactive-btn p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-5 rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
                     <div className="text-xs font-medium text-olive dark:text-court">
                       Athlete profile
@@ -1203,7 +1193,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('ladder')}
-                    className="co-interactive-btn p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-5 rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
                     <div className="text-xs font-medium text-olive dark:text-court">
                       Live Elo ladder
@@ -1228,7 +1218,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('tournaments')}
-                    className="co-interactive-btn p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-5 rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
                     <div className="text-xs font-medium text-olive dark:text-court">
                       In-club & regional
@@ -1245,7 +1235,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onNavigate('calendar')}
-                    className="co-interactive-btn p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                    className="co-interactive-btn p-5 rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm text-left space-y-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
                     <div className="text-xs font-medium text-olive dark:text-court">
                       Court schedule
@@ -1279,7 +1269,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
               <div className="space-y-4 sm:space-y-6">
                 {!activeMember ? (
                   /* Prompt to Sign In with School ID or Add Yourself */
-                  <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-8 space-y-4 sm:space-y-6">
+                  <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 sm:p-8 space-y-4 sm:space-y-6">
                     <div className="max-w-xl space-y-1">
                       <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400">
                         Member School ID Account
@@ -1290,7 +1280,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                       <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                         Enter your BNHS School ID to view your personal match
                         record, attendance log, achievement badges, and club
-                        tasks—or add yourself to the database in seconds.
+                        tasks, or add yourself to the roster.
                       </p>
                     </div>
 
@@ -1558,7 +1548,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     />
 
                     {/* Personal Metrics & Season Performance Card */}
-                    <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5">
+                    <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 sm:p-6 flex flex-col justify-between gap-4 sm:gap-5">
                       <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 sm:pb-4 border-b border-slate-200 dark:border-slate-800">
                         <div className="flex items-center gap-3 min-w-0">
                           {activeMember.photoUrl ? (
@@ -1737,7 +1727,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
 
                     {/* ACTIVE RIVALRY CALLOUTS FOR SIGNED-IN MEMBER */}
                     {myActiveChallenges.length > 0 && (
-                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-3.5 sm:space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 sm:p-6 space-y-3.5 sm:space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
@@ -1855,7 +1845,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 0: ACHIEVEMENT BADGES & MILESTONES */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'achievements') && (
-                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 sm:p-6 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -1968,7 +1958,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 1: MY MATCHES HISTORY */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'matches') && (
-                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -2146,7 +2136,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 2: MY ATTENDANCE HISTORY */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'attendance') && (
-                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -2203,7 +2193,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                     {/* SECTION 3: TASKS INVOLVED IN */}
                     {(activityFilter === 'all' ||
                       activityFilter === 'tasks') && (
-                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 sm:p-6 space-y-4">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -2336,7 +2326,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       {/* ================================================================= */}
       {/* MOBILE BOTTOM NAVIGATION BAR (ALL 6 TABS)                         */}
       {/* ================================================================= */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-paper/85 dark:bg-slate-950/80 backdrop-blur-xl border-t border-[var(--hairline)] px-1 pt-1 pb-safe grid grid-cols-6 gap-0.5 no-print">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-slate-900 border-t border-[var(--hairline)] px-1 pt-1 pb-safe grid grid-cols-6 gap-0.5 no-print">
         {MEMBER_NAV_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (

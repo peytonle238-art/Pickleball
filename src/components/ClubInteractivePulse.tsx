@@ -170,7 +170,7 @@ export const ClubInteractivePulse: React.FC<ClubInteractivePulseProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       {/* LEFT (7 COLS): LIVE CLUB ACTIVITY FEED */}
-      <div className="lg:col-span-7 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 sm:p-7 space-y-5">
+      <div className="lg:col-span-7 rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 sm:p-7 space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="eyebrow mb-1">
@@ -196,7 +196,7 @@ export const ClubInteractivePulse: React.FC<ClubInteractivePulseProps> = ({
             appear here automatically.
           </div>
         ) : (
-          <div className="co-index-list divide-y divide-[var(--hairline)] border-t border-[var(--hairline)]">
+          <div className="divide-y divide-[var(--hairline)] border-t border-[var(--hairline)]">
             {activityFeed.map((item) => (
               <button
                 key={item.id}
@@ -232,7 +232,7 @@ export const ClubInteractivePulse: React.FC<ClubInteractivePulseProps> = ({
       </div>
 
       {/* RIGHT (5 COLS): PLAYER POLLS */}
-      <div className="lg:col-span-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 sm:p-7 space-y-5">
+      <div className="lg:col-span-5 rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 sm:p-7 space-y-5">
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className="eyebrow mb-1">

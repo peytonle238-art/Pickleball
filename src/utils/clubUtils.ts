@@ -1247,14 +1247,6 @@ export interface SiteTextEntryDefinition {
 
 export const DEFAULT_SITE_TEXT_ENTRIES: SiteTextEntryDefinition[] = [
   {
-    key: 'welcomeTagline',
-    section: 'Welcome Screen',
-    label: 'Welcome Hero Description',
-    defaultValue:
-      'Official high school pickleball club portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.',
-    multiline: true,
-  },
-  {
     key: 'welcomeAccessHeading',
     section: 'Welcome Screen',
     label: 'Access Card Heading',

@@ -19,19 +19,12 @@ import {
   getNextUpcomingEvent,
   processImageFileToDataUrl,
 } from '../utils/clubUtils';
-import { AnimatedNumber, EXPO_OUT } from './MotionPrimitives';
+import { EXPO_OUT } from './MotionPrimitives';
 import {
   AutoTabItem,
   AutoTabs,
   ENODE_EASE,
-  FloatingWidget,
-  Marquee,
   Reveal,
-  RevealGroup,
-  RevealItem,
-  RollingNumber,
-  TickingValue,
-  useScrolled,
 } from './EnodePrimitives';
 
 export const BOBCATS_LOGO_URL = '/bobcats-menu-logo.png';
@@ -241,8 +234,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   // ---------------------------------------------------------------------------
   // Enode-style landing data
   // ---------------------------------------------------------------------------
-  const scrolled = useScrolled(12);
-
+  
   const memberById = (id: string) => data.members.find((m) => m.id === id);
   const initialsOf = (name: string) =>
     name
@@ -258,21 +250,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const recentMatches = [...data.matches]
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
     .slice(0, 5);
-  const [matchTicker, setMatchTicker] = useState(0);
-  useEffect(() => {
-    if (recentMatches.length < 2) return;
-    const t = setInterval(
-      () => setMatchTicker((i) => (i + 1) % recentMatches.length),
-      4200
-    );
-    return () => clearInterval(t);
-  }, [recentMatches.length]);
-  const tickerMatch = recentMatches[matchTicker % Math.max(1, recentMatches.length)];
+  const latestMatch = recentMatches[0];
   const teamLabel = (ids: string[]) =>
     ids
       .map((id) => memberById(id)?.name.split(' ')[0] || 'Player')
       .join(' & ');
-  const lastGame = tickerMatch?.games[tickerMatch.games.length - 1];
+  const lastGame = latestMatch?.games[latestMatch.games.length - 1];
 
   const latestSession = [...data.attendance].sort((a, b) =>
     a.date < b.date ? 1 : a.date > b.date ? -1 : 0
@@ -307,9 +290,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     {
       id: 'scoring',
       label: 'Live scoring',
-      title: 'Courtside scorekeeping',
+      title: 'Live scoring',
       description:
-        'Sideout or rally scoring, best-of-three, and automatic Elo updates the moment a match is final.',
+        'Sideout or rally scoring, best of 1 or 3. Ranked matches update Elo when final.',
       panel: (
         <LiveScorePanel
           teamA={recentMatches[0] ? teamLabel(recentMatches[0].team1Ids) : 'Home'}
@@ -320,15 +303,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     {
       id: 'ladder',
       label: 'Ladder & Elo',
-      title: 'A ladder that stays honest',
+      title: 'Ladder & Elo',
       description:
-        'Every ranked result moves the standings. Challenge players above you and watch your rating climb.',
+        'Ranked results update the standings. Members can challenge other players.',
       panel: (
-        <div className="glass-card rounded-2xl p-5 space-y-3">
+        <div className="glass-card rounded-xl p-5 space-y-3">
           <div className="flex items-center justify-between text-xs text-slate-500">
             <span>Club ladder</span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="live-dot" /> Live
             </span>
           </div>
           {(rankedMembers.length ? rankedMembers.slice(0, 4) : []).map((m, i) => {
@@ -369,11 +351,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     {
       id: 'tournaments',
       label: 'Tournaments',
-      title: 'Brackets in a few taps',
+      title: 'Tournaments',
       description:
-        'Round robins and single elimination, seeded straight from the ladder, with court assignments built in.',
+        'Round robin and single elimination brackets, seeded from the ladder, with court assignments.',
       panel: (
-        <div className="glass-card rounded-2xl p-5 space-y-4">
+        <div className="glass-card rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs text-slate-500">
@@ -410,7 +392,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             ))}
           </div>
           <div className="text-xs text-slate-500">
-            Seeded by live Elo · {data.clubTournaments.length} bracket
+            Seeded by Elo · {data.clubTournaments.length} bracket
             {data.clubTournaments.length === 1 ? '' : 's'} this season
           </div>
         </div>
@@ -419,11 +401,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     {
       id: 'attendance',
       label: 'Attendance',
-      title: 'Check-ins without clipboards',
+      title: 'Attendance',
       description:
-        'Officers mark attendance in seconds; members see their streaks and milestones automatically.',
+        'Officers record practice attendance. Members can see their own check-ins.',
       panel: (
-        <div className="glass-card rounded-2xl p-5 space-y-4">
+        <div className="glass-card rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs text-slate-500">
@@ -489,11 +471,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       {/* STICKY FROSTED NAV (constant h-16 to prevent scroll-up shake)      */}
       {/* ================================================================= */}
       <header
-        className={`sticky top-0 z-40 w-full transition-[background-color,border-color,backdrop-filter] duration-300 ${
-          scrolled
-            ? 'bg-paper/80 dark:bg-slate-950/75 backdrop-blur-xl border-b border-[var(--hairline)]'
-            : 'bg-transparent border-b border-transparent'
-        }`}
+        className="sticky top-0 z-40 w-full bg-white dark:bg-slate-900 border-b border-[var(--hairline)]"
       >
         <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button
@@ -508,7 +486,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
           <nav className="hidden md:flex items-center gap-7 text-sm text-slate-600 dark:text-slate-400">
             <button type="button" onClick={() => scrollToId('features')} className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
-              Platform
+              Features
             </button>
             <button type="button" onClick={() => scrollToId('stats')} className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
               Season
@@ -542,7 +520,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               onClick={() => openAccess('register')}
               className="pill-btn !min-h-[36px] !px-4 !text-[13px]"
             >
-              Join the club
+              Add yourself
             </button>
           </div>
         </div>
@@ -550,58 +528,22 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       <main className="flex-1">
         {/* =============================================================== */}
-        {/* HERO + FLOATING LIVE WIDGETS                                    */}
+        {/* HERO                                                            */}
         {/* =============================================================== */}
-        <section className="relative overflow-hidden">
-          <div className="dot-grid absolute inset-0 pointer-events-none" />
-          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full bg-court/40 dark:bg-court/[0.06] blur-3xl pointer-events-none" />
+        <section className="border-b border-[var(--hairline)] bg-white dark:bg-slate-900">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <div className="lg:col-span-6 space-y-6">
+              <div className="text-xs font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300">
+                {data.settings.schoolName}
+              </div>
 
-          <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-16 sm:pb-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-6 space-y-7">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: ENODE_EASE }}
-                className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border border-[var(--hairline)] bg-white/70 dark:bg-white/[0.04] text-xs text-slate-600 dark:text-slate-300"
-              >
-                <span className="px-2 py-0.5 rounded-full bg-court text-slate-900 font-medium">
-                  {data.settings.schoolName}
-                </span>
-                <span>Official club portal</span>
-              </motion.div>
+              <img
+                src={BOBCATS_LOGO_URL}
+                alt={data.settings.clubName}
+                className="w-full max-w-[320px] sm:max-w-[400px] h-auto object-contain"
+              />
 
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.85, delay: 0.08, ease: ENODE_EASE }}
-                className="pt-1"
-              >
-                <img
-                  src={BOBCATS_LOGO_URL}
-                  alt={data.settings.clubName}
-                  className="w-full max-w-[340px] sm:max-w-[420px] h-auto object-contain drop-shadow-sm"
-                />
-              </motion.div>
-
-              <motion.p
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.9, delay: 0.25, ease: ENODE_EASE }}
-                className="text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg"
-              >
-                {getClubText(
-                  data.settings,
-                  'welcomeTagline',
-                  'Official high school pickleball club portal. Sign in with your School ID or register on the club roster to track matches, Elo standings, and practice attendance.'
-                )}
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.9, delay: 0.35, ease: ENODE_EASE }}
-                className="flex flex-wrap items-center gap-3"
-              >
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={() =>
@@ -609,270 +551,202 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   }
                   className="pill-btn"
                 >
-                  {activeMember ? `Continue as ${activeMember.name.split(' ')[0]}` : 'Sign in to enter'}
-                  <ArrowRight className="pill-arrow w-4 h-4" />
+                  {activeMember
+                    ? `Continue as ${activeMember.name.split(' ')[0]}`
+                    : 'Sign in with School ID'}
+                  <ArrowRight className="w-4 h-4" />
                 </button>
+                {!activeMember && (
+                  <button
+                    type="button"
+                    onClick={() => openAccess('register')}
+                    className="pill-btn-ghost"
+                  >
+                    Add yourself to roster
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => requireAuthOrEnter('ladder')}
                   className="pill-btn-ghost"
                 >
-                  See standings
+                  Standings
                 </button>
-              </motion.div>
+              </div>
 
               {data.settings.customText?.clubRulesOrNotes?.trim() && (
-                <div className="p-4 rounded-2xl bg-white/70 dark:bg-white/[0.03] border border-[var(--hairline)] text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line max-w-lg">
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-[var(--hairline)] text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line max-w-lg">
                   {data.settings.customText.clubRulesOrNotes}
                 </div>
               )}
             </div>
 
-            {/* Floating "living" widgets */}
-            <div className="lg:col-span-6 relative h-[420px] sm:h-[460px] hidden sm:block">
-              {/* Latest result */}
-              <FloatingWidget
-                delay={0.25}
-                period={7}
-                className="absolute left-0 top-4 w-[290px]"
-              >
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="live-dot" /> Latest result
-                    </span>
-                    <span className="font-mono-num">{tickerMatch?.date || '—'}</span>
-                  </div>
-                  {tickerMatch && lastGame ? (
-                    <div className="space-y-1.5">
-                      {[1, 2].map((team) => {
-                        const ids = team === 1 ? tickerMatch.team1Ids : tickerMatch.team2Ids;
-                        const score = team === 1 ? lastGame.team1Score : lastGame.team2Score;
-                        const won = tickerMatch.winnerTeam === team;
-                        return (
-                          <div key={team} className="flex items-center justify-between">
-                            <TickingValue
-                              valueKey={`${tickerMatch.id}-${team}`}
-                              value={teamLabel(ids)}
-                              className={`text-sm truncate max-w-[180px] ${won ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-500'}`}
-                            />
-                            <TickingValue
-                              valueKey={`${tickerMatch.id}-${team}-s`}
-                              value={score}
-                              className={`font-mono-num text-xl ${won ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-slate-500">No matches logged yet</div>
-                  )}
+            {/* Club status card */}
+            <div className="lg:col-span-6">
+              <div className="rounded-xl border border-[var(--hairline)] bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                <div className="px-5 py-3 bg-navy text-white text-sm font-semibold">
+                  Club status
                 </div>
-              </FloatingWidget>
-
-              {/* Ladder leader */}
-              <FloatingWidget
-                delay={0.4}
-                period={8}
-                amplitude={6}
-                className="absolute right-0 top-0 w-[230px]"
-              >
-                <div className="p-4">
-                  <div className="text-xs text-slate-500 mb-2">Ladder leader</div>
-                  <div className="flex items-center gap-3">
-                    <span className="w-10 h-10 rounded-full bg-court text-slate-900 text-xs font-semibold flex items-center justify-center overflow-hidden shrink-0">
-                      {ladderLeader?.photoUrl ? (
-                        <img src={ladderLeader.photoUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        initialsOf(ladderLeader?.name || 'BN')
-                      )}
-                    </span>
+                <div className="divide-y divide-[var(--hairline)]">
+                  {/* Next session */}
+                  <div className="px-5 py-4 flex items-center justify-between gap-4">
                     <div className="min-w-0">
+                      <div className="text-xs text-slate-500">Next session</div>
                       <div className="text-sm font-semibold truncate">
-                        {ladderLeader?.name || 'Awaiting first match'}
-                      </div>
-                      <div className="font-mono-num text-xs text-slate-500">
-                        {ladderLeader ? (
-                          <>
-                            <AnimatedNumber value={ladderLeader.elo} /> Elo
-                          </>
-                        ) : (
-                          '—'
-                        )}
+                        {hasScheduledEvents ? nextEvent.title : 'No sessions scheduled'}
                       </div>
                     </div>
+                    {hasScheduledEvents && (
+                      <div className="font-mono-num text-sm text-slate-700 dark:text-slate-300 shrink-0">
+                        {days > 0 && `${days}d `}
+                        {hours}h {String(minutes).padStart(2, '0')}m
+                      </div>
+                    )}
                   </div>
-                </div>
-              </FloatingWidget>
 
-              {/* Next session */}
-              <FloatingWidget
-                delay={0.55}
-                period={6.5}
-                className="absolute left-10 bottom-10 w-[260px]"
-              >
-                <div className="p-4">
-                  <div className="text-xs text-slate-500 mb-1">Next session</div>
-                  <div className="text-sm font-semibold truncate">
-                    {hasScheduledEvents ? nextEvent.title : 'Schedule coming soon'}
+                  {/* Latest result */}
+                  <div className="px-5 py-4">
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                      <span>Latest result</span>
+                      <span className="font-mono-num">{latestMatch?.date || ''}</span>
+                    </div>
+                    {latestMatch && lastGame ? (
+                      <div className="space-y-1">
+                        {[1, 2].map((team) => {
+                          const ids = team === 1 ? latestMatch.team1Ids : latestMatch.team2Ids;
+                          const score = team === 1 ? lastGame.team1Score : lastGame.team2Score;
+                          const won = latestMatch.winnerTeam === team;
+                          return (
+                            <div key={team} className="flex items-center justify-between">
+                              <span
+                                className={`text-sm truncate max-w-[220px] ${won ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-500'}`}
+                              >
+                                {teamLabel(ids)}
+                              </span>
+                              <span
+                                className={`font-mono-num text-lg ${won ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}
+                              >
+                                {score}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-500">No matches logged yet</div>
+                    )}
                   </div>
-                  {hasScheduledEvents && (
-                    <div className="mt-3 flex items-end gap-3 font-mono-num">
-                      {[
-                        { v: days, l: 'd' },
-                        { v: hours, l: 'h' },
-                        { v: minutes, l: 'm' },
-                      ].map((u) => (
-                        <div key={u.l} className="flex items-baseline gap-0.5">
-                          <TickingValue
-                            valueKey={u.v}
-                            value={String(u.v).padStart(2, '0')}
-                            className="text-2xl text-slate-900 dark:text-white"
-                          />
-                          <span className="text-xs text-slate-400">{u.l}</span>
+
+                  {/* Ladder leader + attendance */}
+                  <div className="grid grid-cols-2 divide-x divide-[var(--hairline)]">
+                    <div className="px-5 py-4 min-w-0">
+                      <div className="text-xs text-slate-500 mb-1">#1 on the ladder</div>
+                      <div className="text-sm font-semibold truncate">
+                        {ladderLeader?.name || '—'}
+                      </div>
+                      {ladderLeader && (
+                        <div className="font-mono-num text-xs text-slate-500">
+                          {ladderLeader.elo} Elo
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )}
-                </div>
-              </FloatingWidget>
-
-              {/* Attendance */}
-              <FloatingWidget
-                delay={0.7}
-                period={7.5}
-                amplitude={4}
-                className="absolute right-4 bottom-0 w-[220px]"
-              >
-                <div className="p-4">
-                  <div className="text-xs text-slate-500 mb-1">Last practice</div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-semibold tracking-tight font-mono-num">
-                      <AnimatedNumber value={latestSession?.presentMemberIds.length ?? 0} />
-                    </span>
-                    <span className="text-xs text-slate-500">checked in</span>
-                  </div>
-                  <div className="mt-2 h-1.5 rounded-full bg-slate-200/70 dark:bg-slate-800 overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-olive dark:bg-court"
-                      initial={{ width: 0 }}
-                      animate={{
-                        width: `${
-                          data.members.length
-                            ? Math.round(
-                                ((latestSession?.presentMemberIds.length ?? 0) /
-                                  data.members.length) *
-                                  100
-                              )
-                            : 0
-                        }%`,
-                      }}
-                      transition={{ duration: 1.4, delay: 1, ease: ENODE_EASE }}
-                    />
+                    <div className="px-5 py-4">
+                      <div className="text-xs text-slate-500 mb-1">Last practice</div>
+                      <div className="text-sm font-semibold font-mono-num">
+                        {latestSession?.presentMemberIds.length ?? 0}
+                        <span className="text-slate-400 font-normal"> / {data.members.length}</span>
+                      </div>
+                      <div className="text-xs text-slate-500">checked in</div>
+                    </div>
                   </div>
                 </div>
-              </FloatingWidget>
+              </div>
             </div>
           </div>
         </section>
 
         {/* =============================================================== */}
-        {/* ROSTER MARQUEE                                                  */}
+        {/* ROSTER                                                          */}
         {/* =============================================================== */}
         {data.members.length > 0 && (
-          <section className="border-y border-[var(--hairline)] py-6">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-4 text-center text-xs text-slate-500">
-              Played by {data.members.length} athletes at {data.settings.schoolName}
+          <section className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-12 sm:pt-16">
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="text-lg font-semibold">Roster</h2>
+              <span className="text-sm text-slate-500">
+                {data.members.length} members
+              </span>
             </div>
-            <Marquee durationSec={Math.max(30, data.members.length * 3)}>
-              {rankedMembers.slice(0, 24).map((m) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {rankedMembers.slice(0, 12).map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center gap-2.5 mx-6 text-slate-500 dark:text-slate-400 whitespace-nowrap"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-[var(--hairline)] bg-white dark:bg-slate-900 min-w-0"
                 >
-                  <span className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center overflow-hidden">
+                  <span className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center overflow-hidden shrink-0">
                     {m.photoUrl ? (
-                      <img src={m.photoUrl} alt="" className="w-full h-full object-cover grayscale" />
+                      <img src={m.photoUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
                       initialsOf(m.name)
                     )}
                   </span>
-                  <span className="text-sm font-medium">{m.name}</span>
-                  <span className="font-mono-num text-xs text-slate-400">{m.elo}</span>
+                  <span className="text-sm font-medium truncate">{m.name}</span>
+                  <span className="ml-auto font-mono-num text-xs text-slate-400">{m.elo}</span>
                 </div>
               ))}
-            </Marquee>
+            </div>
           </section>
         )}
 
         {/* =============================================================== */}
-        {/* FEATURE SHOWCASE                                                */}
-        {/* =============================================================== */}
-        <section id="features" className="scroll-mt-20 max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
-          <Reveal className="max-w-2xl mb-12 space-y-4">
-            <div className="eyebrow">
-              <span className="w-1.5 h-1.5 rounded-full bg-olive dark:bg-court" /> The club platform
-            </div>
-            <h2 className="font-display text-3xl sm:text-5xl font-semibold leading-[1.05]">
-              One club, every tool.
-            </h2>
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
-              Scoring, standings, brackets and attendance live in one place, so
-              officers spend less time on spreadsheets and more time on court.
-            </p>
-          </Reveal>
-          <Reveal delay={0.1}>
-            <AutoTabs items={featureTabs} layoutIdPrefix="welcome-features" />
-          </Reveal>
-        </section>
-
         {/* =============================================================== */}
         {/* SEASON STATS                                                    */}
         {/* =============================================================== */}
-        <section id="stats" className="scroll-mt-20 border-t border-[var(--hairline)]">
-          <RevealGroup className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 grid grid-cols-2 lg:grid-cols-4 gap-y-10 gap-x-6">
+        <section id="stats" className="scroll-mt-20 max-w-6xl mx-auto w-full px-4 sm:px-6 pt-12 sm:pt-16">
+          <h2 className="text-lg font-semibold mb-4">This season</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { v: data.members.length, l: 'Athletes on the roster', s: '' },
-              { v: data.matches.length, l: 'Matches logged this season', s: '' },
-              { v: data.attendance.length, l: 'Practices held', s: '' },
-              {
-                v: data.clubTournaments.length,
-                l: 'Tournaments tracked',
-                s: '',
-              },
+              { v: data.members.length, l: 'Members' },
+              { v: data.matches.length, l: 'Matches played' },
+              { v: data.attendance.length, l: 'Practices' },
+              { v: data.clubTournaments.length, l: 'Tournaments' },
             ].map((stat) => (
-              <RevealItem key={stat.l} className="space-y-2">
-                <div className="font-display text-4xl sm:text-6xl font-semibold tracking-tight text-slate-900 dark:text-white">
-                  <RollingNumber value={stat.v} suffix={stat.s} />
+              <div
+                key={stat.l}
+                className="rounded-lg border border-[var(--hairline)] bg-white dark:bg-slate-900 px-4 py-4"
+              >
+                <div className="text-3xl font-semibold tabular-nums text-slate-900 dark:text-white">
+                  {stat.v}
                 </div>
-                <div className="text-sm text-slate-500 max-w-[12rem]">{stat.l}</div>
-              </RevealItem>
+                <div className="text-sm text-slate-500">{stat.l}</div>
+              </div>
             ))}
-          </RevealGroup>
+          </div>
+        </section>
+
+        {/* =============================================================== */}
+        {/* FEATURES                                                        */}
+        {/* =============================================================== */}
+        <section id="features" className="scroll-mt-20 max-w-6xl mx-auto w-full px-4 sm:px-6 py-12 sm:py-16">
+          <h2 className="text-lg font-semibold mb-4">Club tools &amp; schedules</h2>
+          <AutoTabs items={featureTabs} />
         </section>
 
         {/* =============================================================== */}
         {/* ACCESS                                                          */}
         {/* =============================================================== */}
-        <section id="access" className="scroll-mt-20 border-t border-[var(--hairline)] bg-slate-100/50 dark:bg-white/[0.015]">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
-            <Reveal className="lg:col-span-5 space-y-5 lg:sticky lg:top-24">
-              <div className="eyebrow">
-                <span className="w-1.5 h-1.5 rounded-full bg-olive dark:bg-court" /> Get started
-              </div>
-              <h2 className="font-display text-3xl sm:text-4xl font-semibold leading-[1.08]">
-                Your profile, your matches, your climb.
-              </h2>
-              <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">
-                Sign in with your School ID, or add yourself to the roster in under a
-                minute. Officers unlock the full console with their access code.
+        <section id="access" className="scroll-mt-20 border-t border-[var(--hairline)] bg-slate-100 dark:bg-slate-950">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            <Reveal className="lg:col-span-5 space-y-4">
+              <h2 className="text-lg font-semibold">Athlete &amp; officer access</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                Members sign in with their School ID. New members can add
+                themselves to the roster. Officers use their access code.
               </p>
-              <div className="co-index-list border-t border-[var(--hairline)]">
+              <div className="border-t border-[var(--hairline)]">
                 {(
                   [
                     { id: 'activity' as NavTab, title: 'My activity & badges' },
-                    { id: 'ladder' as NavTab, title: 'Official Elo standings' },
+                    { id: 'ladder' as NavTab, title: 'Elo standings' },
                     { id: 'tournaments' as NavTab, title: 'Tournament brackets' },
                     { id: 'calendar' as NavTab, title: 'Practice schedule' },
                   ] as const
@@ -881,9 +755,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     key={row.id}
                     type="button"
                     onClick={() => requireAuthOrEnter(row.id)}
-                    className="co-index-row w-full py-3.5 flex items-center justify-between gap-3 text-left border-b border-[var(--hairline)] cursor-pointer"
+                    className="co-index-row w-full py-3 px-1 flex items-center justify-between gap-3 text-left border-b border-[var(--hairline)] cursor-pointer"
                   >
-                    <span className="co-row-shift text-sm font-medium text-slate-900 dark:text-white">
+                    <span className="text-sm font-medium text-slate-900 dark:text-white">
                       {row.title}
                     </span>
                     <ArrowUpRight className="co-row-arrow w-4 h-4 text-slate-500" />
@@ -893,7 +767,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </Reveal>
 
             <Reveal delay={0.1} className="lg:col-span-7">
-<div className="glass-card rounded-3xl p-5 sm:p-7 text-left space-y-5">
+<div className="glass-card rounded-xl p-5 sm:p-7 text-left space-y-5">
             <div className="flex items-center justify-between gap-2 pb-3 border-b border-[var(--hairline)]">
               <div className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
                 {getClubText(
@@ -1273,7 +1147,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
                         transition={{ duration: 0.2, ease: EXPO_OUT }}
-                        className="co-index-list absolute left-0 right-0 mt-1 z-40 rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-lg overflow-hidden divide-y divide-slate-100 dark:divide-slate-800"
+                        className="absolute left-0 right-0 mt-1 z-40 rounded-xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-lg overflow-hidden divide-y divide-slate-100 dark:divide-slate-800"
                       >
                         {MEMBER_DESTINATIONS.map((opt) => {
                           const isSelected = opt.id === selectedDestination;
@@ -1333,44 +1207,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           </div>
         </section>
 
-        {/* =============================================================== */}
-        {/* CTA PANEL                                                       */}
-        {/* =============================================================== */}
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-24">
-          <Reveal>
-            <div className="relative overflow-hidden rounded-[2rem] bg-slate-900 dark:bg-slate-900 text-white px-6 sm:px-14 py-14 sm:py-20">
-              <div className="dot-grid absolute inset-0 opacity-40 pointer-events-none [filter:invert(1)]" />
-              <div className="absolute -right-24 -bottom-24 w-96 h-96 rounded-full bg-court/25 blur-3xl pointer-events-none" />
-              <div className="relative max-w-xl space-y-5">
-                <h2 className="font-display text-3xl sm:text-5xl font-semibold leading-[1.05]">
-                  Ready to play?
-                </h2>
-                <p className="text-base sm:text-lg text-slate-300 leading-relaxed">
-                  {hasScheduledEvents
-                    ? `Next up: ${nextEvent.title} on ${nextEvent.date}. Bring a paddle — we'll handle the rest.`
-                    : 'Join the roster, show up to practice, and start climbing the ladder.'}
-                </p>
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => openAccess('register')}
-                    className="inline-flex items-center gap-2 min-h-[44px] px-5 rounded-full bg-court text-slate-900 text-sm font-medium hover:bg-court-deep transition-colors cursor-pointer"
-                  >
-                    Join the club
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => requireAuthOrEnter('calendar')}
-                    className="inline-flex items-center gap-2 min-h-[44px] px-5 rounded-full border border-white/15 text-white text-sm font-medium hover:bg-white/10 transition-colors cursor-pointer"
-                  >
-                    View calendar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Reveal>
-        </section>
       </main>
 
       {/* ================================================================= */}
@@ -1436,9 +1272,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <span>
               © {now.getFullYear()} {data.settings.clubName}
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="live-dot" /> All systems synced
-            </span>
           </div>
         </div>
       </footer>
@@ -1461,10 +1294,10 @@ const LiveScorePanel: React.FC<{ teamA: string; teamB: string }> = ({ teamA, tea
     setServing(i);
   };
   return (
-    <div className="glass-card rounded-2xl p-5 space-y-4">
+    <div className="glass-card rounded-xl p-5 space-y-4">
       <div className="flex items-center justify-between text-xs text-slate-500">
         <span className="inline-flex items-center gap-1.5">
-          <span className="live-dot" /> Court 1 · Game 1
+          Court 1 · Game 1
         </span>
         <span>Rally to 11</span>
       </div>
@@ -1481,11 +1314,9 @@ const LiveScorePanel: React.FC<{ teamA: string; teamB: string }> = ({ teamA, tea
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <TickingValue
-              valueKey={scores[i]}
-              value={scores[i]}
-              className="font-mono-num text-3xl text-slate-900 dark:text-white w-10 justify-end"
-            />
+            <span className="font-mono-num text-3xl text-slate-900 dark:text-white w-10 text-right">
+              {scores[i]}
+            </span>
             <button
               type="button"
               onClick={() => bump(i as 0 | 1)}
@@ -1497,7 +1328,7 @@ const LiveScorePanel: React.FC<{ teamA: string; teamB: string }> = ({ teamA, tea
           </div>
         </div>
       ))}
-      <div className="text-[11px] text-slate-500">Tap +1 to try it — Elo updates when the match is final.</div>
+      <div className="text-[11px] text-slate-500">Sample scoreboard. Elo updates when a ranked match is final.</div>
     </div>
   );
 };

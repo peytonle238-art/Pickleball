@@ -143,7 +143,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
       {isOfficer && showForm && (
         <form
           onSubmit={handleSave}
-          className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4"
+          className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 space-y-4"
         >
           <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
             {editingAnn ? 'Edit Announcement' : 'New Club Announcement'}
@@ -228,7 +228,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
         {sorted.map((ann) => (
           <div
             key={ann.id}
-            className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 space-y-3"
+            className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5 space-y-3"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
@@ -388,7 +388,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
     <div className="space-y-6">
       {/* Summary KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5">
           <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
             Running Club Balance
           </div>
@@ -400,7 +400,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5">
           <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
             Total Income & Fundraisers
           </div>
@@ -413,7 +413,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5">
           <div className="text-[11px] font-mono-num uppercase tracking-wider font-semibold text-slate-500">
             Total Equipment & Gear Expenses
           </div>
@@ -429,7 +429,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
       {/* Two Columns: Member Dues Tracker + Income/Expense Ledger */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Member Dues Tracker (5 cols) */}
-        <div className="lg:col-span-5 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6">
+        <div className="lg:col-span-5 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6">
           <div className="mb-4">
             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
               Member Dues Tracker (${defaultDuesAmount})
@@ -474,7 +474,7 @@ export const TreasuryView: React.FC<TreasuryViewProps> = ({
         </div>
 
         {/* Income & Expense Ledger (7 cols) */}
-        <div className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6">
+        <div className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <div>
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -750,7 +750,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Club Configuration & School Colors (7 cols) */}
         <form
           onSubmit={handleSaveSettings}
-          className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-5"
+          className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 space-y-5"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -938,7 +938,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Right 5 Cols: JSON Backup/Restore + Season Reset & Archives */}
         <div className="lg:col-span-5 space-y-6">
           {/* JSON Backup & Restore Card */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 space-y-4">
             <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
               Browser Storage & JSON Backup
             </h3>
@@ -985,7 +985,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {/* Reset Season & Archive Stats Card */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 space-y-4">
             <div>
               <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
                 Season Archive & Reset

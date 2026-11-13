@@ -987,7 +987,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
       </div>
 
       {/* Top Mode Switcher: Single Court Referee vs Multi-Court Practice Night */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
             Live Courtside Scorekeeper & Court Rotation
@@ -1030,7 +1030,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
       {scoreMode === 'multicourt' && (
         <div className="space-y-6">
           {/* Smart Court Generator Control Panel */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-5">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <h3 className="font-display text-xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
@@ -1300,7 +1300,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
                 return (
                   <div
                     key={court.id}
-                    className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-col justify-between gap-4"
+                    className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5 flex flex-col justify-between gap-4"
                   >
                     {/* Court Top Bar */}
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -1564,7 +1564,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
           )}
 
           {/* Match Settings & Player Selection Bar */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5">
             <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
               <div>
                 <h3 className="font-display text-xl font-bold uppercase tracking-tight text-slate-900 dark:text-white">
@@ -1933,7 +1933,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
           )}
 
           {/* Real-Time Live Match Win Probability Bar */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 space-y-2">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 space-y-2">
             <div className="flex items-center justify-between text-xs font-mono-num tabular-nums">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-blue-600 dark:text-blue-400 text-sm sm:text-base">
@@ -1965,7 +1965,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
 
           {/* Main Scoreboard & Interactive Court Diagram */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 flex flex-col justify-between">
+            <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 flex flex-col justify-between">
               <div>
                 <div className="rounded-md bg-slate-900 dark:bg-slate-950 text-white p-5 border border-slate-800">
                   <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
@@ -2167,7 +2167,7 @@ export const LiveScoreKeeper: React.FC<LiveScoreKeeperProps> = ({
             </div>
 
             {/* Right Column: Interactive Live Court Diagram */}
-            <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 flex flex-col justify-between">
+            <div className="lg:col-span-6 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 flex flex-col justify-between">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div>
                   <h3 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">

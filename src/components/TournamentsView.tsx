@@ -426,7 +426,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Bar: In-Club Brackets */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
             In-Club Tournament Brackets
@@ -440,7 +440,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
       {/* IN-CLUB TOURNAMENT BRACKETS */}
       <div className="space-y-6">
           {/* Tournament Selector + Create Button */}
-          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-5 flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
               {clubTournaments.map((t) => (
                 <button
@@ -485,7 +485,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           {isOfficer && isCreating && (
             <form
               onSubmit={handleGenerateTournament}
-              className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-5"
+              className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 space-y-5"
             >
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -634,7 +634,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
           {/* Active Club Tournament Display */}
           {activeTournament ? (
-            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-6">
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -751,7 +751,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               )}
             </div>
           ) : (
-            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-10 text-center space-y-3">
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-10 text-center space-y-3">
               <div className="text-base font-bold text-slate-900 dark:text-white">
                 No Club Tournament Brackets Created Yet
               </div>

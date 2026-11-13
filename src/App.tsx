@@ -1393,7 +1393,7 @@ export default function App() {
           )}
 
           {/* Officer Command Header (No top-bar logo) */}
-          <header className="sticky top-0 z-30 h-16 bg-paper/85 dark:bg-slate-950/80 backdrop-blur-xl text-slate-900 dark:text-white border-b border-[var(--hairline)] px-4 sm:px-6 no-print">
+          <header className="sticky top-0 z-30 h-16 bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-b border-[var(--hairline)] px-4 sm:px-6 no-print">
             <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-2 sm:gap-4">
               {/* Zone 1: Officer Console Brand */}
               <button
@@ -2013,7 +2013,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
               transition={{ duration: 0.18 }}
-              className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] p-6 space-y-4 shadow-xl"
+              className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm p-6 space-y-4 shadow-xl"
             >
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="font-display text-xl font-bold uppercase text-slate-900 dark:text-white">

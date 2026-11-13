@@ -627,7 +627,7 @@ export const CommandPaletteModal: React.FC<{
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.28, ease: EXPO_OUT }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-[0_1px_2px_rgba(28,27,24,0.04)] shadow-2xl overflow-hidden"
+            className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm shadow-2xl overflow-hidden"
           >
             {/* Search Input Bar */}
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200 dark:border-slate-800">
