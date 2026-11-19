@@ -845,34 +845,76 @@ export function updateTournamentMatchList(
   const winningPlayerIds =
     winner === 1 ? target.team1PlayerIds : target.team2PlayerIds;
 
-  return matches.map((m) => {
-    if (m.id === matchId) {
-      return {
-        ...m,
-        score1,
-        score2,
-        winner,
-      };
+  const nextList = matches.map((m) => ({ ...m }));
+  const byId = new Map<string, ClubTournamentMatch>();
+  for (const m of nextList) {
+    byId.set(m.id, m);
+  }
+
+  const current = byId.get(matchId);
+  if (!current) return matches;
+  current.score1 = score1;
+  current.score2 = score2;
+  current.winner = winner;
+
+  // Recursively clear any downstream bracket matches that depended on a previous winner
+  const clearDownstreamFrom = (sourceMatch: ClubTournamentMatch) => {
+    if (!sourceMatch.nextMatchId || !sourceMatch.nextMatchSlot) return;
+    const downstream = byId.get(sourceMatch.nextMatchId);
+    if (!downstream) return;
+
+    const placeholder = `Winner of ${sourceMatch.roundLabel}`;
+    if (sourceMatch.nextMatchSlot === 1) {
+      downstream.team1Id = null;
+      downstream.team1Name = placeholder;
+      downstream.team1PlayerIds = [];
+    } else {
+      downstream.team2Id = null;
+      downstream.team2Name = placeholder;
+      downstream.team2PlayerIds = [];
     }
-    if (target.nextMatchId && m.id === target.nextMatchId) {
-      if (target.nextMatchSlot === 1) {
-        return {
-          ...m,
-          team1Id: winningTeamId,
-          team1Name: winningTeamName,
-          team1PlayerIds: winningPlayerIds,
-        };
-      } else if (target.nextMatchSlot === 2) {
-        return {
-          ...m,
-          team2Id: winningTeamId,
-          team2Name: winningTeamName,
-          team2PlayerIds: winningPlayerIds,
-        };
+
+    const hadResult =
+      downstream.winner !== null ||
+      downstream.score1 !== null ||
+      downstream.score2 !== null;
+    downstream.score1 = null;
+    downstream.score2 = null;
+    downstream.winner = null;
+
+    if (hadResult) {
+      clearDownstreamFrom(downstream);
+    }
+  };
+
+  if (current.nextMatchId && current.nextMatchSlot) {
+    const nextMatch = byId.get(current.nextMatchId);
+    if (nextMatch) {
+      const prevSlotTeamId =
+        current.nextMatchSlot === 1 ? nextMatch.team1Id : nextMatch.team2Id;
+      const teamChanged =
+        prevSlotTeamId !== null && prevSlotTeamId !== winningTeamId;
+
+      if (current.nextMatchSlot === 1) {
+        nextMatch.team1Id = winningTeamId;
+        nextMatch.team1Name = winningTeamName;
+        nextMatch.team1PlayerIds = winningPlayerIds;
+      } else {
+        nextMatch.team2Id = winningTeamId;
+        nextMatch.team2Name = winningTeamName;
+        nextMatch.team2PlayerIds = winningPlayerIds;
+      }
+
+      if (teamChanged) {
+        nextMatch.score1 = null;
+        nextMatch.score2 = null;
+        nextMatch.winner = null;
+        clearDownstreamFrom(nextMatch);
       }
     }
-    return m;
-  });
+  }
+
+  return nextList;
 }
 
 /**
@@ -884,6 +926,38 @@ export function getDaysUntil(dateStr: string, now: Date = new Date()): number {
   const target = new Date(y, m - 1, d, 23, 59, 59);
   const diffMs = target.getTime() - now.getTime();
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Parses the start time (hour, minute in 24h) from strings like "3:50 PM – 5:30 PM",
+ * "10:00 AM", "4 PM", or "14:30". Falls back to 3:50 PM (15:50) if unparseable.
+ */
+export function parseStartTimeFromString(timeStr?: string): {
+  hours: number;
+  minutes: number;
+} {
+  if (!timeStr) return { hours: 15, minutes: 50 };
+  const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+  if (!match) return { hours: 15, minutes: 50 };
+
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2] ? parseInt(match[2], 10) : 0;
+  const meridiem = match[3]?.toLowerCase();
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || minutes < 0 || minutes > 59) {
+    return { hours: 15, minutes: 50 };
+  }
+
+  if (meridiem === 'pm' && hours >= 1 && hours < 12) {
+    hours += 12;
+  } else if (meridiem === 'am' && hours === 12) {
+    hours = 0;
+  }
+
+  if (hours < 0 || hours > 23) {
+    return { hours: 15, minutes: 50 };
+  }
+  return { hours, minutes };
 }
 
 /**
@@ -899,7 +973,8 @@ export function getNextUpcomingEvent(
   for (const ev of events) {
     const [y, m, d] = ev.date.split('-').map(Number);
     if (y && m && d) {
-      const target = new Date(y, m - 1, d, 15, 50, 0);
+      const { hours, minutes } = parseStartTimeFromString(ev.time);
+      const target = new Date(y, m - 1, d, hours, minutes, 0);
       if (target.getTime() > now.getTime()) {
         candidates.push({ event: ev, targetDate: target });
       }
@@ -908,13 +983,16 @@ export function getNextUpcomingEvent(
 
   // Also check next 14 days for recurring practices
   if (settings.recurringPractices.enabled && settings.recurringPractices.daysOfWeek.length > 0) {
+    const { hours: recHours, minutes: recMinutes } = parseStartTimeFromString(
+      settings.recurringPractices.timeRange
+    );
     for (let offset = 0; offset <= 14; offset++) {
       const check = new Date(
         now.getFullYear(),
         now.getMonth(),
         now.getDate() + offset,
-        15,
-        50,
+        recHours,
+        recMinutes,
         0
       );
       if (
@@ -1358,6 +1436,11 @@ const PROTECTED_KEYS = new Set([
   'primaryColor',
   'secondaryColor',
   'photoUrl',
+  'schoolId',
+  'schoolIdHash',
+  'schoolIdMasked',
+  'officerPin',
+  'presidentPassword',
 ]);
 
 /**

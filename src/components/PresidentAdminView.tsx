@@ -63,6 +63,16 @@ interface PresidentAdminViewProps {
   onImportJSON: (file: File) => void;
   onResetFactoryData: () => void;
   onRequestPresidentUnlock: () => void;
+  isVerifiedGoogleAdmin?: boolean;
+  currentUserEmail?: string | null;
+  hasCloudAuthConfig?: boolean;
+  onSignInGoogleAdmin?: () => Promise<void>;
+  onSaveSecurityCredentials?: (payload: {
+    officerPin?: string;
+    presidentPassword?: string;
+    registrationLocked: boolean;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  onVerifyPresidentPassword?: (password: string) => Promise<boolean>;
 }
 
 type AdminTabId =
@@ -111,11 +121,17 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
   onImportJSON,
   onResetFactoryData,
   onRequestPresidentUnlock,
+  isVerifiedGoogleAdmin = false,
+  currentUserEmail = null,
+  hasCloudAuthConfig = false,
+  onSignInGoogleAdmin,
+  onSaveSecurityCredentials,
+  onVerifyPresidentPassword,
 }) => {
   const [activeAdminTab, setActiveAdminTab] =
     useState<AdminTabId>('master_data');
 
-  // Helper to commit full state changes immediately
+  // Helper to commit full state changes immediately without firing duplicate toasts
   const commitFullState = (nextState: ClubDataState, msg?: string) => {
     if (onReplaceFullClubData) {
       onReplaceFullClubData(nextState, msg);
@@ -124,9 +140,9 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
       onUpdateMembers(nextState.members);
       onUpdateOfficers(nextState.officers);
       onUpdateMatches(nextState.matches);
-    }
-    if (msg) {
-      triggerToast(msg);
+      if (msg) {
+        triggerToast(msg);
+      }
     }
   };
 
@@ -188,16 +204,14 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
     currentBroadcast.level || 'info'
   );
 
-  // Security state
-  const [newOfficerPin, setNewOfficerPin] = useState(
-    data.settings.officerPin || '9002'
-  );
-  const [newPresPassword, setNewPresPassword] = useState(
-    data.settings.presidentPassword || '8855'
-  );
+  // Security state (never pre-fill plaintext secrets in DOM inputs)
+  const [newOfficerPin, setNewOfficerPin] = useState('');
+  const [newPresPassword, setNewPresPassword] = useState('');
   const [regLocked, setRegLocked] = useState(
     !!data.settings.registrationLocked
   );
+  const [securitySaving, setSecuritySaving] = useState(false);
+  const [securityError, setSecurityError] = useState('');
 
   // Elo Calibrator search and adjust state
   const [eloSearch, setEloSearch] = useState('');
@@ -862,14 +876,50 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
     setNoticeEnabled(true);
   };
 
-  // Handle saving Security PINs & Lock
-  const handleSaveSecurity = (e: React.FormEvent) => {
+  // Handle saving Security PINs (PBKDF2-hashed in Firestore) & Registration Lock
+  const handleSaveSecurity = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSecurityError('');
     const cleanPin = newOfficerPin.trim();
-    const cleanPres = newPresPassword.trim() || '8855';
+    const cleanPres = newPresPassword.trim();
+    const wantsCredentialRotation = Boolean(cleanPin || cleanPres);
 
-    if (cleanPin.length < 4) {
-      triggerToast('Officer PIN must be at least 4 digits.');
+    if (wantsCredentialRotation) {
+      if (!cleanPin || !cleanPres) {
+        setSecurityError(
+          'Enter both a new Officer PIN and President Password together to rotate PBKDF2 hashes.'
+        );
+        return;
+      }
+      if (cleanPin.length < 4) {
+        setSecurityError('Officer PIN must be at least 4 characters.');
+        return;
+      }
+      if (cleanPres.length < 4) {
+        setSecurityError('President Password must be at least 4 characters.');
+        return;
+      }
+    }
+
+    if (onSaveSecurityCredentials) {
+      setSecuritySaving(true);
+      try {
+        const res = await onSaveSecurityCredentials({
+          officerPin: cleanPin || undefined,
+          presidentPassword: cleanPres || undefined,
+          registrationLocked: regLocked,
+        });
+        if (!res.ok) {
+          setSecurityError(
+            res.error || 'Unable to save security configuration.'
+          );
+          return;
+        }
+        setNewOfficerPin('');
+        setNewPresPassword('');
+      } finally {
+        setSecuritySaving(false);
+      }
       return;
     }
 
@@ -878,12 +928,10 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
         ...data,
         settings: {
           ...data.settings,
-          officerPin: cleanPin,
-          presidentPassword: cleanPres,
           registrationLocked: regLocked,
         },
       },
-      'Security credentials & registration permissions updated.'
+      'Registration permissions updated.'
     );
   };
 
@@ -951,10 +999,11 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
   };
 
   // Handle factory reset confirmation
-  const handleExecuteFactoryReset = () => {
-    if (
-      factoryPasswordInput !== (data.settings.presidentPassword || '8855')
-    ) {
+  const handleExecuteFactoryReset = async () => {
+    const valid = onVerifyPresidentPassword
+      ? await onVerifyPresidentPassword(factoryPasswordInput)
+      : false;
+    if (!valid) {
       setFactoryResetError('Incorrect President password. Action blocked.');
       return;
     }
@@ -962,7 +1011,6 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
     setConfirmFactoryReset(false);
     setFactoryPasswordInput('');
     setFactoryResetError('');
-    triggerToast('Club database reset to factory baseline.');
   };
 
   // Filtered members for Elo calibrator
@@ -1224,6 +1272,7 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
             {onToggleLiveTextEditMode && (
               <button
                 type="button"
+                data-live-edit-ignore="true"
                 onClick={() => {
                   const next = !liveTextEditMode;
                   onToggleLiveTextEditMode(next);
@@ -2561,43 +2610,85 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
             </p>
           </div>
 
+          {/* Google Admin Verification & PBKDF2 Status Card */}
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 max-w-xl">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Credential Hash Store (PBKDF2-SHA256)
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono-num font-bold ${
+                    hasCloudAuthConfig
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300'
+                  }`}
+                >
+                  {hasCloudAuthConfig ? 'HASHED IN CLOUD' : 'INITIAL SETUP'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {isVerifiedGoogleAdmin
+                  ? `Verified President Google Admin: ${currentUserEmail}`
+                  : 'Sign in with the President Google Admin account to rotate PBKDF2 PIN/password hashes in Firestore.'}
+              </p>
+            </div>
+            {!isVerifiedGoogleAdmin && onSignInGoogleAdmin && (
+              <button
+                type="button"
+                onClick={onSignInGoogleAdmin}
+                className="px-3.5 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer shrink-0"
+              >
+                Verify Google Admin
+              </button>
+            )}
+          </div>
+
           <form onSubmit={handleSaveSecurity} className="space-y-4 max-w-xl">
             <div className="p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
               <div className="text-xs font-bold text-slate-900 dark:text-white">
-                President Master Admin Password
+                New President Master Admin Password
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Grants highest presidential authority across all club operations.
+                Leave blank to keep the current password. Never stored in
+                plaintext.
               </p>
               <div className="pt-1">
                 <input
-                  type="text"
+                  type="password"
+                  autoComplete="new-password"
+                  maxLength={20}
                   value={newPresPassword}
-                  onChange={(e) => setNewPresPassword(e.target.value)}
-                  placeholder="8855"
-                  className="w-full sm:w-48 h-9 px-3 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono-num text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  onChange={(e) => {
+                    setSecurityError('');
+                    setNewPresPassword(e.target.value);
+                  }}
+                  placeholder="Enter new password..."
+                  className="w-full sm:w-56 h-9 px-3 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono-num text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                 />
               </div>
             </div>
 
             <div className="p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
               <div className="text-xs font-bold text-slate-900 dark:text-white">
-                General Officer PIN (4-Digit)
+                New General Officer PIN (4–10 chars)
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Used by vice presidents, secretaries, and captains to take
-                attendance and record match scores.
+                Used by officers to take attendance and record match scores.
+                Leave blank to keep the current PIN.
               </p>
               <div className="pt-1">
                 <input
-                  type="text"
-                  maxLength={6}
+                  type="password"
+                  autoComplete="new-password"
+                  maxLength={10}
                   value={newOfficerPin}
-                  onChange={(e) =>
-                    setNewOfficerPin(e.target.value.replace(/\D/g, ''))
-                  }
-                  placeholder="9002"
-                  className="w-full sm:w-48 h-9 px-3 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono-num text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                  onChange={(e) => {
+                    setSecurityError('');
+                    setNewOfficerPin(e.target.value);
+                  }}
+                  placeholder="Enter new Officer PIN..."
+                  className="w-full sm:w-56 h-9 px-3 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono-num text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                 />
               </div>
             </div>
@@ -2625,11 +2716,18 @@ export const PresidentAdminView: React.FC<PresidentAdminViewProps> = ({
               </button>
             </div>
 
+            {securityError && (
+              <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-xs font-semibold text-red-700 dark:text-red-300">
+                {securityError}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="px-4 py-2 rounded-md bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-950 text-white text-xs font-semibold cursor-pointer"
+              disabled={securitySaving}
+              className="px-4 py-2 rounded-md bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-950 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
             >
-              Save Security Changes
+              {securitySaving ? 'Hashing & Saving...' : 'Save Security Changes'}
             </button>
           </form>
         </div>

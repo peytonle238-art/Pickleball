@@ -190,6 +190,66 @@
         }
       },
       "required": ["uid", "createdAt"]
+    },
+    "ClubAuthConfig": {
+      "title": "ClubAuthConfig",
+      "description": "Admin-managed PBKDF2-HMAC-SHA256 credential hashes for Officer PIN and President Password verification.",
+      "type": "object",
+      "properties": {
+        "clubId": {
+          "type": "string",
+          "description": "Global club identifier ('bnhs_global_club').",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "salt": {
+          "type": "string",
+          "description": "Hex-encoded random cryptographic salt for PBKDF2.",
+          "minLength": 32,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]+$"
+        },
+        "iterations": {
+          "type": "integer",
+          "description": "PBKDF2 iteration count (minimum 100000).",
+          "minimum": 100000,
+          "maximum": 300000
+        },
+        "officerPinHash": {
+          "type": "string",
+          "description": "64-char hex PBKDF2-HMAC-SHA256 digest of the Officer PIN.",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]+$"
+        },
+        "presidentPasswordHash": {
+          "type": "string",
+          "description": "64-char hex PBKDF2-HMAC-SHA256 digest of the President Password.",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the auth config was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the auth config was last updated."
+        }
+      },
+      "required": [
+        "clubId",
+        "salt",
+        "iterations",
+        "officerPinHash",
+        "presidentPasswordHash",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -208,6 +268,10 @@
     "/admins/{adminId}": {
       "schema": { "$ref": "#/entities/AdminRecord" },
       "description": "Stores admin UIDs for role-based overrides."
+    },
+    "/clubAuthConfig/{clubId}": {
+      "schema": { "$ref": "#/entities/ClubAuthConfig" },
+      "description": "Stores admin-managed PBKDF2-HMAC-SHA256 hashes for Officer and President PIN verification."
     }
   }
 }

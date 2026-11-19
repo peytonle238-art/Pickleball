@@ -40,6 +40,7 @@ import { AnnouncementsView } from './ManagementViews';
 import {
   AnimatedNumber,
 } from './MotionPrimitives';
+import { hasVerifiedSchoolId } from '../utils/securityUtils';
 
 interface MemberPortalViewProps {
   data: ClubDataState;
@@ -56,7 +57,7 @@ interface MemberPortalViewProps {
     skillLevel: SkillLevel;
     paddleNotes?: string;
     photoUrl?: string;
-  }) => Member | null;
+  }) => Promise<Member | null> | Member | null;
   onCreateChallenge: (payload: {
     challengerId: string;
     opponentId: string;
@@ -73,7 +74,12 @@ interface MemberPortalViewProps {
   onVotePoll: (pollId: string, optionId: string) => void;
   onToggleReaction: (feedItemId: string, reaction: ReactionKey) => void;
   onSignOutMember: () => void;
-  onOfficerSignIn: (pin: string) => boolean;
+  onOfficerSignIn: (
+    pin: string
+  ) =>
+    | Promise<{ ok: boolean; error?: string } | boolean>
+    | { ok: boolean; error?: string }
+    | boolean;
   onNavigate: (tab: NavTab) => void;
   onToggleDarkMode: () => void;
   onRequestOfficerLogin: () => void;
@@ -196,15 +202,16 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Resolve the active member profile strictly from the signed-in member with a valid School ID
+  // Resolve the active member profile strictly from the signed-in member with a verified School ID
   const activeMember = useMemo(() => {
     if (!linkedMemberId) return null;
     const byId = data.members.find(
       (m) =>
-        Boolean(m.schoolId && m.schoolId.trim()) &&
+        hasVerifiedSchoolId(m) &&
         (m.id === linkedMemberId ||
-          m.schoolId!.trim().toLowerCase() ===
-            linkedMemberId.trim().toLowerCase())
+          (m.schoolId &&
+            m.schoolId.trim().toLowerCase() ===
+              linkedMemberId.trim().toLowerCase()))
     );
     return byId || null;
   }, [data.members, linkedMemberId]);
@@ -380,7 +387,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   };
 
   // Handle self-registration into the club database
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanId = regSchoolId.trim();
     const cleanName = regName.trim();
@@ -393,7 +400,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       return;
     }
 
-    const created = onRegisterMember({
+    const created = await onRegisterMember({
       schoolId: cleanId,
       name: cleanName,
       grade: regGrade,
@@ -420,15 +427,17 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
   };
 
   // Handle Officer Sign-In inside the Menu
-  const handleMenuOfficerSubmit = (e: React.FormEvent) => {
+  const handleMenuOfficerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = onOfficerSignIn(officerPinInput);
+    const res = await onOfficerSignIn(officerPinInput);
+    const ok = typeof res === 'boolean' ? res : res.ok;
+    const errMsg = typeof res === 'boolean' ? undefined : res.error;
     if (ok) {
       setOfficerPinInput('');
       setOfficerPinError('');
       setMenuOpen(false);
     } else {
-      setOfficerPinError('Invalid 4-digit Officer access code.');
+      setOfficerPinError(errMsg || 'Invalid Officer or President access code.');
       setOfficerPinInput('');
     }
   };
@@ -444,39 +453,40 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
 
   return (
     <div className="min-h-screen bg-paper dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-28 md:pb-16 transition-colors duration-200">
-      {/* Broadcast Alert Banner if active */}
-      {data.settings.broadcastNotice?.enabled &&
-        data.settings.broadcastNotice.text && (
-          <aside
-            role="alert"
-            className={`sticky top-0 z-40 px-4 py-2 text-xs font-semibold border-b ${
-              data.settings.broadcastNotice.level === 'urgent'
-                ? 'bg-red-600 text-white border-red-700'
-                : 'bg-blue-600 text-white border-blue-700'
-            }`}
-          >
-            <div className="max-w-6xl mx-auto w-full flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-mono-num uppercase tracking-wider text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/20 shrink-0">
-                  {data.settings.broadcastNotice.level === 'urgent'
-                    ? 'URGENT'
-                    : 'NOTICE'}
-                </span>
-                <span className="truncate">
-                  {data.settings.broadcastNotice.text}
+      {/* Unified Sticky Top Shell (Broadcast Notice + Header stacked cleanly) */}
+      <div className="sticky top-0 z-30 no-print">
+        {data.settings.broadcastNotice?.enabled &&
+          data.settings.broadcastNotice.text && (
+            <aside
+              role="alert"
+              className={`px-4 py-2 text-xs font-semibold border-b ${
+                data.settings.broadcastNotice.level === 'urgent'
+                  ? 'bg-red-600 text-white border-red-700'
+                  : 'bg-blue-600 text-white border-blue-700'
+              }`}
+            >
+              <div className="max-w-6xl mx-auto w-full flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono-num uppercase tracking-wider text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/20 shrink-0">
+                    {data.settings.broadcastNotice.level === 'urgent'
+                      ? 'URGENT'
+                      : 'NOTICE'}
+                  </span>
+                  <span className="truncate">
+                    {data.settings.broadcastNotice.text}
+                  </span>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider opacity-85 shrink-0 font-mono-num">
+                  Club Broadcast
                 </span>
               </div>
-              <span className="text-[10px] uppercase tracking-wider opacity-85 shrink-0 font-mono-num">
-                Club Broadcast
-              </span>
-            </div>
-          </aside>
-        )}
+            </aside>
+          )}
 
-      {/* ================================================================= */}
-      {/* SINGLE-ROW ENODE FROSTED HEADER + CENTERED PILL NAVIGATION        */}
-      {/* ================================================================= */}
-      <header className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-[var(--hairline)] no-print">
+        {/* ================================================================= */}
+        {/* SINGLE-ROW ENODE FROSTED HEADER + CENTERED PILL NAVIGATION        */}
+        {/* ================================================================= */}
+        <header className="bg-white dark:bg-slate-900 border-b border-[var(--hairline)]">
         <div className="max-w-6xl w-full mx-auto px-4 sm:px-6">
           <div className="h-16 flex items-center justify-between gap-3">
             {/* Brand Identity (No top-bar logo) */}
@@ -578,7 +588,7 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
                         transition={{ duration: 0.16, ease: SMOOTH_EASE }}
-                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-sm shadow-lg p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
+                        className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-md z-40 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] shadow-lg p-3.5 space-y-3 max-h-[82vh] overflow-y-auto touch-scroll"
                       >
                         {/* Header inside Dropdown */}
                         <div className="p-3 rounded-xl bg-paper-subtle dark:bg-slate-950 border border-[var(--hairline)] flex items-center justify-between gap-3">
@@ -959,26 +969,22 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
                                   Officer Console Sign In
                                 </span>
                                 <span className="text-slate-400 font-mono-num">
-                                  4-Digit PIN
+                                  Access Code
                                 </span>
                               </div>
 
                               <div className="flex items-center gap-2">
                                 <input
                                   type="password"
-                                  inputMode="numeric"
-                                  maxLength={4}
+                                  inputMode="text"
+                                  maxLength={20}
                                   value={officerPinInput}
                                   onChange={(e) => {
                                     setOfficerPinError('');
-                                    setOfficerPinInput(
-                                      e.target.value
-                                        .replace(/\D/g, '')
-                                        .slice(0, 4)
-                                    );
+                                    setOfficerPinInput(e.target.value.trim());
                                   }}
                                   placeholder="••••"
-                                  className="flex-1 h-9 text-center font-mono-num text-base tracking-[0.4em] rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+                                  className="flex-1 h-9 text-center font-mono-num text-base tracking-[0.25em] rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
                                 />
                                 <button
                                   type="submit"
@@ -1062,7 +1068,8 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
             </div>
           </div>
         </div>
-      </header>
+        </header>
+      </div>
 
       {/* ================================================================= */}
       {/* MEMBER PORTAL CONTENT VIEWPORT                                    */}
@@ -2324,9 +2331,9 @@ export const MemberPortalView: React.FC<MemberPortalViewProps> = ({
       </main>
 
       {/* ================================================================= */}
-      {/* MOBILE BOTTOM NAVIGATION BAR (ALL 6 TABS)                         */}
+      {/* MOBILE BOTTOM NAVIGATION BAR (ALL 5 TABS)                         */}
       {/* ================================================================= */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-slate-900 border-t border-[var(--hairline)] px-1 pt-1 pb-safe grid grid-cols-6 gap-0.5 no-print">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-slate-900 border-t border-[var(--hairline)] px-1 pt-1 pb-safe grid grid-cols-5 gap-0.5 no-print">
         {MEMBER_NAV_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (

@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  ClubAuthConfig,
   ClubDataState,
   ClubPoll,
   GradeLevel,
@@ -46,13 +47,31 @@ import {
   updateTournamentMatchList,
 } from './utils/clubUtils';
 import {
+  checkPinRateLimit,
+  clearPinRateLimit,
+  createClubAuthConfig,
+  hashSchoolId,
+  hasVerifiedSchoolId,
+  isVerifiedGoogleAdmin,
+  maskSchoolId,
+  memberMatchesSchoolIdHash,
+  migrateLegacyMemberSchoolIds,
+  recordFailedPinAttempt,
+  stripSecretsFromClubState,
+  verifyPinAgainstAuthConfig,
+} from './utils/securityUtils';
+import {
+  GLOBAL_CLUB_WORKSPACE_ID,
   User,
   auth,
   ensureUserProfileInFirestore,
   loadGlobalClubWorkspaceFromFirestore,
   mergeClubDataStates,
   onAuthStateChanged,
+  saveClubAuthConfigToFirestore,
   saveGlobalClubWorkspaceToFirestore,
+  signInWithGooglePopup,
+  subscribeClubAuthConfig,
   subscribeGlobalClubWorkspace,
   updateUserLinkedMember,
 } from './firebase';
@@ -144,7 +163,21 @@ export default function App() {
   const latestLocalDataRef = useRef<ClubDataState>(data);
   latestLocalDataRef.current = data;
 
-  // Officer 4-Digit PIN Modal state (no hints)
+  // PBKDF2-hashed Cloud Auth Config (`/clubAuthConfig/bnhs_global_club`)
+  const [clubAuthConfig, setClubAuthConfig] = useState<ClubAuthConfig | null>(
+    null
+  );
+  const clubAuthConfigExistsRef = useRef<boolean>(false);
+  const legacyFallbackPinsRef = useRef<{
+    officerPin?: string;
+    presidentPassword?: string;
+  }>({
+    officerPin: data.settings.officerPin,
+    presidentPassword: data.settings.presidentPassword,
+  });
+  const [cloudSyncWarning, setCloudSyncWarning] = useState<string | null>(null);
+
+  // Officer / President Access Code Modal state (no hints)
   const [showPinModal, setShowPinModal] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
@@ -275,17 +308,49 @@ export default function App() {
     }
   };
 
-  // Real-time Global Cloud Database sync across all devices (no Google Auth required)
+  // Real-time Global Cloud Database & PBKDF2 Auth Config sync across all devices
   useEffect(() => {
     let isMounted = true;
+
+    const unsubscribeAuthConfig = subscribeClubAuthConfig((cfg, exists) => {
+      if (!isMounted) return;
+      clubAuthConfigExistsRef.current = exists;
+      setClubAuthConfig(cfg);
+    });
 
     const unsubscribeGlobal = subscribeGlobalClubWorkspace(
       async (cloudData, exists) => {
         if (!isMounted) return;
+        setCloudSyncWarning(null);
 
         if (exists && cloudData && cloudData.members && cloudData.settings) {
           workspaceDocExistsRef.current = true;
-          const cleanedCloud = sanitizeAndStripTemplateData(cloudData);
+
+          // Capture any legacy PINs into in-memory fallback before scrubbing secrets
+          if (cloudData.settings.officerPin || cloudData.settings.presidentPassword) {
+            legacyFallbackPinsRef.current = {
+              officerPin:
+                cloudData.settings.officerPin ||
+                legacyFallbackPinsRef.current.officerPin,
+              presidentPassword:
+                cloudData.settings.presidentPassword ||
+                legacyFallbackPinsRef.current.presidentPassword,
+            };
+          }
+
+          const cleanedCloudRaw = sanitizeAndStripTemplateData(cloudData);
+          const { members: migratedMembers, migrated: migratedSchoolIds } =
+            await migrateLegacyMemberSchoolIds(cleanedCloudRaw.members);
+          const hadPlaintextSettings = Boolean(
+            cleanedCloudRaw.settings.officerPin ||
+              cleanedCloudRaw.settings.presidentPassword
+          );
+          const cleanedCloud = stripSecretsFromClubState({
+            ...cleanedCloudRaw,
+            members: migratedMembers,
+          });
+          const needsSecurityScrubWrite =
+            migratedSchoolIds || hadPlaintextSettings;
 
           let hasMigratedLocal = false;
           try {
@@ -296,10 +361,16 @@ export default function App() {
           }
 
           if (!initialCloudLoadDoneRef.current && !hasMigratedLocal) {
-            // Merge any pre-existing local members/matches on this browser into the shared cloud DB
-            const merged = mergeClubDataStates(
-              cleanedCloud,
-              latestLocalDataRef.current
+            const { members: localMigratedMembers } =
+              await migrateLegacyMemberSchoolIds(
+                latestLocalDataRef.current.members
+              );
+            const cleanLocal = stripSecretsFromClubState({
+              ...latestLocalDataRef.current,
+              members: localMigratedMembers,
+            });
+            const merged = stripSecretsFromClubState(
+              mergeClubDataStates(cleanedCloud, cleanLocal)
             );
             initialCloudLoadDoneRef.current = true;
             try {
@@ -313,7 +384,7 @@ export default function App() {
             isApplyingRemoteSnapshotRef.current = true;
             setData(merged);
 
-            if (mergedStr !== cloudStr) {
+            if (mergedStr !== cloudStr || needsSecurityScrubWrite) {
               try {
                 await saveGlobalClubWorkspaceToFirestore(merged, true);
               } catch (err) {
@@ -331,15 +402,24 @@ export default function App() {
           }
 
           const incomingStr = JSON.stringify(cleanedCloud);
-          const currentStr = JSON.stringify(latestLocalDataRef.current);
+          const currentStr = JSON.stringify(
+            stripSecretsFromClubState(latestLocalDataRef.current)
+          );
           lastSavedSerializedRef.current = incomingStr;
 
           if (incomingStr !== currentStr) {
             isApplyingRemoteSnapshotRef.current = true;
             setData(cleanedCloud);
           }
+
+          if (needsSecurityScrubWrite) {
+            try {
+              await saveGlobalClubWorkspaceToFirestore(cleanedCloud, true);
+            } catch (err) {
+              console.error('Failed to persist security-scrubbed state:', err);
+            }
+          }
         } else if (!exists) {
-          // Initialize the global cloud database from current local state
           workspaceDocExistsRef.current = false;
           initialCloudLoadDoneRef.current = true;
           try {
@@ -348,7 +428,14 @@ export default function App() {
             // Ignore storage errors
           }
           try {
-            const initialPayload = latestLocalDataRef.current;
+            const { members: migratedInitial } =
+              await migrateLegacyMemberSchoolIds(
+                latestLocalDataRef.current.members
+              );
+            const initialPayload = stripSecretsFromClubState({
+              ...latestLocalDataRef.current,
+              members: migratedInitial,
+            });
             lastSavedSerializedRef.current = JSON.stringify(initialPayload);
             await saveGlobalClubWorkspaceToFirestore(initialPayload, false);
             workspaceDocExistsRef.current = true;
@@ -356,6 +443,13 @@ export default function App() {
             console.error('Failed to initialize global club workspace:', err);
           }
         }
+      },
+      (err) => {
+        if (!isMounted) return;
+        console.error('Global club workspace subscription error:', err);
+        setCloudSyncWarning(
+          'Live cloud sync is temporarily unavailable. Changes are cached locally.'
+        );
       }
     );
 
@@ -377,14 +471,16 @@ export default function App() {
 
     return () => {
       isMounted = false;
+      unsubscribeAuthConfig();
       unsubscribeGlobal();
       unsubscribeAuth();
     };
   }, []);
 
-  // Persist data to localStorage & sync to global Firestore database for all devices
+  // Persist sanitized (secret-free) data to localStorage & sync to global Firestore database
   useEffect(() => {
-    const serialized = JSON.stringify(data);
+    const cleanData = stripSecretsFromClubState(data);
+    const serialized = JSON.stringify(cleanData);
     try {
       localStorage.setItem(STORAGE_KEY, serialized);
     } catch {
@@ -408,7 +504,7 @@ export default function App() {
       try {
         lastSavedSerializedRef.current = serialized;
         await saveGlobalClubWorkspaceToFirestore(
-          data,
+          cleanData,
           workspaceDocExistsRef.current
         );
         workspaceDocExistsRef.current = true;
@@ -419,6 +515,44 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [data]);
+
+  // President Live On-Screen Text Edit Mode: intercept clicks on rendered text
+  useEffect(() => {
+    if (!isPresident || !liveTextEditMode || liveTextEditModal) return;
+
+    const handleCaptureClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Ignore clicks on Live Edit controls/modals, navigation chrome, or interactive form controls
+      if (
+        target.closest('[data-live-edit-ignore="true"]') ||
+        target.closest('nav, header, input, textarea, select, option')
+      ) {
+        return;
+      }
+
+      // Extract concise visible text from clicked element
+      const rawText = (target.innerText || target.textContent || '').trim();
+      const singleLine = rawText.replace(/\s+/g, ' ').trim();
+      if (!singleLine || singleLine.length > 220) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      setLiveTextEditModal({
+        originalText: singleLine,
+        replacementText: singleLine,
+      });
+    };
+
+    document.addEventListener('click', handleCaptureClick, true);
+    return () => {
+      document.removeEventListener('click', handleCaptureClick, true);
+    };
+  }, [isPresident, liveTextEditMode, liveTextEditModal]);
 
   // Apply school colors to CSS variables
   useEffect(() => {
@@ -465,19 +599,17 @@ export default function App() {
     }
   };
 
-  // Sign in an existing member strictly using their School ID
+  // Sign in an existing member strictly using their salted SHA-256 School ID hash
   const handleSignInBySchoolId = async (
     schoolId: string
   ): Promise<Member | null> => {
     const cleaned = schoolId.trim().toLowerCase();
     if (!cleaned) return null;
+    const targetHash = await hashSchoolId(cleaned);
 
     const findMember = (list: Member[]) =>
-      list.find(
-        (m) =>
-          Boolean(m.schoolId && m.schoolId.trim()) &&
-          m.schoolId!.trim().toLowerCase() === cleaned
-      ) || null;
+      list.find((m) => memberMatchesSchoolIdHash(m, targetHash, cleaned)) ||
+      null;
 
     let found = findMember(latestLocalDataRef.current.members);
 
@@ -487,9 +619,8 @@ export default function App() {
           await loadGlobalClubWorkspaceFromFirestore();
         if (exists && cloudState && cloudState.members && cloudState.settings) {
           const cleanedCloud = sanitizeAndStripTemplateData(cloudState);
-          const merged = mergeClubDataStates(
-            cleanedCloud,
-            latestLocalDataRef.current
+          const merged = stripSecretsFromClubState(
+            mergeClubDataStates(cleanedCloud, latestLocalDataRef.current)
           );
           workspaceDocExistsRef.current = true;
           initialCloudLoadDoneRef.current = true;
@@ -510,9 +641,8 @@ export default function App() {
     return found;
   };
 
-  // Let a new member add themselves directly into the club database with their School ID and photo
-  // Never overwrites or hijacks an existing member account by name or duplicate School ID.
-  const handleRegisterMember = ({
+  // Let a new member add themselves directly into the club database with a hashed School ID
+  const handleRegisterMember = async ({
     schoolId,
     name,
     grade,
@@ -526,17 +656,17 @@ export default function App() {
     skillLevel: SkillLevel;
     paddleNotes?: string;
     photoUrl?: string;
-  }): Member | null => {
+  }): Promise<Member | null> => {
     const cleanSchoolId = schoolId.trim();
     const cleanName = name.trim();
     if (!cleanSchoolId || !cleanName) return null;
     const currentSnapshot = latestLocalDataRef.current;
+    const normalizedId = cleanSchoolId.toLowerCase();
+    const targetHash = await hashSchoolId(cleanSchoolId);
 
     // Reject if a member with this School ID already exists (must sign in via School ID tab)
-    const existingById = currentSnapshot.members.find(
-      (m) =>
-        m.schoolId &&
-        m.schoolId.trim().toLowerCase() === cleanSchoolId.toLowerCase()
+    const existingById = currentSnapshot.members.find((m) =>
+      memberMatchesSchoolIdHash(m, targetHash, normalizedId)
     );
     if (existingById) {
       showToast(
@@ -561,10 +691,11 @@ export default function App() {
       return null;
     }
 
-    // Create a brand-new Member record in the club database
+    // Create a brand-new Member record storing only the salted SHA-256 hash + masked suffix
     const newMember: Member = {
       id: `mem-${Date.now()}`,
-      schoolId: cleanSchoolId,
+      schoolIdHash: targetHash,
+      schoolIdMasked: maskSchoolId(cleanSchoolId),
       name: cleanName,
       grade,
       skillLevel,
@@ -608,61 +739,195 @@ export default function App() {
     showToast('Signed out of member account');
   };
 
-  const handleOfficerSignIn = (pin: string): boolean => {
-    const entered = pin.trim();
-    const presPass = (data.settings.presidentPassword || '8855').trim();
-    const isPres = entered === presPass;
-    const isOff = entered === data.settings.officerPin || isPres;
+  // Centralized PBKDF2-HMAC-SHA256 PIN / Password verifier with progressive rate-limiting
+  const verifyAccessCode = async (
+    rawPin: string
+  ): Promise<{
+    ok: boolean;
+    isOfficer: boolean;
+    isPresident: boolean;
+    error?: string;
+  }> => {
+    const rateCheck = checkPinRateLimit();
+    if (rateCheck.blocked) {
+      return {
+        ok: false,
+        isOfficer: false,
+        isPresident: false,
+        error: `Too many failed attempts. Please wait ${rateCheck.remainingSeconds}s and try again.`,
+      };
+    }
 
-    if (isOff) {
+    const result = await verifyPinAgainstAuthConfig(
+      rawPin,
+      clubAuthConfig,
+      legacyFallbackPinsRef.current
+    );
+
+    if (result.valid) {
+      clearPinRateLimit();
+      return {
+        ok: true,
+        isOfficer: result.isOfficer,
+        isPresident: result.isPresident,
+      };
+    }
+
+    const failure = recordFailedPinAttempt();
+    if (failure.blocked) {
+      return {
+        ok: false,
+        isOfficer: false,
+        isPresident: false,
+        error: `Too many failed attempts. Locked for ${failure.remainingSeconds}s.`,
+      };
+    }
+    return {
+      ok: false,
+      isOfficer: false,
+      isPresident: false,
+      error: `Invalid access code (${failure.attemptsRemaining} attempts left).`,
+    };
+  };
+
+  const handleOfficerSignIn = async (
+    pin: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const result = await verifyAccessCode(pin);
+    if (result.ok && result.isOfficer) {
       setIsOfficer(true);
-      setIsPresident(isPres);
+      setIsPresident(result.isPresident);
       setShowPinModal(false);
       setPinInput('');
       setPinError('');
       void refreshFromGlobalCloud();
       if (activeTab === 'activity') {
-        setActiveTab(isPres ? 'admin' : 'home');
+        setActiveTab(result.isPresident ? 'admin' : 'home');
       }
       showToast(
-        isPres
+        result.isPresident
           ? 'President Administration unlocked (Highest Authority)'
           : 'Officer Mode unlocked (Full Edit Access)'
       );
-      return true;
+      return { ok: true };
     }
-    return false;
+    return { ok: false, error: result.error };
   };
 
   // Handle Officer PIN Verification (NO HINTS)
-  const handlePinSubmit = (e: React.FormEvent) => {
+  const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const entered = pinInput.trim();
-    const presPass = (data.settings.presidentPassword || '8855').trim();
-    const isPres = entered === presPass;
-    const isOff = entered === data.settings.officerPin || isPres;
-
-    if (isOff) {
+    const result = await verifyAccessCode(pinInput);
+    if (result.ok && result.isOfficer) {
       setIsOfficer(true);
-      setIsPresident(isPres);
+      setIsPresident(result.isPresident);
       setShowPinModal(false);
       setPinInput('');
       setPinError('');
       void refreshFromGlobalCloud();
       if (pendingOfficerTab) {
-        setActiveTab(pendingOfficerTab);
+        if (pendingOfficerTab === 'admin' && !result.isPresident) {
+          showToast('President password is required for President Admin.');
+          setActiveTab('home');
+        } else {
+          setActiveTab(pendingOfficerTab);
+        }
         setPendingOfficerTab(null);
       } else if (activeTab === 'activity') {
-        setActiveTab(isPres ? 'admin' : 'home');
+        setActiveTab(result.isPresident ? 'admin' : 'home');
       }
       showToast(
-        isPres
+        result.isPresident
           ? 'President Administration unlocked (Highest Authority)'
           : 'Officer Mode unlocked (Full Edit Access)'
       );
     } else {
-      setPinError('Invalid access code.');
+      setPinError(result.error || 'Invalid access code.');
     }
+  };
+
+  const handleSignInGoogleAdmin = async () => {
+    try {
+      const user = await signInWithGooglePopup();
+      setCurrentUser(user);
+      if (isVerifiedGoogleAdmin(user)) {
+        showToast(`Verified President Google Admin: ${user.email}`);
+      } else {
+        showToast(
+          `Signed in as ${user.email || 'user'}, which does not have President Admin Firestore privileges.`
+        );
+      }
+    } catch (err) {
+      console.error('Google Admin sign-in failed:', err);
+      showToast('Google Admin sign-in was cancelled or blocked.');
+    }
+  };
+
+  const handleSaveSecurityCredentials = async (payload: {
+    officerPin?: string;
+    presidentPassword?: string;
+    registrationLocked: boolean;
+  }): Promise<{ ok: boolean; error?: string }> => {
+    const wantsHashRotation = Boolean(
+      payload.officerPin && payload.presidentPassword
+    );
+
+    if (wantsHashRotation) {
+      if (!isVerifiedGoogleAdmin(currentUser)) {
+        return {
+          ok: false,
+          error:
+            'Please verify the President Google Admin account first before rotating PIN/password hashes.',
+        };
+      }
+      try {
+        const nextConfig = await createClubAuthConfig({
+          clubId: GLOBAL_CLUB_WORKSPACE_ID,
+          officerPin: payload.officerPin!,
+          presidentPassword: payload.presidentPassword!,
+        });
+        await saveClubAuthConfigToFirestore(
+          nextConfig,
+          clubAuthConfigExistsRef.current
+        );
+        clubAuthConfigExistsRef.current = true;
+        setClubAuthConfig(nextConfig);
+        legacyFallbackPinsRef.current = {};
+      } catch (err) {
+        console.error('Failed to save ClubAuthConfig:', err);
+        return {
+          ok: false,
+          error:
+            'Failed to save PBKDF2 hashes to Firestore. Confirm you are signed in with the President Google Admin account.',
+        };
+      }
+    }
+
+    const currentSnapshot = latestLocalDataRef.current;
+    handleReplaceFullClubData(
+      stripSecretsFromClubState({
+        ...currentSnapshot,
+        settings: {
+          ...currentSnapshot.settings,
+          registrationLocked: payload.registrationLocked,
+        },
+      }),
+      wantsHashRotation
+        ? 'PBKDF2 security hashes & registration permissions updated.'
+        : 'Registration permissions updated.'
+    );
+    return { ok: true };
+  };
+
+  const handleVerifyPresidentPassword = async (
+    password: string
+  ): Promise<boolean> => {
+    const res = await verifyPinAgainstAuthConfig(
+      password,
+      clubAuthConfig,
+      legacyFallbackPinsRef.current
+    );
+    return res.valid && res.isPresident;
   };
 
   const handleToggleMode = () => {
@@ -670,12 +935,14 @@ export default function App() {
       setIsOfficer(false);
       setIsPresident(false);
       setLiveTextEditMode(false);
+      setLiveTextEditModal(null);
       const hasValidMember = data.members.some(
         (m) =>
-          Boolean(m.schoolId && m.schoolId.trim()) &&
+          hasVerifiedSchoolId(m) &&
           (m.id === linkedMemberId ||
-            m.schoolId!.trim().toLowerCase() ===
-              linkedMemberId.trim().toLowerCase())
+            (m.schoolId &&
+              m.schoolId.trim().toLowerCase() ===
+                linkedMemberId.trim().toLowerCase()))
       );
       if (!hasValidMember) {
         setShowWelcomeScreen(true);
@@ -990,10 +1257,11 @@ export default function App() {
   const activeMemberObj =
     data.members.find(
       (m) =>
-        Boolean(m.schoolId && m.schoolId.trim()) &&
+        hasVerifiedSchoolId(m) &&
         (m.id === linkedMemberId ||
           (linkedMemberId &&
-            m.schoolId!.trim().toLowerCase() ===
+            m.schoolId &&
+            m.schoolId.trim().toLowerCase() ===
               linkedMemberId.trim().toLowerCase()))
     ) || null;
   const voterKey = getVoterIdentityKey(activeMemberObj);
@@ -1118,7 +1386,8 @@ export default function App() {
   };
 
   const handleExportJSON = () => {
-    const jsonString = JSON.stringify(data, null, 2);
+    const cleanBackup = stripSecretsFromClubState(latestLocalDataRef.current);
+    const jsonString = JSON.stringify(cleanBackup, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1129,12 +1398,12 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('Club JSON backup exported!');
+    showToast('Sanitized Club JSON backup exported!');
   };
 
   const handleImportJSON = (file: File) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const parsed = JSON.parse(String(event.target?.result || ''));
         if (
@@ -1143,8 +1412,17 @@ export default function App() {
           Array.isArray(parsed.officers) &&
           parsed.settings
         ) {
-          setData(sanitizeAndStripTemplateData(parsed));
-          showToast('Club data successfully restored from JSON backup!');
+          const sanitized = sanitizeAndStripTemplateData(parsed);
+          const { members: migratedMembers } =
+            await migrateLegacyMemberSchoolIds(sanitized.members);
+          const cleanImported = stripSecretsFromClubState({
+            ...sanitized,
+            members: migratedMembers,
+          });
+          handleReplaceFullClubData(
+            cleanImported,
+            'Club data successfully restored from JSON backup!'
+          );
         } else {
           showToast('Invalid JSON backup file format.');
         }
@@ -1156,7 +1434,8 @@ export default function App() {
   };
 
   const handleResetAndArchiveSeason = (seasonLabel: string) => {
-    const top3 = [...data.members]
+    const currentSnapshot = latestLocalDataRef.current;
+    const top3 = [...currentSnapshot.members]
       .sort((a, b) => b.elo - a.elo)
       .slice(0, 3)
       .map((m) => ({
@@ -1169,13 +1448,13 @@ export default function App() {
     const archiveEntry: SeasonArchive = {
       id: `arch-${Date.now()}`,
       seasonName: seasonLabel.trim() || 'Archived Season',
-      startDate: data.settings.seasonStartDate,
+      startDate: currentSnapshot.settings.seasonStartDate,
       endDate: new Date().toISOString().slice(0, 10),
-      totalMatches: data.matches.length,
+      totalMatches: currentSnapshot.matches.length,
       topPlayers: top3,
     };
 
-    const resetMembers = data.members.map((m) => ({
+    const resetMembers = currentSnapshot.members.map((m) => ({
       ...m,
       elo: 0,
       monthStartElo: 0,
@@ -1186,18 +1465,21 @@ export default function App() {
       streak: 0,
     }));
 
-    setData((prev) => ({
-      ...prev,
+    const nextState: ClubDataState = {
+      ...currentSnapshot,
       settings: {
-        ...prev.settings,
+        ...currentSnapshot.settings,
         seasonStartDate: new Date().toISOString().slice(0, 10),
       },
       members: resetMembers,
       matches: [],
-      archives: [archiveEntry, ...prev.archives],
-    }));
+      archives: [archiveEntry, ...currentSnapshot.archives],
+    };
 
-    showToast(`Season archived as "${archiveEntry.seasonName}" & stats reset!`);
+    handleReplaceFullClubData(
+      nextState,
+      `Season archived as "${archiveEntry.seasonName}" & stats reset!`
+    );
   };
 
   const allNavItems: {
@@ -1299,28 +1581,24 @@ export default function App() {
             );
             setShowWelcomeScreen(false);
           }}
-          onEnterAsOfficer={(pin, targetTab) => {
-            const entered = pin.trim();
-            const presPass = (data.settings.presidentPassword || '8855').trim();
-            const isPres = entered === presPass;
-            const isOff = entered === data.settings.officerPin || isPres;
-
-            if (isOff) {
+          onEnterAsOfficer={async (pin, targetTab) => {
+            const result = await verifyAccessCode(pin);
+            if (result.ok && result.isOfficer) {
               void refreshFromGlobalCloud();
               setIsOfficer(true);
-              setIsPresident(isPres);
+              setIsPresident(result.isPresident);
               setActiveTab(
-                isPres && targetTab === 'home' ? 'admin' : targetTab
+                result.isPresident && targetTab === 'home' ? 'admin' : targetTab
               );
               setShowWelcomeScreen(false);
               showToast(
-                isPres
+                result.isPresident
                   ? 'President Administration unlocked (Highest Authority)'
                   : 'Officer Mode unlocked (Full Edit Access)'
               );
-              return true;
+              return { ok: true };
             }
-            return false;
+            return { ok: false, error: result.error };
           }}
           onSignInBySchoolId={handleSignInBySchoolId}
           onRegisterMember={handleRegisterMember}
@@ -1366,34 +1644,38 @@ export default function App() {
         /* VIEW 2: FULL-FEATURED OFFICER EXECUTIVE COMMAND CONSOLE         */
         /* =============================================================== */
         <div className="min-h-screen bg-paper dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-24 lg:pb-12 transition-colors duration-200">
-          {/* President Broadcast Notice Alert Banner if active */}
-          {data.settings.broadcastNotice?.enabled && data.settings.broadcastNotice.text && (
-            <aside
-              role="alert"
-              className={`sticky top-0 z-40 px-4 py-2 text-xs font-bold border-b ${
-                data.settings.broadcastNotice.level === 'urgent'
-                  ? 'bg-red-600 text-white border-red-700'
-                  : 'bg-blue-600 text-white border-blue-700'
-              }`}
-            >
-              <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded bg-black/20 shrink-0">
-                    {data.settings.broadcastNotice.level === 'urgent' ? 'URGENT' : 'NOTICE'}
-                  </span>
-                  <span className="truncate">
-                    {data.settings.broadcastNotice.text}
-                  </span>
-                </div>
-                <span className="text-[10px] uppercase tracking-wider opacity-85 shrink-0 font-mono-num">
-                  President Broadcast
-                </span>
-              </div>
-            </aside>
-          )}
+          {/* Unified Sticky Top Shell (Broadcast Notice + Header stacked cleanly) */}
+          <div className="sticky top-0 z-30 no-print">
+            {data.settings.broadcastNotice?.enabled &&
+              data.settings.broadcastNotice.text && (
+                <aside
+                  role="alert"
+                  className={`px-4 py-2 text-xs font-bold border-b ${
+                    data.settings.broadcastNotice.level === 'urgent'
+                      ? 'bg-red-600 text-white border-red-700'
+                      : 'bg-blue-600 text-white border-blue-700'
+                  }`}
+                >
+                  <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded bg-black/20 shrink-0">
+                        {data.settings.broadcastNotice.level === 'urgent'
+                          ? 'URGENT'
+                          : 'NOTICE'}
+                      </span>
+                      <span className="truncate">
+                        {data.settings.broadcastNotice.text}
+                      </span>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider opacity-85 shrink-0 font-mono-num">
+                      President Broadcast
+                    </span>
+                  </div>
+                </aside>
+              )}
 
-          {/* Officer Command Header (No top-bar logo) */}
-          <header className="sticky top-0 z-30 h-16 bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-b border-[var(--hairline)] px-4 sm:px-6 no-print">
+            {/* Officer Command Header (No top-bar logo) */}
+            <header className="h-16 bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-b border-[var(--hairline)] px-4 sm:px-6">
             <div className="max-w-[1440px] w-full h-full mx-auto flex items-center justify-between gap-2 sm:gap-4">
               {/* Zone 1: Officer Console Brand */}
               <button
@@ -1604,7 +1886,8 @@ export default function App() {
                 </button>
               </div>
             </div>
-          </header>
+            </header>
+          </div>
 
           {/* Officer Executive Workspace: Left Command Sidebar + Main Viewport */}
           <div className="flex-1 max-w-[1440px] w-full mx-auto flex">
@@ -1904,6 +2187,12 @@ export default function App() {
                         setPinError('');
                         setShowPinModal(true);
                       }}
+                      isVerifiedGoogleAdmin={isVerifiedGoogleAdmin(currentUser)}
+                      currentUserEmail={currentUser?.email || null}
+                      hasCloudAuthConfig={Boolean(clubAuthConfig)}
+                      onSignInGoogleAdmin={handleSignInGoogleAdmin}
+                      onSaveSecurityCredentials={handleSaveSecurityCredentials}
+                      onVerifyPresidentPassword={handleVerifyPresidentPassword}
                     />
                   )}
 
@@ -1913,14 +2202,19 @@ export default function App() {
                       archives={data.archives}
                       isOfficer={true}
                       onUpdateSettings={(settings) =>
-                        setData((prev) => ({ ...prev, settings }))
+                        handleReplaceFullClubData(
+                          { ...latestLocalDataRef.current, settings },
+                          'Club settings updated.'
+                        )
                       }
                       onResetAndArchiveSeason={handleResetAndArchiveSeason}
                       onExportJSON={handleExportJSON}
                       onImportJSON={handleImportJSON}
                       onResetFactoryData={() => {
-                        setData(INITIAL_CLUB_DATA);
-                        showToast('Cleared all club data to start fresh!');
+                        handleReplaceFullClubData(
+                          INITIAL_CLUB_DATA,
+                          'Cleared all club data to start fresh!'
+                        );
                       }}
                       onRequestOfficerUnlock={() => setShowPinModal(true)}
                     />
@@ -2038,7 +2332,7 @@ export default function App() {
                 <input
                   type="password"
                   inputMode="text"
-                  maxLength={10}
+                  maxLength={20}
                   autoFocus
                   value={pinInput}
                   onChange={(e) => {
@@ -2079,8 +2373,199 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Non-blocking Cloud Sync Warning Banner */}
+      {cloudSyncWarning && (
+        <div
+          data-live-edit-ignore="true"
+          className="fixed bottom-20 lg:bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/90 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-semibold shadow-lg flex items-center gap-3 no-print"
+        >
+          <span>{cloudSyncWarning}</span>
+          <button
+            type="button"
+            onClick={() => setCloudSyncWarning(null)}
+            className="text-[11px] underline cursor-pointer shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* President Live On-Screen Text Edit Mode Floating Status Bar */}
+      {isPresident && liveTextEditMode && (
+        <div
+          data-live-edit-ignore="true"
+          className="fixed bottom-20 lg:bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-900 text-white border border-amber-400/60 shadow-xl flex items-center gap-3 text-xs font-semibold no-print"
+        >
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>
+            Live Text Edit Mode active — click any club text to replace globally
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setLiveTextEditMode(false);
+              setLiveTextEditModal(null);
+            }}
+            className="px-2.5 py-1 rounded-md bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[11px] cursor-pointer shrink-0"
+          >
+            Exit Edit Mode
+          </button>
+        </div>
+      )}
+
+      {/* President Live On-Screen Text Edit Modal */}
+      <AnimatePresence>
+        {isPresident && liveTextEditModal && (
+          <motion.div
+            data-live-edit-ignore="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+          >
+            <motion.div
+              data-live-edit-ignore="true"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-[var(--hairline)] p-6 space-y-4 shadow-xl"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
+                  Edit Club Text Globally
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setLiveTextEditModal(null)}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {(() => {
+                const preview = globalReplaceTextInClubState(
+                  latestLocalDataRef.current,
+                  liveTextEditModal.originalText,
+                  liveTextEditModal.replacementText,
+                  false
+                );
+                return (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!liveTextEditModal.originalText.trim()) return;
+                      const result = globalReplaceTextInClubState(
+                        latestLocalDataRef.current,
+                        liveTextEditModal.originalText,
+                        liveTextEditModal.replacementText,
+                        false
+                      );
+                      if (result.replacementsCount === 0) {
+                        showToast(
+                          'That static UI label is not stored in club data. Use Site Copy Studio for custom headings.'
+                        );
+                      } else {
+                        handleReplaceFullClubData(
+                          result.nextState,
+                          `Updated ${result.replacementsCount} ${
+                            result.replacementsCount === 1
+                              ? 'occurrence'
+                              : 'occurrences'
+                          } across club data.`
+                        );
+                      }
+                      setLiveTextEditModal(null);
+                    }}
+                    className="space-y-3.5"
+                  >
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                        Find Text in Club Data
+                      </label>
+                      <input
+                        type="text"
+                        value={liveTextEditModal.originalText}
+                        onChange={(e) =>
+                          setLiveTextEditModal({
+                            ...liveTextEditModal,
+                            originalText: e.target.value,
+                          })
+                        }
+                        className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                        Replace With
+                      </label>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={liveTextEditModal.replacementText}
+                        onChange={(e) =>
+                          setLiveTextEditModal({
+                            ...liveTextEditModal,
+                            replacementText: e.target.value,
+                          })
+                        }
+                        className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-xs bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-[var(--hairline)] text-[11px] text-slate-600 dark:text-slate-400">
+                      {preview.replacementsCount > 0 ? (
+                        <span>
+                          Found{' '}
+                          <strong className="text-slate-900 dark:text-white font-mono-num">
+                            {preview.replacementsCount}
+                          </strong>{' '}
+                          matching{' '}
+                          {preview.replacementsCount === 1
+                            ? 'field'
+                            : 'fields'}{' '}
+                          in club data.
+                        </span>
+                      ) : (
+                        <span>
+                          No direct data field matches this exact string (try
+                          shortening the find text or editing it in Site Copy
+                          Studio).
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setLiveTextEditModal(null)}
+                        className="flex-1 min-h-[38px] rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={preview.replacementsCount === 0}
+                        className="flex-1 min-h-[38px] rounded-md text-xs font-bold text-white bg-slate-900 hover:bg-black dark:bg-amber-400 dark:hover:bg-amber-300 dark:text-slate-950 disabled:opacity-40 cursor-pointer transition-colors"
+                      >
+                        Apply Replacement
+                      </button>
+                    </div>
+                  </form>
+                );
+              })()}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {isPresident && (!isOfficer || activeTab !== 'admin') && (
-        <div className="fixed bottom-20 lg:bottom-5 left-4 z-50 flex items-center gap-2 no-print">
+        <div
+          data-live-edit-ignore="true"
+          className="fixed bottom-20 lg:bottom-5 left-4 z-50 flex items-center gap-2 no-print"
+        >
           <button
             type="button"
             onClick={() => {

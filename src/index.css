@@ -10,6 +10,7 @@
   /* Byron Nelson Bobcats brand tokens (navy / royal blue / white).
      Tailwind's default slate + blue scales are used as-is. */
   --color-paper: #f8fafc;
+  --color-paper-subtle: #f1f5f9;
   --color-paper-deep: #eef2f7;
   --color-ink: #0f172a;
   --color-navy: #0f2439;

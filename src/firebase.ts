@@ -22,7 +22,8 @@ import {
   where,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { ClubDataState, Member } from './types';
+import { ClubAuthConfig, ClubDataState, Member } from './types';
+import { stripSecretsFromClubState } from './utils/securityUtils';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -137,23 +138,24 @@ export function sanitizeDateISO(raw: string): string {
  * and stays within the 950KB Firestore document payload limit.
  */
 function serializeClubWorkspaceState(state: ClubDataState): string {
-  const json = JSON.stringify(state);
+  const cleanState = stripSecretsFromClubState(state);
+  const json = JSON.stringify(cleanState);
   if (json.length <= MAX_PAYLOAD_LENGTH) {
     return json;
   }
   // If large base64 photos push the payload over 940KB, trim oversized photoUrls first while keeping valid JSON
-  const compactedMembers: Member[] = state.members.map((m) => {
+  const compactedMembers: Member[] = cleanState.members.map((m) => {
     if (m.photoUrl && m.photoUrl.length > 25000) {
       return { ...m, photoUrl: '' };
     }
     return m;
   });
-  const secondTry = JSON.stringify({ ...state, members: compactedMembers });
+  const secondTry = JSON.stringify({ ...cleanState, members: compactedMembers });
   if (secondTry.length <= MAX_PAYLOAD_LENGTH) {
     return secondTry;
   }
-  const strippedPhotos = state.members.map((m) => ({ ...m, photoUrl: '' }));
-  return JSON.stringify({ ...state, members: strippedPhotos });
+  const strippedPhotos = cleanState.members.map((m) => ({ ...m, photoUrl: '' }));
+  return JSON.stringify({ ...cleanState, members: strippedPhotos });
 }
 
 /**
@@ -164,44 +166,64 @@ export function mergeClubDataStates(
   primary: ClubDataState,
   secondary: ClubDataState
 ): ClubDataState {
-  // Merge members by id and schoolId
+  // Merge members by id, schoolIdHash, and legacy schoolId
   const memberMap = new Map<string, Member>();
-  const schoolIdToMemberId = new Map<string, string>();
+  const schoolKeyToMemberId = new Map<string, string>();
+
+  const getMemberSchoolKey = (m: Member): string => {
+    if (m.schoolIdHash && m.schoolIdHash.trim()) {
+      return `hash:${m.schoolIdHash.trim().toLowerCase()}`;
+    }
+    if (m.schoolId && m.schoolId.trim()) {
+      return `raw:${m.schoolId.trim().toLowerCase()}`;
+    }
+    return '';
+  };
 
   for (const m of primary.members) {
     memberMap.set(m.id, m);
-    if (m.schoolId && m.schoolId.trim()) {
-      schoolIdToMemberId.set(m.schoolId.trim().toLowerCase(), m.id);
+    const key = getMemberSchoolKey(m);
+    if (key) {
+      schoolKeyToMemberId.set(key, m.id);
     }
   }
 
   for (const m of secondary.members) {
-    const cleanSchoolId = m.schoolId?.trim().toLowerCase() || '';
-    const existingIdBySchool = cleanSchoolId
-      ? schoolIdToMemberId.get(cleanSchoolId)
+    const schoolKey = getMemberSchoolKey(m);
+    const existingIdBySchool = schoolKey
+      ? schoolKeyToMemberId.get(schoolKey)
       : undefined;
     const targetId = existingIdBySchool || m.id;
     const existing = memberMap.get(targetId);
 
     if (!existing) {
       memberMap.set(m.id, m);
-      if (cleanSchoolId) {
-        schoolIdToMemberId.set(cleanSchoolId, m.id);
+      if (schoolKey) {
+        schoolKeyToMemberId.set(schoolKey, m.id);
       }
     } else {
-      // Combine any missing profile fields (such as photoUrl or schoolId) and pick higher activity count
+      // Combine any missing profile fields (such as photoUrl or schoolIdHash) and pick higher activity count
       const primaryGames = (existing.wins || 0) + (existing.losses || 0);
       const secondaryGames = (m.wins || 0) + (m.losses || 0);
       const base = secondaryGames > primaryGames ? m : existing;
       const other = secondaryGames > primaryGames ? existing : m;
-      memberMap.set(targetId, {
+      const mergedHash = base.schoolIdHash || other.schoolIdHash;
+      const mergedMasked = base.schoolIdMasked || other.schoolIdMasked;
+      const merged: Member = {
         ...other,
         ...base,
         id: existing.id,
-        schoolId: base.schoolId || other.schoolId,
+        schoolIdHash: mergedHash,
+        schoolIdMasked: mergedMasked,
         photoUrl: base.photoUrl || other.photoUrl,
         paddleNotes: base.paddleNotes || other.paddleNotes,
-      });
+      };
+      if (mergedHash) {
+        delete merged.schoolId;
+      } else {
+        merged.schoolId = base.schoolId || other.schoolId;
+      }
+      memberMap.set(targetId, merged);
     }
   }
 
@@ -379,7 +401,8 @@ export async function loadGlobalClubWorkspaceFromFirestore(): Promise<{
  * (`clubWorkspaces/bnhs_global_club`) across all devices.
  */
 export function subscribeGlobalClubWorkspace(
-  onUpdate: (state: ClubDataState | null, exists: boolean) => void
+  onUpdate: (state: ClubDataState | null, exists: boolean) => void,
+  onError?: (error: Error) => void
 ): () => void {
   const path = `clubWorkspaces/${GLOBAL_CLUB_WORKSPACE_ID}`;
   const ref = doc(db, 'clubWorkspaces', GLOBAL_CLUB_WORKSPACE_ID);
@@ -404,9 +427,155 @@ export function subscribeGlobalClubWorkspace(
       onUpdate(null, true);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (err) {
+        if (onError) {
+          onError(err instanceof Error ? err : new Error(String(err)));
+        }
+      }
     }
   );
+}
+
+/**
+ * Loads the PBKDF2-hashed PIN / password configuration from `/clubAuthConfig/bnhs_global_club`.
+ */
+export async function loadClubAuthConfigFromFirestore(): Promise<{
+  config: ClubAuthConfig | null;
+  exists: boolean;
+}> {
+  const path = `clubAuthConfig/${GLOBAL_CLUB_WORKSPACE_ID}`;
+  const ref = doc(db, 'clubAuthConfig', GLOBAL_CLUB_WORKSPACE_ID);
+
+  try {
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      return { config: null, exists: false };
+    }
+    const d = snap.data();
+    if (
+      typeof d.clubId === 'string' &&
+      typeof d.salt === 'string' &&
+      typeof d.iterations === 'number' &&
+      typeof d.officerPinHash === 'string' &&
+      typeof d.presidentPasswordHash === 'string'
+    ) {
+      return {
+        config: {
+          clubId: d.clubId,
+          salt: d.salt,
+          iterations: d.iterations,
+          officerPinHash: d.officerPinHash,
+          presidentPasswordHash: d.presidentPasswordHash,
+        },
+        exists: true,
+      };
+    }
+    return { config: null, exists: true };
+  } catch (error) {
+    console.warn(`Unable to load ${path}:`, error);
+    return { config: null, exists: false };
+  }
+}
+
+/**
+ * Real-time subscription to `/clubAuthConfig/bnhs_global_club`.
+ */
+export function subscribeClubAuthConfig(
+  onUpdate: (config: ClubAuthConfig | null, exists: boolean) => void
+): () => void {
+  const path = `clubAuthConfig/${GLOBAL_CLUB_WORKSPACE_ID}`;
+  const ref = doc(db, 'clubAuthConfig', GLOBAL_CLUB_WORKSPACE_ID);
+
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        onUpdate(null, false);
+        return;
+      }
+      const d = snap.data();
+      if (
+        typeof d.clubId === 'string' &&
+        typeof d.salt === 'string' &&
+        typeof d.iterations === 'number' &&
+        typeof d.officerPinHash === 'string' &&
+        typeof d.presidentPasswordHash === 'string'
+      ) {
+        onUpdate(
+          {
+            clubId: d.clubId,
+            salt: d.salt,
+            iterations: d.iterations,
+            officerPinHash: d.officerPinHash,
+            presidentPasswordHash: d.presidentPasswordHash,
+          },
+          true
+        );
+        return;
+      }
+      onUpdate(null, true);
+    },
+    (error) => {
+      console.warn(`Unable to subscribe to ${path}:`, error);
+    }
+  );
+}
+
+/**
+ * Admin-only write of PBKDF2-hashed Officer PIN & President Password into `/clubAuthConfig/bnhs_global_club`.
+ */
+export async function saveClubAuthConfigToFirestore(
+  config: ClubAuthConfig,
+  existsHint = false
+): Promise<void> {
+  const path = `clubAuthConfig/${GLOBAL_CLUB_WORKSPACE_ID}`;
+  const ref = doc(db, 'clubAuthConfig', GLOBAL_CLUB_WORKSPACE_ID);
+
+  const performUpdate = async () => {
+    await updateDoc(ref, {
+      salt: config.salt,
+      iterations: config.iterations,
+      officerPinHash: config.officerPinHash,
+      presidentPasswordHash: config.presidentPasswordHash,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const performCreate = async () => {
+    await setDoc(ref, {
+      clubId: GLOBAL_CLUB_WORKSPACE_ID,
+      salt: config.salt,
+      iterations: config.iterations,
+      officerPinHash: config.officerPinHash,
+      presidentPasswordHash: config.presidentPasswordHash,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  try {
+    if (existsHint) {
+      try {
+        await performUpdate();
+      } catch {
+        await performCreate();
+      }
+    } else {
+      try {
+        await performCreate();
+      } catch {
+        await performUpdate();
+      }
+    }
+  } catch (error) {
+    handleFirestoreError(
+      error,
+      existsHint ? OperationType.UPDATE : OperationType.CREATE,
+      path
+    );
+  }
 }
 
 /**

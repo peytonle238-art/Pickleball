@@ -81,6 +81,18 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    function isValidClubAuthConfig(data) {
+      return data.keys().hasAll(['clubId', 'salt', 'iterations', 'officerPinHash', 'presidentPasswordHash', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['clubId', 'salt', 'iterations', 'officerPinHash', 'presidentPasswordHash', 'createdAt', 'updatedAt'])
+        && data.clubId is string && data.clubId == 'bnhs_global_club'
+        && data.salt is string && data.salt.size() >= 32 && data.salt.size() <= 64 && data.salt.matches('^[0-9a-f]+$')
+        && data.iterations is int && data.iterations >= 100000 && data.iterations <= 300000
+        && data.officerPinHash is string && data.officerPinHash.size() == 64 && data.officerPinHash.matches('^[0-9a-f]+$')
+        && data.presidentPasswordHash is string && data.presidentPasswordHash.size() == 64 && data.presidentPasswordHash.matches('^[0-9a-f]+$')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // 4. Collection Match Blocks
     match /users/{userId} {
       allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
@@ -128,6 +140,18 @@ service cloud.firestore {
         )
       );
       allow delete: if isVerifiedUser() && isValidId(workspaceId) && (request.auth.uid == workspaceId || isAdmin());
+    }
+
+    match /clubAuthConfig/{clubId} {
+      allow get: if isValidId(clubId) && clubId == 'bnhs_global_club';
+      allow list: if false;
+      allow create: if isAdmin() && isValidId(clubId) && clubId == 'bnhs_global_club' && isValidClubAuthConfig(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(clubId) && clubId == 'bnhs_global_club' && isValidClubAuthConfig(incoming())
+        && incoming().clubId == existing().clubId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['salt', 'iterations', 'officerPinHash', 'presidentPasswordHash', 'updatedAt']);
+      allow delete: if isAdmin() && isValidId(clubId);
     }
 
     match /qrCheckins/{checkinId} {

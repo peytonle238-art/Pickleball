@@ -17,8 +17,13 @@
    - Can only be created if `incoming().uid == request.auth.uid`, `incoming().createdAt == request.time`, and `incoming().status == 'verified'`.
    - Once created with terminal `status == 'verified'`, updates are locked (`allow update: if isAdmin();`) to prevent retroactive attendance tampering.
    - `allow list` enforces `resource.data.uid == request.auth.uid` (no blanket reads).
+7. **ClubAuthConfig (`/clubAuthConfig/{clubId}`)**:
+   - Isolates PBKDF2-HMAC-SHA256 hashes (`salt`, `iterations` in `100000..300000`, 64-char hex `officerPinHash` and `presidentPasswordHash`) outside the club workspace JSON payload.
+   - Targeted `get` is permitted only for `clubId == 'bnhs_global_club'`; `list` is denied (`allow list: if false;`).
+   - `create`, `update`, and `delete` are strictly restricted to `isAdmin()` (verified Google admin `peytonle238@gmail.com` or UID in `/admins/{uid}`).
+   - `clubId` and `createdAt` are immutable on `update`; `updatedAt` must equal `request.time`; `affectedKeys()` restricted to `['salt', 'iterations', 'officerPinHash', 'presidentPasswordHash', 'updatedAt']`.
 
-## 2. The "Dirty Dozen" Payloads
+## 2. The "Dirty Dozen" & Auth Config Payloads
 
 1. **Unauthenticated Write**: Creating `/users/user_1` with `auth == null`.
 2. **Unverified Email Spoof**: Creating `/users/user_1` where `auth.token.email == 'peytonle238@gmail.com'` but `email_verified == false`.
@@ -32,3 +37,5 @@
 10. **Cross-User Profile Read (PII/Profile Leak)**: User `user_2` attempting `get` on `/users/user_1`.
 11. **Unscoped Blanket List Query**: User `user_1` attempting `list` on `/qrCheckins` without filtering `uid == 'user_1'`.
 12. **Terminal State Mutation**: User `user_1` attempting to `update` a `/qrCheckins/chk_1` document that is already in terminal state `status == 'verified'`.
+13. **Non-Admin Auth Config Takeover**: Non-admin authenticated user attempting `create` or `update` on `/clubAuthConfig/bnhs_global_club`.
+14. **Weak PBKDF2 Iteration Downgrade**: Admin attempting to write `/clubAuthConfig/bnhs_global_club` with `iterations: 1000` (`< 100000`) or malformed non-hex hash.

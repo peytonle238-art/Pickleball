@@ -714,7 +714,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [schoolName, setSchoolName] = useState(settings.schoolName);
   const [primaryColor, setPrimaryColor] = useState(settings.primaryColor);
   const [secondaryColor, setSecondaryColor] = useState(settings.secondaryColor);
-  const [officerPin, setOfficerPin] = useState(settings.officerPin);
   const [seasonStartDate, setSeasonStartDate] = useState(
     settings.seasonStartDate
   );
@@ -723,6 +722,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
   const [archiveLabel, setArchiveLabel] = useState('Fall 2026 Season');
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState('');
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -732,11 +733,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
     onUpdateSettings({
       ...settings,
-      clubName: clubName.trim() || 'BNHS Pickleball Club HQ',
+      clubName: clubName.trim() || 'BNHS Pickleball Club',
       schoolName: schoolName.trim() || 'Byron Nelson High School',
       primaryColor,
       secondaryColor,
-      officerPin: officerPin.trim().slice(0, 10) || '2026',
       seasonStartDate,
       duesAmount: Number(duesAmount) || 25,
     });
@@ -758,8 +758,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 Club Settings & School Colors
               </h2>
               <p className="text-xs text-slate-500">
-                Customize club name, school colors, 4-digit Officer PIN, and
-                season start date
+                Customize club name, school colors, dues, and season start date
               </p>
             </div>
             {!isOfficer && (
@@ -882,21 +881,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                Officer PIN (4–10 chars)
-              </label>
-              <input
-                type={isOfficer ? 'text' : 'password'}
-                maxLength={10}
-                value={isOfficer ? officerPin : '••••'}
-                onChange={(e) => setOfficerPin(e.target.value)}
-                disabled={!isOfficer}
-                className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 disabled:opacity-60"
-              />
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                 Season Start Date
@@ -922,6 +907,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 disabled:opacity-60"
               />
             </div>
+          </div>
+
+          <div className="p-3 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+            Officer PINs and President passwords are stored as PBKDF2-SHA256
+            hashes and rotated exclusively inside{' '}
+            <span className="font-semibold text-slate-900 dark:text-white">
+              President Admin → Security & PINs
+            </span>{' '}
+            with verified Google Admin sign-in.
           </div>
 
           <div className="pt-2">
@@ -970,17 +964,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </label>
             </div>
 
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-slate-500">
-                Wipe all club records and start fresh?
-              </span>
-              <button
-                type="button"
-                onClick={onResetFactoryData}
-                className="font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
-              >
-                Clear All Club Data
-              </button>
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2.5 text-xs">
+              {!confirmClearOpen ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">
+                    Wipe all club records and start fresh?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isOfficer) {
+                        onRequestOfficerUnlock();
+                        return;
+                      }
+                      setConfirmClearOpen(true);
+                      setClearConfirmText('');
+                    }}
+                    className="font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+                  >
+                    Clear All Club Data
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 space-y-2.5">
+                  <p className="text-red-700 dark:text-red-300 font-semibold">
+                    Type <span className="font-mono-num">RESET</span> to confirm
+                    wiping all club members, matches, tournaments, and events.
+                  </p>
+                  <input
+                    type="text"
+                    value={clearConfirmText}
+                    onChange={(e) => setClearConfirmText(e.target.value)}
+                    placeholder="Type RESET"
+                    className="w-full min-h-[34px] px-3 py-1 rounded-md text-xs font-mono-num bg-white dark:bg-slate-900 border border-red-300 dark:border-red-800 text-slate-900 dark:text-white"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={clearConfirmText.trim().toUpperCase() !== 'RESET'}
+                      onClick={() => {
+                        onResetFactoryData();
+                        setConfirmClearOpen(false);
+                        setClearConfirmText('');
+                      }}
+                      className="px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-semibold cursor-pointer"
+                    >
+                      Confirm Wipe
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmClearOpen(false);
+                        setClearConfirmText('');
+                      }}
+                      className="px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

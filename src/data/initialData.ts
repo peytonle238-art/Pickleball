@@ -6,8 +6,6 @@ export const INITIAL_CLUB_DATA: ClubDataState = {
     schoolName: 'Byron Nelson High School',
     primaryColor: '#1d4ed8',
     secondaryColor: '#eab308',
-    officerPin: '9002',
-    presidentPassword: '8855',
     registrationLocked: false,
     broadcastNotice: {
       enabled: false,
@@ -172,10 +170,6 @@ export function sanitizeAndStripTemplateData(
     ...(state.settings || {}),
     clubName: normalizedClubName,
     customText: cleanedCustomText,
-    officerPin:
-      !state.settings?.officerPin || state.settings.officerPin === '1234'
-        ? '9002'
-        : state.settings.officerPin,
     recurringPractices:
       hadTemplateMembers || hadTemplateEvents
         ? {

@@ -14,6 +14,7 @@ import {
   processImageFileToDataUrl,
   recalculateMemberStatsFromHistory,
 } from '../utils/clubUtils';
+import { hashSchoolId, maskSchoolId } from '../utils/securityUtils';
 
 interface MembersAttendanceViewProps {
   members: Member[];
@@ -288,49 +289,57 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
     setFormRevokedAchievementIds(nextRevoked);
   };
 
-  const handleSaveMember = (e: React.FormEvent) => {
+  const handleSaveMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) return;
 
-    const cleanedSchoolId = formSchoolId.trim() || undefined;
+    const cleanedSchoolId = formSchoolId.trim();
+    const derivedHash = cleanedSchoolId
+      ? await hashSchoolId(cleanedSchoolId)
+      : undefined;
+    const derivedMasked = cleanedSchoolId
+      ? maskSchoolId(cleanedSchoolId)
+      : undefined;
 
     if (editingMember) {
       onUpdateMembers(
-        members.map((m) =>
-          m.id === editingMember.id
-            ? {
-                ...m,
-                schoolId: cleanedSchoolId || m.schoolId,
-                name: formName.trim(),
-                photoUrl: formPhoto.trim() || undefined,
-                grade: formGrade,
-                skillLevel: formSkill,
-                duprRating: formDupr.trim() || undefined,
-                paddleNotes: formPaddle.trim() || 'Club Loaner Paddle',
-                joinDate: formJoinDate,
-                elo: Math.max(0, Math.round(Number(formElo) || 0)),
-                monthStartElo: Math.max(
-                  0,
-                  Math.round(Number(formMonthStartElo) || 0)
-                ),
-                wins: Math.max(0, Math.round(Number(formWins) || 0)),
-                losses: Math.max(0, Math.round(Number(formLosses) || 0)),
-                pointsFor: Math.max(0, Math.round(Number(formPointsFor) || 0)),
-                pointsAgainst: Math.max(
-                  0,
-                  Math.round(Number(formPointsAgainst) || 0)
-                ),
-                streak: Math.round(Number(formStreak) || 0),
-                unlockedAchievementIds: formUnlockedAchievementIds,
-                revokedAchievementIds: formRevokedAchievementIds,
-              }
-            : m
-        )
+        members.map((m) => {
+          if (m.id !== editingMember.id) return m;
+          const { schoolId: _legacyRemoved, ...rest } = m;
+          return {
+            ...rest,
+            schoolIdHash: derivedHash || m.schoolIdHash,
+            schoolIdMasked: derivedMasked || m.schoolIdMasked,
+            name: formName.trim(),
+            photoUrl: formPhoto.trim() || undefined,
+            grade: formGrade,
+            skillLevel: formSkill,
+            duprRating: formDupr.trim() || undefined,
+            paddleNotes: formPaddle.trim() || 'Club Loaner Paddle',
+            joinDate: formJoinDate,
+            elo: Math.max(0, Math.round(Number(formElo) || 0)),
+            monthStartElo: Math.max(
+              0,
+              Math.round(Number(formMonthStartElo) || 0)
+            ),
+            wins: Math.max(0, Math.round(Number(formWins) || 0)),
+            losses: Math.max(0, Math.round(Number(formLosses) || 0)),
+            pointsFor: Math.max(0, Math.round(Number(formPointsFor) || 0)),
+            pointsAgainst: Math.max(
+              0,
+              Math.round(Number(formPointsAgainst) || 0)
+            ),
+            streak: Math.round(Number(formStreak) || 0),
+            unlockedAchievementIds: formUnlockedAchievementIds,
+            revokedAchievementIds: formRevokedAchievementIds,
+          };
+        })
       );
     } else {
       const newMember: Member = {
         id: `mem-${Date.now()}`,
-        schoolId: cleanedSchoolId,
+        schoolIdHash: derivedHash,
+        schoolIdMasked: derivedMasked,
         photoUrl: formPhoto.trim() || undefined,
         name: formName.trim(),
         grade: formGrade,
@@ -781,13 +790,22 @@ export const MembersAttendanceView: React.FC<MembersAttendanceViewProps> = ({
           >
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                School ID
+                School ID{' '}
+                {editingMember?.schoolIdMasked && (
+                  <span className="font-mono-num normal-case text-slate-400">
+                    ({editingMember.schoolIdMasked} saved)
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={formSchoolId}
                 onChange={(e) => setFormSchoolId(e.target.value)}
-                placeholder="e.g. 204819"
+                placeholder={
+                  editingMember?.schoolIdMasked
+                    ? 'Leave blank to keep existing'
+                    : 'e.g. 204819'
+                }
                 className="w-full min-h-[38px] px-3 py-1.5 rounded-md text-sm font-mono-num bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>

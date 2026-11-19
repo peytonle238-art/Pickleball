@@ -198,13 +198,13 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             <div className="flex items-center gap-2.5 w-full sm:w-auto">
               <button
                 onClick={() => onNavigate('scorekeeper')}
-                className="pill-btn pill-btn-primary text-xs px-4 py-2.5 flex-1 sm:flex-initial justify-center cursor-pointer"
+                className="pill-btn text-xs px-4 py-2.5 flex-1 sm:flex-initial justify-center cursor-pointer"
               >
                 Live scoreboard
               </button>
               <button
                 onClick={() => onNavigate('ladder')}
-                className="pill-btn pill-btn-ghost text-xs px-4 py-2.5 flex-1 sm:flex-initial justify-center cursor-pointer"
+                className="pill-btn-ghost text-xs px-4 py-2.5 flex-1 sm:flex-initial justify-center cursor-pointer"
               >
                 View standings
               </button>
@@ -217,7 +217,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 text-[11px] font-mono-num uppercase tracking-wider text-slate-500">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 Next scheduled session
               </span>
               <button

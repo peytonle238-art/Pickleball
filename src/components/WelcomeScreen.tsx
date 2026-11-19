@@ -19,6 +19,7 @@ import {
   getNextUpcomingEvent,
   processImageFileToDataUrl,
 } from '../utils/clubUtils';
+import { hasVerifiedSchoolId } from '../utils/securityUtils';
 import { EXPO_OUT } from './MotionPrimitives';
 import {
   AutoTabItem,
@@ -35,7 +36,13 @@ interface WelcomeScreenProps {
   linkedMemberId: string;
   onToggleDarkMode: () => void;
   onEnterAsMember: (targetTab: NavTab) => void;
-  onEnterAsOfficer: (pin: string, targetTab: NavTab) => boolean;
+  onEnterAsOfficer: (
+    pin: string,
+    targetTab: NavTab
+  ) =>
+    | Promise<{ ok: boolean; error?: string } | boolean>
+    | { ok: boolean; error?: string }
+    | boolean;
   onSignInBySchoolId: (
     schoolId: string
   ) => Promise<Member | null> | Member | null;
@@ -46,7 +53,7 @@ interface WelcomeScreenProps {
     skillLevel: SkillLevel;
     paddleNotes?: string;
     photoUrl?: string;
-  }) => Member | null;
+  }) => Promise<Member | null> | Member | null;
   onSignOutMember: () => void;
 }
 
@@ -134,10 +141,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const activeMember =
     data.members.find(
       (m) =>
-        Boolean(m.schoolId && m.schoolId.trim()) &&
+        hasVerifiedSchoolId(m) &&
         (m.id === linkedMemberId ||
-          m.schoolId!.trim().toLowerCase() ===
-            linkedMemberId.trim().toLowerCase())
+          (m.schoolId &&
+            m.schoolId.trim().toLowerCase() ===
+              linkedMemberId.trim().toLowerCase()))
     ) || null;
 
   const hasScheduledEvents =
@@ -185,7 +193,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanId = regSchoolId.trim();
     const cleanName = regName.trim();
@@ -196,7 +204,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       });
       return;
     }
-    const created = onRegisterMember({
+    const created = await onRegisterMember({
       schoolId: cleanId,
       name: cleanName,
       grade: regGrade,
@@ -222,11 +230,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     onEnterAsMember('activity');
   };
 
-  const handleOfficerPinSubmit = (e: React.FormEvent) => {
+  const handleOfficerPinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = onEnterAsOfficer(pinInput, selectedDestination);
+    const res = await onEnterAsOfficer(pinInput, selectedDestination);
+    const ok = typeof res === 'boolean' ? res : res.ok;
+    const errorMsg =
+      typeof res === 'boolean' ? undefined : res.error;
     if (!ok) {
-      setPinError('Invalid access code.');
+      setPinError(errorMsg || 'Invalid access code.');
       setPinInput('');
     }
   };

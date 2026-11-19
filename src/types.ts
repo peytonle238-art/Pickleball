@@ -15,7 +15,7 @@ export interface ClubSettings {
   schoolName: string;
   primaryColor: string;
   secondaryColor: string;
-  officerPin: string;
+  officerPin?: string;
   presidentPassword?: string;
   registrationLocked?: boolean;
   broadcastNotice?: {
@@ -57,6 +57,8 @@ export interface OfficerTask {
 export interface Member {
   id: string;
   schoolId?: string;
+  schoolIdHash?: string;
+  schoolIdMasked?: string;
   photoUrl?: string;
   name: string;
   grade: GradeLevel;
@@ -287,4 +289,12 @@ export interface PendingTournamentScoreContext {
   team1PlayerIds: string[];
   team2PlayerIds: string[];
   label: string;
+}
+
+export interface ClubAuthConfig {
+  clubId: string;
+  salt: string;
+  iterations: number;
+  officerPinHash: string;
+  presidentPasswordHash: string;
 }
